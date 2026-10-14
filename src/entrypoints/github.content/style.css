@@ -1,0 +1,213 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Semantic tokens. Components use these (bg-panel, text-muted, border-line…) so light/dark is one switch. */
+@theme inline {
+  --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-bg: var(--u-bg);
+  --color-panel: var(--u-panel);
+  --color-elevated: var(--u-elevated);
+  --color-hover: var(--u-hover);
+  --color-line: var(--u-border);
+  --color-line-strong: var(--u-border-strong);
+  --color-fg: var(--u-fg);
+  --color-muted: var(--u-muted);
+  --color-subtle: var(--u-subtle);
+  --color-accent: var(--u-accent);
+  --color-accent-fg: var(--u-accent-fg);
+  --color-success: var(--u-green);
+  --color-danger: var(--u-red);
+  --color-warning: var(--u-yellow);
+  --color-merged: var(--u-purple);
+  --color-info: var(--u-blue);
+
+  --animate-enter: u-enter 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-pop: u-pop 160ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-shimmer: u-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes u-enter {
+  from { opacity: 0; transform: translateY(4px); }
+}
+@keyframes u-pop {
+  from { opacity: 0; transform: scale(0.97) translateY(-4px); }
+}
+@keyframes u-shimmer {
+  50% { opacity: 0.45; }
+}
+
+.u-root {
+  --u-bg: #fcfcfd;
+  --u-panel: #ffffff;
+  --u-elevated: #f4f5f8;
+  --u-hover: rgb(0 0 0 / 0.035);
+  --u-border: rgb(0 0 0 / 0.08);
+  --u-border-strong: rgb(0 0 0 / 0.14);
+  --u-fg: #1b1c1f;
+  --u-muted: #62666d;
+  --u-subtle: #9a9ea6;
+  --u-accent: #5e6ad2;
+  --u-accent-fg: #ffffff;
+  --u-green: #2f9e6b;
+  --u-red: #d93f3f;
+  --u-yellow: #c48a00;
+  --u-purple: #8250df;
+  --u-blue: #1f7ae0;
+  color-scheme: light;
+}
+
+.u-root.dark {
+  --u-bg: #08090a;
+  --u-panel: #0f1011;
+  --u-elevated: #18191b;
+  --u-hover: rgb(255 255 255 / 0.04);
+  --u-border: rgb(255 255 255 / 0.075);
+  --u-border-strong: rgb(255 255 255 / 0.13);
+  --u-fg: #f7f8f8;
+  --u-muted: #8a8f98;
+  --u-subtle: #5d6168;
+  --u-accent: #7170ff;
+  --u-accent-fg: #ffffff;
+  --u-green: #4cb782;
+  --u-red: #eb5757;
+  --u-yellow: #f2c94c;
+  --u-purple: #a371f7;
+  --u-blue: #4ea7fc;
+  color-scheme: dark;
+}
+
+@layer base {
+  .u-root {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.5;
+    font-feature-settings: 'cv11', 'ss01';
+    -webkit-font-smoothing: antialiased;
+    background: var(--u-bg);
+    color: var(--u-fg);
+    min-height: 100vh;
+  }
+  .u-root ::selection {
+    background: color-mix(in srgb, var(--u-accent) 35%, transparent);
+  }
+  .u-root :focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--u-accent) 70%, transparent);
+    outline-offset: 1px;
+    border-radius: 6px;
+  }
+  .u-root ::-webkit-scrollbar { width: 10px; height: 10px; }
+  .u-root ::-webkit-scrollbar-thumb {
+    background: var(--u-border-strong);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u-root *, .u-root *::before, .u-root *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+/* GitHub-rendered markdown (bodyHTML, READMEs). */
+.u-markdown {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--u-fg);
+  overflow-wrap: anywhere;
+
+  & > :first-child { margin-top: 0 !important; }
+  & > :last-child { margin-bottom: 0 !important; }
+  & p, & ul, & ol, & blockquote, & pre, & table, & details, & .markdown-alert { margin: 0 0 12px; }
+  & h1, & h2, & h3, & h4, & h5, & h6 { font-weight: 600; letter-spacing: -0.01em; margin: 20px 0 8px; line-height: 1.3; }
+  & h1 { font-size: 1.6em; }
+  & h2 { font-size: 1.3em; }
+  & h3 { font-size: 1.1em; }
+  & h4, & h5, & h6 { font-size: 1em; }
+  & a { color: var(--u-accent); text-decoration: none; }
+  & a:hover { text-decoration: underline; }
+  & ul { list-style: disc; padding-left: 1.5em; }
+  & ol { list-style: decimal; padding-left: 1.5em; }
+  & li + li { margin-top: 2px; }
+  & li > ul, & li > ol { margin: 2px 0 0; }
+  & ul.contains-task-list { list-style: none; padding-left: 0.25em; }
+  & .task-list-item input { margin-right: 6px; vertical-align: middle; accent-color: var(--u-accent); }
+  & img { max-width: 100%; display: inline-block; border-radius: 6px; }
+  & hr { border: 0; border-top: 1px solid var(--u-border); margin: 20px 0; }
+  & blockquote { border-left: 2px solid var(--u-border-strong); padding: 0 0 0 12px; color: var(--u-muted); }
+  & code, & tt {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    background: var(--u-elevated);
+    border: 1px solid var(--u-border);
+    padding: 0.1em 0.35em;
+    border-radius: 5px;
+  }
+  & pre {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.6;
+    background: var(--u-elevated);
+    border: 1px solid var(--u-border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    overflow: auto;
+  }
+  & pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+  & .highlight { margin-bottom: 12px; }
+  & .highlight pre { margin: 0; }
+  & table { border-collapse: collapse; display: block; overflow: auto; width: max-content; max-width: 100%; }
+  & th, & td { border: 1px solid var(--u-border); padding: 6px 12px; }
+  & th { font-weight: 600; background: var(--u-elevated); }
+  & details summary { cursor: pointer; color: var(--u-muted); }
+  & kbd {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    border: 1px solid var(--u-border-strong);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+  & .anchor, & .octicon-link { display: none; }
+  & svg.octicon { display: inline-block; width: 14px; height: 14px; fill: currentColor; vertical-align: text-bottom; }
+  & .user-mention, & .team-mention { font-weight: 600; color: var(--u-fg); }
+  & g-emoji { font-family: 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif; }
+  & .markdown-alert { border-left: 2px solid var(--u-blue); padding: 4px 0 4px 12px; }
+  & .markdown-alert-title { display: flex; align-items: center; gap: 6px; font-weight: 600; margin-bottom: 4px; }
+  & .markdown-alert-note { border-color: var(--u-blue); }
+  & .markdown-alert-tip { border-color: var(--u-green); }
+  & .markdown-alert-important { border-color: var(--u-purple); }
+  & .markdown-alert-warning { border-color: var(--u-yellow); }
+  & .markdown-alert-caution { border-color: var(--u-red); }
+
+  /* GitHub's syntax highlighting classes. */
+  & .pl-c { color: var(--u-subtle); font-style: italic; }
+  & .pl-k, & .pl-smi + .pl-k { color: #e5609b; }
+  & .pl-s, & .pl-pds, & .pl-s .pl-pse .pl-s1, & .pl-sr { color: var(--u-green); }
+  & .pl-en, & .pl-entl, & .pl-ent { color: var(--u-purple); }
+  & .pl-c1, & .pl-s .pl-v, & .pl-mi1 { color: var(--u-blue); }
+  & .pl-v, & .pl-smw { color: #e0823d; }
+  & .pl-md { color: var(--u-red); }
+  & .pl-mi { color: var(--u-green); }
+}
+
+/* highlight.js tokens inside diffs. */
+.u-diff {
+  & .hljs-comment, & .hljs-quote { color: var(--u-subtle); font-style: italic; }
+  & .hljs-keyword, & .hljs-selector-tag, & .hljs-doctag, & .hljs-meta .hljs-keyword { color: #e5609b; }
+  & .hljs-string, & .hljs-regexp, & .hljs-addition, & .hljs-meta .hljs-string { color: var(--u-green); }
+  & .hljs-title, & .hljs-title.function_, & .hljs-section, & .hljs-selector-id { color: var(--u-purple); }
+  & .hljs-number, & .hljs-literal, & .hljs-symbol, & .hljs-bullet, & .hljs-built_in { color: var(--u-blue); }
+  & .hljs-type, & .hljs-title.class_, & .hljs-variable.language_ { color: #e0823d; }
+  & .hljs-attr, & .hljs-attribute, & .hljs-property, & .hljs-selector-class, & .hljs-name, & .hljs-tag { color: var(--u-blue); }
+  & .hljs-params, & .hljs-variable, & .hljs-template-variable, & .hljs-subst { color: var(--u-fg); }
+  & .hljs-meta { color: var(--u-muted); }
+  & .hljs-deletion { color: var(--u-red); }
+  & .hljs-emphasis { font-style: italic; }
+  & .hljs-strong { font-weight: 600; }
+}

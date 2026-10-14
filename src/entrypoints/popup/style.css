@@ -1,0 +1,17 @@
+@import 'tailwindcss';
+
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/geist.woff2') format('woff2');
+  font-weight: 100 900;
+}
+
+body {
+  width: 320px;
+  margin: 0;
+  font-family: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  background: #0f1011;
+  color: #f7f8f8;
+  -webkit-font-smoothing: antialiased;
+}
