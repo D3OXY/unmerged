@@ -1,18 +1,14 @@
-/** A branch that forks off and never comes back: the Unmerged mark. */
+import holdout from '@/assets/logo/holdout.svg?raw';
+import holdoutSmall from '@/assets/logo/holdout-16.svg?raw';
+
+/** Holdout, the Unmerged mascot. At 28px and below it uses the version drawn on a 16px grid. */
 export function Logo({ size = 22 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect width="24" height="24" rx="7" fill="url(#u-logo)" />
-      <path d="M8.5 6.5v11M8.5 13c0-3 2-4.5 6.5-5" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" />
-      <circle cx="8.5" cy="6.5" r="1.9" fill="#fff" />
-      <circle cx="8.5" cy="17.5" r="1.9" fill="#fff" />
-      <circle cx="16" cy="8" r="1.9" fill="#fff" />
-      <defs>
-        <linearGradient id="u-logo" x1="0" y1="0" x2="24" y2="24">
-          <stop stopColor="#8b8bff" />
-          <stop offset="1" stopColor="#5e3fd6" />
-        </linearGradient>
-      </defs>
-    </svg>
+    <span
+      aria-hidden
+      className="inline-flex shrink-0 [&>svg]:size-full"
+      style={{ width: size, height: size }}
+      dangerouslySetInnerHTML={{ __html: size <= 28 ? holdoutSmall : holdout }}
+    />
   );
 }

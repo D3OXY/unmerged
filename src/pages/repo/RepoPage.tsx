@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Archive, BookOpen, CircleDot, Code2, Copy, Eye, EyeOff, FileSearch, GitBranch, GitFork, GitPullRequest, Lock, MessagesSquare, Play,
-  Settings, Star, Tag, TrendingUp,
+  Pin, PinOff, Settings, Star, Tag, TrendingUp,
 } from 'lucide-react';
 import { gql } from '@/github/client';
 import { useRegisterCommands, type Command } from '@/app/commands';
@@ -12,6 +12,7 @@ import { openClassic } from '@/lib/classic';
 import { copy } from '@/lib/clipboard';
 import { cx } from '@/lib/cx';
 import { navigate } from '@/lib/navigation';
+import { pin, unpin, useIsPinned } from '@/lib/pins';
 import { formatCount } from '@/lib/time';
 import { useTitle } from '@/lib/useTitle';
 import { Button } from '@/ui/Button';
@@ -178,9 +179,13 @@ function Toolbar({ repo, gitRef, path }: { repo: Repo; gitRef: string; path: str
   const openFinder = useCallback(() => setFinding(true), []);
   usePageHotkey('t', openFinder);
 
+  const pinned = useIsPinned(repo.nameWithOwner);
   const commands = useMemo<Command[]>(
     () => [
       { id: 'repo:find', group: 'Repository', title: 'Go to file…', hint: 'T', icon: <FileSearch />, perform: openFinder },
+      pinned
+        ? { id: 'repo:unpin', group: 'Repository', title: 'Unpin from sidebar', icon: <PinOff />, perform: () => unpin(repo.nameWithOwner) }
+        : { id: 'repo:pin', group: 'Repository', title: 'Pin to sidebar', icon: <Pin />, perform: () => pin(repo.nameWithOwner) },
       { id: 'repo:clone-https', group: 'Repository', title: 'Copy HTTPS clone URL', icon: <Copy />, perform: () => copy(`${repo.url}.git`, 'clone URL') },
       { id: 'repo:clone-ssh', group: 'Repository', title: 'Copy SSH clone URL', icon: <Copy />, perform: () => copy(repo.sshUrl, 'clone URL') },
       { id: 'repo:clone-gh', group: 'Repository', title: 'Copy gh repo clone', icon: <Copy />, perform: () => copy(`gh repo clone ${repo.nameWithOwner}`, 'clone command') },
@@ -188,7 +193,7 @@ function Toolbar({ repo, gitRef, path }: { repo: Repo; gitRef: string; path: str
       { id: 'repo:pulls', group: 'Repository', title: 'Pull requests', icon: <GitPullRequest />, perform: () => navigate(`/${repo.nameWithOwner}/pulls`) },
       { id: 'repo:actions', group: 'Repository', title: 'Actions', icon: <Play />, perform: () => navigate(`/${repo.nameWithOwner}/actions`) },
     ],
-    [repo, openFinder],
+    [repo, openFinder, pinned],
   );
   useRegisterCommands('repo', commands);
 
@@ -268,9 +273,19 @@ function RepoActions({ repo, queryKey }: { repo: Repo; queryKey: unknown[] }) {
     onError: rollback,
   });
   const subscription = repo.viewerSubscription ?? 'UNSUBSCRIBED';
+  const pinned = useIsPinned(repo.nameWithOwner);
 
   return (
     <>
+      <Button
+        size="sm"
+        variant={pinned ? 'secondary' : 'ghost'}
+        icon={pinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />}
+        onClick={() => (pinned ? unpin(repo.nameWithOwner) : pin(repo.nameWithOwner))}
+        title={pinned ? 'Unpin from sidebar' : 'Pin to sidebar'}
+      >
+        {pinned ? 'Pinned' : 'Pin'}
+      </Button>
       <Menu<Subscription>
         value={subscription}
         options={[

@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
 import { ArrowUpRight } from 'lucide-react';
-import { tokenItem } from '@/lib/settings';
+import { tokenItem, useStorageItem } from '@/lib/settings';
 import { leaveClassic } from '@/lib/classic';
 import { HomePage } from '@/pages/home/HomePage';
 import { ProfilePage } from '@/pages/profile/ProfilePage';
@@ -12,18 +11,9 @@ import { Logo } from './Logo';
 import { appState, authRejected } from './state';
 import { TokenGate } from './TokenGate';
 
-function useToken() {
-  const [token, setToken] = useState<string | null>(null);
-  useEffect(() => {
-    tokenItem.getValue().then(setToken);
-    return tokenItem.watch(setToken);
-  }, []);
-  return token;
-}
-
 export function App() {
   const state = appState.use();
-  const token = useToken();
+  const token = useStorageItem(tokenItem);
   const rejected = authRejected.use();
 
   if (state.mode === 'classic') return <ClassicPill />;

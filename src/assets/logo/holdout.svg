@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs><filter id="hd-shadow" x="-50%" y="-50%" width="200%" height="220%"><feDropShadow dx="0" dy="5" stdDeviation="4" flood-color="#03020c" flood-opacity=".45"/></filter>
+<linearGradient id="hd-body" x1="32" y1="25" x2="88" y2="101" gradientUnits="userSpaceOnUse"><stop stop-color="#b9aeff"/><stop offset=".42" stop-color="#8271e8"/><stop offset="1" stop-color="#3e306d"/></linearGradient>
+<linearGradient id="hd-boot" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#ffcdac"/><stop offset="1" stop-color="#bd715a"/></linearGradient></defs>
+<g filter="url(#hd-shadow)">
+<path d="M39 95v9c0 5 3 6 9 6h12v-7l-8-4v-6Z" fill="url(#hd-boot)"/>
+<path d="M73 94v10c0 5 3 6 9 6h12v-7l-8-4v-6Z" fill="url(#hd-boot)"/>
+<path d="M64 17C82 15 93 29 97 49L103 78C105 90 97 101 84 102H43C29 101 22 90 24 77L29 48C32 29 43 19 64 17Z" fill="url(#hd-body)"/>
+<path d="M36 63C36 50 45 44 57 44h10c12 0 19 8 19 19S77 81 65 81H57C45 81 36 75 36 63Z" fill="#fcf6e8"/>
+<ellipse cx="70" cy="63" rx="9" ry="12" fill="#252133"/>
+<circle cx="72.5" cy="59" r="2.5" fill="#fff8ec"/>
+<path d="m41 42 14-3" stroke="#382b66" stroke-width="4" stroke-linecap="round"/>
+<path d="M58 89q10 4 20-2" fill="none" stroke="#30254c" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M36 39C40 25 54 21 65 22" fill="none" stroke="#e7ddff" stroke-opacity=".6" stroke-width="2" stroke-linecap="round"/>
+</g>
+</svg>

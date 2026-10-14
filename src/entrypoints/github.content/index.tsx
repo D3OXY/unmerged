@@ -152,7 +152,9 @@ export default defineContentScript({
       'click',
       (event) => {
         const path = event.composedPath();
-        const anchor = path.find((el): el is HTMLAnchorElement => el instanceof HTMLAnchorElement);
+        // A button inside a link (e.g. unpin ×) handles its own click.
+        const control = path.find((el) => el instanceof HTMLAnchorElement || el instanceof HTMLButtonElement);
+        const anchor = control instanceof HTMLAnchorElement ? control : undefined;
         if (!anchor || event.defaultPrevented || isModifiedClick(event) || anchor.target || anchor.hasAttribute('download')) return;
         const url = new URL(anchor.href);
         if (url.origin !== location.origin) return;
