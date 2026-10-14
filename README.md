@@ -1,7 +1,13 @@
-# Unmerged
+<p align="center">
+  <img src="src/assets/logo/holdout.svg" width="112" alt="Holdout, the Unmerged mascot">
+</p>
 
-GitHub, as if it never got acquired. A browser extension that re-skins github.com in place: same URLs,
-same session, a calmer Linear/Vercel/Raycast-style UI.
+<h1 align="center">Unmerged</h1>
+
+<p align="center">
+  GitHub, as if it never got acquired. A browser extension that re-skins github.com in place: same URLs,
+  same session, a calmer Linear/Vercel/Raycast-style UI.
+</p>
 
 ## What it takes over
 
