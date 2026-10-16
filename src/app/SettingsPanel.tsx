@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowUpRight01Icon, Book02Icon, CheckListIcon, ComputerIcon, GitPullRequestIcon, Home01Icon, Key01Icon, Moon02Icon, Notification03Icon, Sun03Icon, UserIcon } from '@hugeicons/core-free-icons';
-import { AuthError, rest } from '@/github/client';
+import { GitHubError, rest } from '@/github/client';
 import { cx } from '@/lib/cx';
 import { NEW_TOKEN_URL, surfacesItem, themeItem, tokenItem, useStorageItem, type Surface, type Theme } from '@/lib/settings';
 
@@ -110,7 +110,7 @@ function Account({ token }: { token: string }) {
     setAccount({ status: 'checking' });
     rest<{ login: string; avatar_url: string }>('/user').then(
       (user) => current && setAccount({ status: 'connected', login: user.login, avatarUrl: user.avatar_url }),
-      (error) => current && setAccount({ status: error instanceof AuthError ? 'rejected' : 'offline' }),
+      (error) => current && setAccount({ status: error instanceof GitHubError && error.problem.kind === 'auth' ? 'rejected' : 'offline' }),
     );
     return () => {
       current = false;
