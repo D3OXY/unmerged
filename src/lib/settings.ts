@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useReducer, useState } from 'react';
 import { storage } from '#imports';
 
 /** Surfaces Unmerged can take over. Each can be switched off from the popup. */
@@ -27,6 +27,18 @@ export function isDark(theme: Theme) {
   if (theme !== 'auto') return theme === 'dark';
   const mode = document.documentElement.dataset.colorMode;
   return mode === 'dark' || (mode !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+}
+
+/** Whether the dark theme is showing; follows the setting and, on "auto", the OS. */
+export function useIsDark() {
+  const theme = useStorageItem(themeItem);
+  const [, osChanged] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => {
+    const query = matchMedia('(prefers-color-scheme: dark)');
+    query.addEventListener('change', osChanged);
+    return () => query.removeEventListener('change', osChanged);
+  }, []);
+  return isDark(theme ?? 'auto');
 }
 
 /** Pinned repos ("owner/name"), in sidebar order. Synced across the user's browsers. */

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQuery, type QueryKey } from '@tanstack/react-query';
 import { Check, Copy, FileDiff, GitCommitHorizontal, GitPullRequestDraft, Link2, ListChecks, MessageSquare, PanelsTopLeft, Terminal } from 'lucide-react';
 import { gql } from '@/github/client';
@@ -7,6 +7,7 @@ import { PageHeader, Shell } from '@/app/Shell';
 import { openClassic } from '@/lib/classic';
 import { copy } from '@/lib/clipboard';
 import { cx } from '@/lib/cx';
+import { loadDiffs } from '@/lib/diffs';
 import { navigate } from '@/lib/navigation';
 import type { PrTab } from '@/lib/routes';
 import { timeAgo } from '@/lib/time';
@@ -28,6 +29,11 @@ type Props = { owner: string; repo: string; number: number; tab: PrTab };
 /** A pull request: shared header and tab bar over Conversation, Commits, Checks and Files changed. */
 export function PrPage({ owner, repo, number, tab }: Props) {
   const queryKey = useMemo(() => ['pr', owner.toLowerCase(), repo.toLowerCase(), number], [owner, repo, number]);
+  // Warm up the diff renderer while the reader is on another tab, so Files changed opens without waiting.
+  useEffect(() => {
+    const id = requestIdleCallback(() => loadDiffs().catch(() => {}));
+    return () => cancelIdleCallback(id);
+  }, []);
   const { data, isPending, error } = useQuery({
     queryKey,
     queryFn: () => gql<PrData>(PR_QUERY, { owner, repo, number }, true),

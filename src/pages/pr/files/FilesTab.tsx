@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
+import { WrapText } from 'lucide-react';
 import { gql, rest } from '@/github/client';
 import { cx } from '@/lib/cx';
 import { Skeleton } from '@/ui/primitives';
@@ -69,6 +70,7 @@ function pinScroll(el: HTMLElement) {
 }
 
 const MODE_KEY = 'unmerged:diff-mode';
+const WRAP_KEY = 'unmerged:diff-wrap';
 const BIG_FILE = 600; // changed lines above which a file starts collapsed
 
 /** Files changed: file tree on the left, diffs on the right, "Viewed" synced with GitHub. */
@@ -78,6 +80,7 @@ export function FilesTab({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey
   const viewedKey = ['pr-viewed', pr.id];
   const viewed = useQuery({ queryKey: viewedKey, queryFn: () => fetchViewed(pr.id) });
   const [mode, setMode] = useState<DiffMode>(() => (localStorage.getItem(MODE_KEY) === 'split' ? 'split' : 'unified'));
+  const [wrap, setWrap] = useState(() => localStorage.getItem(WRAP_KEY) !== 'false');
   const [openOverride, setOpenOverride] = useState<Record<string, boolean>>({});
   const [active, setActive] = useState<string>();
   const [anchors, setAnchors] = useState<Record<string, string>>({});
@@ -176,6 +179,10 @@ export function FilesTab({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey
     setMode(next);
     localStorage.setItem(MODE_KEY, next);
   };
+  const toggleWrap = () => {
+    setWrap(!wrap);
+    localStorage.setItem(WRAP_KEY, String(!wrap));
+  };
 
   return (
     <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
@@ -201,6 +208,16 @@ export function FilesTab({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey
             <button type="button" onClick={() => setAllOpen(true)} className="cursor-pointer text-muted hover:text-fg">
               Expand all
             </button>
+            <button
+              type="button"
+              onClick={toggleWrap}
+              aria-pressed={wrap}
+              title={wrap ? 'Long lines wrap' : 'Long lines scroll'}
+              className={cx('flex h-7 cursor-pointer items-center gap-1.5 rounded-lg border px-2 text-[12px]', wrap ? 'border-line-strong bg-elevated text-fg' : 'border-line text-muted hover:text-fg')}
+            >
+              <WrapText className="size-3.5" />
+              Wrap
+            </button>
             <div className="flex rounded-lg border border-line bg-panel p-0.5">
               {(['unified', 'split'] as const).map((m) => (
                 <button
@@ -224,6 +241,7 @@ export function FilesTab({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey
             queryKey={queryKey}
             anchor={anchors[file.filename]}
             mode={mode}
+            wrap={wrap}
             open={isOpen(file)}
             viewed={isViewed(file.filename)}
             threads={threadsByPath.get(file.filename) ?? []}

@@ -1,47 +1,42 @@
-export type DiffLine = { type: 'add' | 'del' | 'ctx'; old?: number; new?: number; text: string };
-export type Hunk = { header: string; lines: DiffLine[] };
+import type { PrFile } from './FileDiff';
 
-/** Parses a unified-diff patch (as returned per file by GitHub's REST API) into hunks with line numbers. */
-export function parsePatch(patch: string): Hunk[] {
-  const hunks: Hunk[] = [];
-  let hunk: Hunk | undefined;
-  let oldNo = 0;
-  let newNo = 0;
-  for (const raw of patch.split('\n')) {
-    const header = raw.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
-    if (header) {
-      oldNo = Number(header[1]);
-      newNo = Number(header[2]);
-      hunk = { header: raw, lines: [] };
-      hunks.push(hunk);
-    } else if (hunk && !raw.startsWith('\\')) {
-      const text = raw.slice(1);
-      if (raw[0] === '+') hunk.lines.push({ type: 'add', new: newNo++, text });
-      else if (raw[0] === '-') hunk.lines.push({ type: 'del', old: oldNo++, text });
-      else hunk.lines.push({ type: 'ctx', old: oldNo++, new: newNo++, text });
-    }
+/** GitHub's per-file `patch` is bare hunks; the renderer needs a git header to know the names and kind of change. */
+export function gitPatch(file: PrFile, patch: string) {
+  const old = file.previous_filename ?? file.filename;
+  const header = [`diff --git a/${old} b/${file.filename}`];
+  if (file.status === 'added') header.push('new file mode 100644', '--- /dev/null', `+++ b/${file.filename}`);
+  else if (file.status === 'removed') header.push('deleted file mode 100644', `--- a/${old}`, '+++ /dev/null');
+  else {
+    if (file.previous_filename) header.push(`rename from ${old}`, `rename to ${file.filename}`);
+    header.push(`--- a/${old}`, `+++ b/${file.filename}`);
   }
-  return hunks;
+  return `${header.join('\n')}\n${patch}`;
 }
 
-export type SplitRow = { left?: DiffLine; right?: DiffLine };
-
-/** Pairs a hunk's lines side by side: each run of deletions lines up with the additions that follow it. */
-export function splitRows(lines: DiffLine[]): SplitRow[] {
-  const rows: SplitRow[] = [];
-  let i = 0;
-  while (i < lines.length) {
-    const line = lines[i]!;
-    if (line.type === 'ctx') {
-      rows.push({ left: line, right: line });
-      i++;
-      continue;
-    }
-    const dels: DiffLine[] = [];
-    const adds: DiffLine[] = [];
-    while (lines[i]?.type === 'del') dels.push(lines[i++]!);
-    while (lines[i]?.type === 'add') adds.push(lines[i++]!);
-    for (let k = 0; k < Math.max(dels.length, adds.length); k++) rows.push({ left: dels[k], right: adds[k] });
+/**
+ * The old version of a file, rebuilt from its new version and the patch between them: outside the hunks
+ * the two are identical, and inside them the patch has every old line. Saves finding and fetching the
+ * merge base when someone expands unchanged lines.
+ */
+export function oldContents(newText: string, patch: string) {
+  const next = newText.split('\n');
+  const old: string[] = [];
+  let copied = 0; // new-file lines accounted for so far
+  const copyUntil = (line: number) => {
+    while (copied < line) old.push(next[copied++] ?? '');
+  };
+  for (const raw of patch.split('\n')) {
+    const hunk = raw.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/);
+    if (hunk) {
+      const start = Number(hunk[1]);
+      // `+5,3` starts at new line 5; an empty new side (`+5,0`) sits after line 5.
+      copyUntil(hunk[2] === '0' ? start : start - 1);
+    } else if (raw[0] === '-') old.push(raw.slice(1));
+    else if (raw[0] === ' ') {
+      old.push(raw.slice(1));
+      copied++;
+    } else if (raw[0] === '+') copied++;
   }
-  return rows;
+  copyUntil(next.length);
+  return old.join('\n');
 }

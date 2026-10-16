@@ -45,6 +45,9 @@ Open github.com and paste a token when asked
   Everything else is a normal page load. Back/forward onto owned pages is claimed before GitHub's router
   sees it.
 - Keys aimed at GitHub's hidden page are swallowed so its hotkeys don't fire.
+- Diffs are drawn by [`@pierre/diffs`](https://diffs.com) with Shiki. It lives in a separate script that pull
+  request pages load in the background, and each language's grammar loads on first use, so every other page
+  pays nothing for it.
 
 ## Shortcuts
 
