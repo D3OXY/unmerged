@@ -20,6 +20,9 @@ export function timeAgo(iso: string) {
 const dateFormat = new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' });
 export const fullDate = (iso: string) => dateFormat.format(new Date(iso));
 
+const shortDate = new Intl.DateTimeFormat('en', { dateStyle: 'medium' });
+export const formatDate = (iso: string) => shortDate.format(new Date(iso));
+
 const monthYear = new Intl.DateTimeFormat('en', { month: 'short', year: 'numeric' });
 export const formatMonthYear = (iso: string) => monthYear.format(new Date(iso));
 

@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowUpRight, AtSign, Building2, CalendarDays, GitFork, Heart, Link2, Lock, MapPin, Search, Star } from 'lucide-react';
-import { fetchAchievements, type Achievement } from '@/github/achievements';
+import { useAchievements, type Achievement } from '@/github/achievements';
 import { gql, restHtml } from '@/github/client';
 import { absolutizeReadme } from '@/github/readme';
 import { REPO_CARD_FIELDS, type RepoCard } from '@/github/types';
@@ -16,6 +16,7 @@ import { PrStateIcon } from '@/ui/status';
 import { PR_ROW_FIELDS, type PrRowData } from '@/ui/WorkRow';
 import { ContributionGraph, type ContributionWeek } from './ContributionGraph';
 import { FollowButton } from './FollowButton';
+import { TierLabel } from './TierLabel';
 
 const PROFILE_QUERY = /* GraphQL */ `
   query Profile($login: String!) {
@@ -447,15 +448,9 @@ function Contributions({ user }: { user: Profile }) {
   );
 }
 
-const METALS: Record<string, string> = { bronze: '#c38b5f', silver: '#a5b1bd', gold: '#e3b341' };
-
 /** The header card's lower half. Placeholders while loading; gone entirely when there are none. */
 function Achievements({ login }: { login: string }) {
-  const { data, isPending } = useQuery({
-    queryKey: ['achievements', login.toLowerCase()],
-    queryFn: () => fetchAchievements(login),
-    staleTime: 60 * 60_000,
-  });
+  const { data, isPending } = useAchievements(login);
   if (!isPending && !data?.length) return null;
   return (
     <div className="border-t border-line px-3.5 pt-3 pb-3.5">
@@ -477,7 +472,6 @@ function Achievements({ login }: { login: string }) {
 }
 
 function AchievementBadge({ login, achievement: { slug, name, image, tier } }: { login: string; achievement: Achievement }) {
-  const metal = tier?.metal ? METALS[tier.metal] : undefined;
   return (
     <a
       href={`/${login}?achievement=${slug}&tab=achievements`}
@@ -485,14 +479,7 @@ function AchievementBadge({ login, achievement: { slug, name, image, tier } }: {
       className="relative transition-transform hover:scale-105"
     >
       <img src={image} alt={name} className="size-12" />
-      {tier && (
-        <span
-          className="absolute -right-1 -bottom-0.5 rounded-full border border-line-strong bg-elevated px-1 text-[9.5px] leading-[14px] font-semibold"
-          style={metal ? { color: metal, borderColor: `color-mix(in srgb, ${metal} 45%, transparent)` } : undefined}
-        >
-          {tier.label}
-        </span>
-      )}
+      {tier && <TierLabel tier={tier} className="absolute -right-1 -bottom-0.5 px-1 text-[9.5px] leading-[14px]" />}
     </a>
   );
 }

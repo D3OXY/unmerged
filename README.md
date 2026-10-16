@@ -14,7 +14,7 @@
 | Page | URL | Fallback |
 |---|---|---|
 | Home | `github.com/` (signed in) | Logged-out marketing page is left alone |
-| Profile | `github.com/<user>`, `?tab=followers`, `?tab=following` | Organizations and other `?tab=` views stay on GitHub |
+| Profile | `github.com/<user>`, `?tab=repositories`, `?tab=achievements`, `?tab=followers`, `?tab=following` | Organizations, Stars and other `?tab=` views stay on GitHub |
 | Pull request | `github.com/<owner>/<repo>/pull/<n>` plus `/commits`, `/checks`, `/files` | Single-commit views stay on GitHub |
 | Repository | `github.com/<owner>/<repo>`, `/tree/…`, `/blob/…` | Issues, Actions, Settings, etc. stay on GitHub |
 

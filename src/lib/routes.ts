@@ -2,8 +2,11 @@ import { isKnownOrg } from './orgs';
 
 export type PrTab = 'conversation' | 'commits' | 'checks' | 'files';
 
-/** Profile views Unmerged renders; other `?tab=` values (repositories, stars…) stay on GitHub. */
-export type ProfileTab = 'overview' | 'followers' | 'following';
+/** Profile views Unmerged renders; other `?tab=` values (stars, packages…) stay on GitHub. */
+export type ProfileTab = 'overview' | 'repositories' | 'achievements' | 'followers' | 'following';
+
+const PROFILE_TABS: readonly string[] = ['overview', 'repositories', 'achievements', 'followers', 'following'] satisfies ProfileTab[];
+const isProfileTab = (tab: string): tab is ProfileTab => PROFILE_TABS.includes(tab);
 
 export type Route =
   | { kind: 'home' }
@@ -37,7 +40,7 @@ export function matchRoute(url: URL): Route | null {
   const [first, second, third, fourth, fifth] = parts;
   if (parts.length === 1 && first && !RESERVED.has(first.toLowerCase()) && !isKnownOrg(first)) {
     const tab = url.searchParams.get('tab') || 'overview';
-    return tab === 'overview' || tab === 'followers' || tab === 'following' ? { kind: 'profile', login: first, tab } : null;
+    return isProfileTab(tab) ? { kind: 'profile', login: first, tab } : null;
   }
 
   if (first && second && !RESERVED.has(first.toLowerCase())) {
