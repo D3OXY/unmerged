@@ -69,7 +69,7 @@ export function Menu<T extends string>({
       ref={panelRef}
       role="menu"
       style={placement ? { top: placement.top, left: placement.left, right: placement.right } : { visibility: 'hidden' }}
-      className="fixed z-[60] w-64 animate-pop rounded-xl border border-line-strong bg-elevated p-1 shadow-2xl shadow-black/30"
+      className="fixed z-[60] max-h-80 w-64 animate-pop overflow-y-auto rounded-xl border border-line-strong bg-elevated p-1 shadow-2xl shadow-black/30"
     >
       {options.map((option) => (
         <button

@@ -6,7 +6,7 @@ import { timeAgo, fullDate } from '@/lib/time';
 import { Avatar, Markdown, Panel, Skeleton } from '@/ui/primitives';
 import { CheckIcon } from '@/ui/status';
 import { fetchEntryCommits, type LastCommit, type TreeEntry } from './query';
-import { blobUrl, rawUrl, treeUrl } from './urls';
+import { blobUrl, commitsUrl, rawUrl, treeUrl } from './urls';
 
 type Props = { nameWithOwner: string; gitRef: string; path: string; entries: TreeEntry[]; lastCommit?: LastCommit; commitCount?: number };
 
@@ -110,7 +110,7 @@ export function CommitBar({ nameWithOwner, gitRef, path, commit, count }: { name
           {commit.abbreviatedOid}
         </a>
         <span title={fullDate(commit.committedDate)}>{timeAgo(commit.committedDate)}</span>
-        <a href={`/${nameWithOwner}/commits/${gitRef}${path ? `/${path}` : ''}`} className="flex items-center gap-1.5 rounded-md px-2 py-1 font-medium text-muted hover:bg-hover hover:text-fg">
+        <a href={commitsUrl(nameWithOwner, gitRef, path)} className="flex items-center gap-1.5 rounded-md px-2 py-1 font-medium text-muted hover:bg-hover hover:text-fg">
           <History className="size-3.5" />
           {count !== undefined ? `${count.toLocaleString()} commit${count === 1 ? '' : 's'}` : 'History'}
         </a>

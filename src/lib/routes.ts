@@ -11,6 +11,8 @@ const isProfileTab = (tab: string): tab is ProfileTab => PROFILE_TABS.includes(t
 /** Which of your pull requests or issues a list shows; GitHub's own path segments (`/pulls/assigned`). */
 export type WorkFilter = 'created' | 'assigned' | 'mentioned' | 'review-requested';
 
+export type RepoView = 'code' | 'commits';
+
 export type Route =
   | { kind: 'home' }
   | { kind: 'work'; type: 'pr' | 'issue'; filter: WorkFilter }
@@ -18,10 +20,11 @@ export type Route =
   | { kind: 'profile'; login: string; tab: ProfileTab }
   | { kind: 'pr'; owner: string; repo: string; number: number; tab: PrTab }
   /**
-   * Repo code browser for /owner/repo, /tree/… and /blob/…. `rest` is "<ref>/<path…>" split on "/"; branch
-   * names can contain slashes, so it's resolved against the repo later (and whether it's a file or folder).
+   * Repo code browser for /owner/repo, /tree/… and /blob/…, and its history for /commits/…. `rest` is
+   * "<ref>/<path…>" split on "/"; branch names can contain slashes, so it's resolved against the repo later
+   * (and whether it's a file or folder).
    */
-  | { kind: 'repo'; owner: string; repo: string; rest: string[] };
+  | { kind: 'repo'; owner: string; repo: string; view: RepoView; rest: string[] };
 
 const PR_TABS: Record<string, PrTab> = { commits: 'commits', checks: 'checks', files: 'files', changes: 'files' };
 
@@ -58,8 +61,9 @@ export function matchRoute(url: URL): Route | null {
   }
 
   if (first && second && !RESERVED.has(first.toLowerCase())) {
-    if (parts.length === 2) return { kind: 'repo', owner: first, repo: second, rest: [] };
-    if ((third === 'tree' || third === 'blob') && parts.length > 3) return { kind: 'repo', owner: first, repo: second, rest: parts.slice(3) };
+    if (parts.length === 2) return { kind: 'repo', owner: first, repo: second, view: 'code', rest: [] };
+    if ((third === 'tree' || third === 'blob') && parts.length > 3) return { kind: 'repo', owner: first, repo: second, view: 'code', rest: parts.slice(3) };
+    if (third === 'commits') return { kind: 'repo', owner: first, repo: second, view: 'commits', rest: parts.slice(3) };
   }
 
   if (first && second && third === 'pull' && fourth && /^\d+$/.test(fourth)) {

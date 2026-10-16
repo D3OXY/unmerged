@@ -10,7 +10,7 @@ import { onNavigate } from '@/lib/navigation';
 import { Markdown, Panel, Skeleton } from '@/ui/primitives';
 import { CommitBar } from './TreeView';
 import type { LastCommit } from './query';
-import { blobUrl, rawUrl } from './urls';
+import { blobUrl, commitsUrl, rawUrl } from './urls';
 
 type Blob = { oid: string; byteSize: number; isBinary: boolean | null; isTruncated: boolean; text: string | null };
 
@@ -88,7 +88,7 @@ export function BlobView({ nameWithOwner, gitRef, path, blob, lastCommit }: { na
         <span className="tabular-nums">{formatBytes(blob.byteSize)}</span>
         <span className="ml-auto flex items-center gap-1">
           <Action href={`/${nameWithOwner}/blame/${gitRef}/${path}`} icon={<Users />} label="Blame" />
-          <Action href={`/${nameWithOwner}/commits/${gitRef}/${path}`} icon={<History />} label="History" />
+          <Action href={commitsUrl(nameWithOwner, gitRef, path)} icon={<History />} label="History" />
           <Action href={raw} icon={<Download />} label="Raw" />
           {blob.text !== null && (
             <button type="button" onClick={() => copy(blob.text!, 'file contents')} className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2 hover:bg-hover hover:text-fg">

@@ -6,10 +6,9 @@ import { cx } from '@/lib/cx';
 import { navigate } from '@/lib/navigation';
 import { useDismiss } from '@/ui/useDismiss';
 import { REFS_QUERY, type RefsData } from './query';
-import { treeUrl } from './urls';
 
-/** Branch/tag switcher. Switching keeps the current folder, like GitHub. */
-export function BranchPicker({ owner, name, current, path }: { owner: string; name: string; current: string; path: string }) {
+/** Branch/tag switcher. `hrefFor` maps a ref to the same page on it (same folder, same history), like GitHub. */
+export function BranchPicker({ owner, name, current, hrefFor }: { owner: string; name: string; current: string; hrefFor: (ref: string) => string }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [kind, setKind] = useState<'branches' | 'tags'>('branches');
@@ -69,7 +68,7 @@ export function BranchPicker({ owner, name, current, path }: { owner: string; na
                 type="button"
                 onClick={() => {
                   setOpen(false);
-                  navigate(treeUrl(`${owner}/${name}`, refName, path));
+                  navigate(hrefFor(refName));
                 }}
                 className="flex h-8 w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 text-left text-[12.5px] hover:bg-hover"
               >
