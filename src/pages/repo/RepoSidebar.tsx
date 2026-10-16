@@ -1,10 +1,11 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { GitForkIcon, JusticeScale01Icon, Link02Icon, StarIcon, Tag01Icon, ViewIcon } from '@hugeicons/core-free-icons';
+import { GitForkIcon, JusticeScale01Icon, Link02Icon, Settings02Icon, StarIcon, Tag01Icon, ViewIcon } from '@hugeicons/core-free-icons';
 import { rest } from '@/github/client';
 import { formatCount, timeAgo } from '@/lib/time';
 import { Avatar, LanguageDot } from '@/ui/primitives';
+import { AboutDialog } from './AboutDialog';
 import { repoAboutQuery, type Repo } from './query';
 import { persisted } from '@/lib/persist';
 
@@ -20,12 +21,24 @@ export function RepoSidebar({ repo }: { repo: Repo }) {
   });
   const [owner, name] = repo.nameWithOwner.split('/') as [string, string];
   const { data: about } = useQuery(repoAboutQuery(owner, name));
+  const [editing, setEditing] = useState(false);
   const homepage = repo.homepageUrl && (repo.homepageUrl.startsWith('http') ? repo.homepageUrl : `https://${repo.homepageUrl}`);
 
   return (
     <aside className="flex flex-col gap-7">
-      <Section title="About">
-        <p className="text-[13px] leading-relaxed text-fg/90">{repo.description ?? <span className="text-subtle italic">No description</span>}</p>
+      <Section
+        title="About"
+        action={
+          // Waits for `about`: saving without its topics would clear them.
+          repo.viewerCanAdminister &&
+          about && (
+            <button type="button" onClick={() => setEditing(true)} aria-label="Edit repository details" title="Edit repository details" className="flex cursor-pointer">
+              <HugeiconsIcon icon={Settings02Icon} className="size-3.5" />
+            </button>
+          )
+        }
+      >
+        <p className="text-[13px] leading-relaxed text-fg/90">{repo.description || <span className="text-subtle italic">No description</span>}</p>
         {homepage && (
           <a href={homepage} target="_blank" rel="noreferrer" className="mt-2.5 flex items-center gap-1.5 truncate text-[12.5px] font-medium text-accent hover:underline">
             <HugeiconsIcon icon={Link02Icon} className="size-3.5 shrink-0" />
@@ -104,6 +117,7 @@ export function RepoSidebar({ repo }: { repo: Repo }) {
           </div>
         </Section>
       )}
+      {editing && about && <AboutDialog repo={repo} topics={about.repositoryTopics.nodes.map(({ topic }) => topic.name)} onClose={() => setEditing(false)} />}
     </aside>
   );
 }
