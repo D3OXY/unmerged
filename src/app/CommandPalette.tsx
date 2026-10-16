@@ -10,6 +10,7 @@ import { cx } from '@/lib/cx';
 import { formatCount } from '@/lib/time';
 import { useDebounced } from '@/lib/useDebounced';
 import { homeQueries } from '@/pages/home/queries';
+import { useUnreadCount } from '@/pages/notifications/queries';
 import type { ListPage } from '@/pages/work/queries';
 import { Modal } from '@/ui/Modal';
 import { Avatar, Kbd } from '@/ui/primitives';
@@ -61,7 +62,7 @@ type SearchResult = {
 const WORK_LIMIT = 8;
 
 /** Commands that are always available, regardless of page: navigation, appearance and help. */
-function navigationCommands(): Command[] {
+function navigationCommands(unread: string | null): Command[] {
   const login = sessionLogin();
   const go = (href: string) => () => navigate(href);
   return [
@@ -71,7 +72,7 @@ function navigationCommands(): Command[] {
       : []),
     { id: 'nav:pulls', group: 'Navigate', title: 'Pull requests', icon: <HugeiconsIcon icon={GitPullRequestIcon} />, perform: go('/pulls') },
     { id: 'nav:issues', group: 'Navigate', title: 'Issues', icon: <HugeiconsIcon icon={CircleDotIcon} />, perform: go('/issues') },
-    { id: 'nav:notifications', group: 'Navigate', title: 'Notifications', icon: <HugeiconsIcon icon={Notification03Icon} />, perform: go('/notifications') },
+    { id: 'nav:notifications', group: 'Navigate', title: 'Notifications', icon: <HugeiconsIcon icon={Notification03Icon} />, hint: unread ? `${unread} unread` : undefined, perform: go('/notifications') },
     { id: 'nav:stars', group: 'Navigate', title: 'Your stars', icon: <HugeiconsIcon icon={StarIcon} />, perform: go(login ? `/${login}?tab=stars` : '/stars') },
     { id: 'settings', group: 'Appearance', title: 'Settings', keywords: 'preferences token pages reload', icon: <HugeiconsIcon icon={Settings02Icon} />, perform: () => settingsOpen.set(true) },
     { id: 'theme:light', group: 'Appearance', title: 'Light theme', keywords: 'mode', icon: <HugeiconsIcon icon={Sun03Icon} />, perform: () => themeItem.setValue('light') },
@@ -155,6 +156,7 @@ function PaletteDialog() {
   // Results for an older query are dropped rather than shown under a newer one.
   const settled = debounced === q;
   const ref = parseRef(debounced, here);
+  const unread = useUnreadCount();
 
   const search = useQuery({
     queryKey: ['palette', debounced],
@@ -173,7 +175,7 @@ function PaletteDialog() {
 
   const items = useMemo(() => {
     const jump = directJump(q, here, settled ? resolved.data : undefined);
-    const local = [...pageCommands, ...navigationCommands()].filter((c) => !q || matches(`${c.title} ${c.keywords ?? ''} ${c.group}`, q));
+    const local = [...pageCommands, ...navigationCommands(unread)].filter((c) => !q || matches(`${c.title} ${c.keywords ?? ''} ${c.group}`, q));
     const remote: Command[] = [];
     if (q.length >= 2 && !jump) {
       // Cached title matches first, then the search's, once each.
@@ -207,7 +209,7 @@ function PaletteDialog() {
       }
     }
     return [...(jump ? [jump] : []), ...local, ...remote];
-  }, [q, here, settled, resolved.data, pageCommands, client, search.data]);
+  }, [q, here, settled, resolved.data, pageCommands, client, search.data, unread]);
 
   const close = () => paletteOpen.set(false);
   const run = (command: Command | undefined) => {
