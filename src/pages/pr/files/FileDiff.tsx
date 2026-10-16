@@ -5,9 +5,9 @@ import { ArrowRight01Icon, Copy01Icon, File02Icon, Tick02Icon } from '@hugeicons
 import { copy } from '@/lib/clipboard';
 import { cx } from '@/lib/cx';
 import type { PullRequest, ReviewThread, ViewedState } from '../query';
-import { DiffBody } from './DiffBody';
+import { DiffBody, type DiffSource } from './DiffBody';
 
-/** One file from GET /repos/{owner}/{repo}/pulls/{number}/files. `patch` is missing for binary or huge files. */
+/** One changed file of a pull request or commit (GitHub REST). `patch` is missing for binary or huge files. */
 export type PrFile = {
   sha: string;
   filename: string;
@@ -29,25 +29,34 @@ const STATUS: Partial<Record<PrFile['status'], [string, string]>> = {
   copied: ['Copied', 'text-info bg-info/10'],
 };
 
-type Props = {
-  file: PrFile;
+/** What a pull request's cards share (one object for all of them): line comments and the "Viewed" toggle. */
+export type FileReview = {
   pr: PullRequest;
   queryKey: QueryKey;
+  onToggleViewed: (change: { path: string; wasViewed: boolean }) => void;
+};
+
+const NO_THREADS: ReviewThread[] = [];
+
+type Props = {
+  file: PrFile;
+  source: DiffSource;
+  /** Pull requests only; commits show the diff without review controls. */
+  review?: FileReview;
   anchor?: string;
   mode: DiffMode;
   wrap: boolean;
   open: boolean;
-  /** Undefined until the viewer's marks load. */
+  /** Pull requests: undefined until the viewer's marks load. */
   viewState?: ViewedState;
-  threads: ReviewThread[];
+  threads?: ReviewThread[];
   // Shared by every card (they take the path), so a card re-renders only when its own props change.
   onSetOpen: (path: string, open: boolean) => void;
-  onToggleViewed: (change: { path: string; wasViewed: boolean }) => void;
   cardRef: (path: string, el: HTMLElement | null) => void;
 };
 
 /** A file card: sticky header with view state, then the diff with inline review threads. */
-export const FileDiff = memo(function FileDiff({ file, pr, queryKey, anchor, mode: preferredMode, wrap, open, viewState, threads, onSetOpen, onToggleViewed, cardRef }: Props) {
+export const FileDiff = memo(function FileDiff({ file, source, review, anchor, mode: preferredMode, wrap, open, viewState, threads = NO_THREADS, onSetOpen, cardRef }: Props) {
   const viewed = viewState === 'VIEWED';
   const onToggleOpen = () => onSetOpen(file.filename, !open);
   // One-sided files would leave half of a split view empty.
@@ -88,20 +97,22 @@ export const FileDiff = memo(function FileDiff({ file, pr, queryKey, anchor, mod
             Changed since viewed
           </span>
         )}
-        <button
-          type="button"
-          onClick={() => onToggleViewed({ path: file.filename, wasViewed: viewed })}
-          disabled={!viewState}
-          className={cx(
-            'flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border px-2 text-[12px] transition-colors disabled:cursor-default',
-            viewed ? 'border-accent/40 bg-accent/12 text-fg' : 'border-line text-muted hover:border-line-strong hover:text-fg',
-          )}
-        >
-          <span className={cx('flex size-3.5 items-center justify-center rounded-[4px] border', viewed ? 'border-accent bg-accent text-white' : 'border-line-strong')}>
-            {viewed && <HugeiconsIcon icon={Tick02Icon} className="size-2.5" strokeWidth={3.5} />}
-          </span>
-          Viewed
-        </button>
+        {review && (
+          <button
+            type="button"
+            onClick={() => review.onToggleViewed({ path: file.filename, wasViewed: viewed })}
+            disabled={!viewState}
+            className={cx(
+              'flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border px-2 text-[12px] transition-colors disabled:cursor-default',
+              viewed ? 'border-accent/40 bg-accent/12 text-fg' : 'border-line text-muted hover:border-line-strong hover:text-fg',
+            )}
+          >
+            <span className={cx('flex size-3.5 items-center justify-center rounded-[4px] border', viewed ? 'border-accent bg-accent text-white' : 'border-line-strong')}>
+              {viewed && <HugeiconsIcon icon={Tick02Icon} className="size-2.5" strokeWidth={3.5} />}
+            </span>
+            Viewed
+          </button>
+        )}
       </header>
 
       {open &&
@@ -114,7 +125,7 @@ export const FileDiff = memo(function FileDiff({ file, pr, queryKey, anchor, mod
           </div>
         ) : (
           <LazyBody estimatedHeight={file.patch.split('\n').length * 20}>
-            <DiffBody file={file} patch={file.patch} pr={pr} queryKey={queryKey} mode={mode} wrap={wrap} threads={threads} />
+            <DiffBody file={file} patch={file.patch} source={source} review={review && { pr: review.pr, queryKey: review.queryKey, threads }} mode={mode} wrap={wrap} />
           </LazyBody>
         ))}
     </section>

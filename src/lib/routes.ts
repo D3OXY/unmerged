@@ -21,12 +21,17 @@ export type Route =
   | { kind: 'profile'; login: string; tab: ProfileTab }
   | { kind: 'pr'; owner: string; repo: string; number: number; tab: PrTab }
   | { kind: 'issue'; owner: string; repo: string; number: number }
+  /** One commit; `pr` when it was opened from a pull request's commits (/pull/<n>/commits/<sha>). */
+  | { kind: 'commit'; owner: string; repo: string; sha: string; pr?: number }
   /**
    * A repo: code browser for /owner/repo, /tree/… and /blob/…, history for /commits/…, and the /issues and
    * /pulls lists. `rest` is "<ref>/<path…>" split on "/" (empty for the lists); branch names can contain
    * slashes, so it's resolved against the repo later (and whether it's a file or folder).
    */
   | { kind: 'repo'; owner: string; repo: string; view: RepoView; rest: string[] };
+
+// Hex only, so /commit/<sha>.patch and .diff stay GitHub's.
+const isSha = (part: string | undefined): part is string => !!part && /^[0-9a-f]{7,40}$/i.test(part);
 
 const PR_TABS: Record<string, PrTab> = { commits: 'commits', checks: 'checks', files: 'files', changes: 'files' };
 
@@ -56,7 +61,7 @@ export function matchRoute(url: URL): Route | null {
 
   if (parts.length === 0) return { kind: 'home' };
 
-  const [first, second, third, fourth, fifth] = parts;
+  const [first, second, third, fourth, fifth, sixth] = parts;
   if (first === 'notifications' && parts.length === 1) return { kind: 'notifications' };
   if ((first === 'pulls' || first === 'issues') && parts.length <= 2) {
     const filter = (first === 'pulls' ? PULL_FILTERS : ISSUE_FILTERS)[second ?? ''];
@@ -73,9 +78,11 @@ export function matchRoute(url: URL): Route | null {
     if (third === 'commits') return { kind: 'repo', owner: first, repo: second, view: 'commits', rest: parts.slice(3) };
     if ((third === 'issues' || third === 'pulls') && parts.length === 3) return { kind: 'repo', owner: first, repo: second, view: third, rest: [] };
     if (third === 'issues' && fourth && /^\d+$/.test(fourth) && parts.length === 4) return { kind: 'issue', owner: first, repo: second, number: Number(fourth) };
+    if (third === 'commit' && parts.length === 4 && isSha(fourth)) return { kind: 'commit', owner: first, repo: second, sha: fourth };
   }
 
   if (first && second && third === 'pull' && fourth && /^\d+$/.test(fourth)) {
+    if (fifth === 'commits' && parts.length === 6 && isSha(sixth)) return { kind: 'commit', owner: first, repo: second, sha: sixth, pr: Number(fourth) };
     const tab = parts.length === 4 ? 'conversation' : parts.length === 5 && fifth ? PR_TABS[fifth] : undefined;
     if (tab) return { kind: 'pr', owner: first, repo: second, number: Number(fourth), tab };
   }

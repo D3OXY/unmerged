@@ -2,7 +2,7 @@ import { useEffect, useReducer, useState } from 'react';
 import { browser, storage } from '#imports';
 
 /** Surfaces Unmerged can take over. Each can be switched off from the popup. */
-export type Surface = 'home' | 'profile' | 'pr' | 'issue' | 'repo' | 'work' | 'notifications';
+export type Surface = 'home' | 'profile' | 'pr' | 'issue' | 'commit' | 'repo' | 'work' | 'notifications';
 
 export type Surfaces = Record<Surface, boolean>;
 
@@ -24,7 +24,7 @@ export function openSettingsPage() {
   browser.runtime.sendMessage('open-settings');
 }
 
-export const DEFAULT_SURFACES: Surfaces = { home: true, profile: true, pr: true, issue: true, repo: true, work: true, notifications: true };
+export const DEFAULT_SURFACES: Surfaces = { home: true, profile: true, pr: true, issue: true, commit: true, repo: true, work: true, notifications: true };
 
 export const surfacesItem = storage.defineItem<Surfaces>('local:surfaces', { fallback: DEFAULT_SURFACES });
 

@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { achievementsQuery } from '@/github/achievements';
 import type { Route } from '@/lib/routes';
+import { prefetchCommit } from '@/pages/commit/query';
 import { prefetchHome } from '@/pages/home/queries';
 import { issueQuery } from '@/pages/issue/query';
 import { notificationsQuery, viewOf } from '@/pages/notifications/queries';
@@ -54,6 +55,9 @@ export function prefetchRoute(client: QueryClient, route: Route, url: URL) {
       return;
     case 'pr':
       prefetchPr(client, route.owner, route.repo, route.number, route.tab);
+      return;
+    case 'commit':
+      prefetchCommit(client, route.owner, route.repo, route.sha, route.pr);
       return;
     case 'work':
       client.prefetchInfiniteQuery(workListQuery(workQueryOf(url, route.type, route.filter)));

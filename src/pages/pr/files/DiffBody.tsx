@@ -20,6 +20,11 @@ type Draft = { start: number; startSide: Side; end: number; side: Side };
 /** What hangs under one diff line: its review threads and, maybe, the composer. */
 type Note = { side: Side; line: number; threads: ReviewThread[]; draft?: Draft };
 
+/** The repo and commit a diff's new side is read from when someone expands unchanged lines. */
+export type DiffSource = { nameWithOwner: string; oid: string };
+/** A pull request's side of a diff: its threads on the file, line comments, and the query to refresh after posting. */
+export type Review = { pr: PullRequest; queryKey: QueryKey; threads: ReviewThread[] };
+
 const FILE_QUERY = /* GraphQL */ `
   query FileAt($owner: String!, $repo: String!, $expression: String!) {
     repository(owner: $owner, name: $repo) { object(expression: $expression) { ... on Blob { text } } }
@@ -44,17 +49,16 @@ const githubSide = (side: Side) => (side === 'deletions' ? 'LEFT' : 'RIGHT');
 
 /**
  * A file's diff, drawn by `@pierre/diffs` (loaded on demand, see src/lib/diffs.ts) with Shiki highlighting,
- * word-level changes and expandable context. Review threads and the comment composer are React, slotted
- * under their lines.
+ * word-level changes and expandable context. With a `review` (pull requests), its threads and the comment
+ * composer are React, slotted under their lines; without one (commits) lines can't be commented on.
  */
-export function DiffBody({ file, patch, pr, queryKey, mode, wrap, threads }: {
+export function DiffBody({ file, patch, source, review, mode, wrap }: {
   file: PrFile;
   patch: string;
-  pr: PullRequest;
-  queryKey: QueryKey;
+  source: DiffSource;
+  review?: Review;
   mode: DiffMode;
   wrap: boolean;
-  threads: ReviewThread[];
 }) {
   const renderer = useQuery({ queryKey: ['diffs-renderer'], queryFn: loadDiffs, staleTime: Infinity, gcTime: Infinity });
   const api = renderer.data;
@@ -64,6 +68,8 @@ export function DiffBody({ file, patch, pr, queryKey, mode, wrap, threads }: {
   const instance = useRef<DiffInstance<undefined>>(undefined);
 
   const fileDiff = useMemo(() => api?.getSingularPatch(gitPatch(file, patch)), [api, file, patch]);
+  const threads = review?.threads;
+  const commentable = !!review;
 
   const notes = useMemo(() => {
     const byLine = new Map<string, Note>();
@@ -73,7 +79,7 @@ export function DiffBody({ file, patch, pr, queryKey, mode, wrap, threads }: {
       byLine.set(key, note);
       return note;
     };
-    for (const thread of threads) if (thread.line !== null) noteAt(sideOf(thread), thread.line).threads.push(thread);
+    for (const thread of threads ?? []) if (thread.line !== null) noteAt(sideOf(thread), thread.line).threads.push(thread);
     if (draft) noteAt(draft.side, draft.end).draft = draft;
     return [...byLine.values()];
   }, [threads, draft]);
@@ -89,18 +95,18 @@ export function DiffBody({ file, patch, pr, queryKey, mode, wrap, threads }: {
       diffIndicators: 'bars' as const,
       hunkSeparators: 'line-info' as const,
       disableFileHeader: true,
-      enableGutterUtility: true,
-      enableLineSelection: true,
+      enableGutterUtility: commentable,
+      enableLineSelection: commentable,
       unsafeCSS: UNSAFE_CSS,
       onGutterUtilityClick: ({ start, side = 'additions', end, endSide = side }: SelectedLineRange) =>
         setDraft(start <= end ? { start, startSide: side, end, side: endSide } : { start: end, startSide: endSide, end: start, side }),
       // Full files are only fetched when someone expands unchanged lines.
       loadDiffFiles: async () => {
-        const [owner, repo] = repoPath(pr).split('/');
+        const [owner, repo] = source.nameWithOwner.split('/');
         const { repository } = await gql<{ repository: { object: { text: string | null } | null } }>(FILE_QUERY, {
           owner,
           repo,
-          expression: `${pr.headRefOid}:${file.filename}`,
+          expression: `${source.oid}:${file.filename}`,
         });
         const text = repository.object?.text ?? '';
         return {
@@ -109,7 +115,7 @@ export function DiffBody({ file, patch, pr, queryKey, mode, wrap, threads }: {
         };
       },
     }),
-    [dark, mode, wrap, pr.url, pr.headRefOid, file, patch],
+    [dark, mode, wrap, commentable, source.nameWithOwner, source.oid, file, patch],
   );
 
   useLayoutEffect(() => {
@@ -150,16 +156,16 @@ export function DiffBody({ file, patch, pr, queryKey, mode, wrap, threads }: {
 
   return (
     <div ref={host} className="block overflow-hidden rounded-b-xl">
-      {notes.map((note) => (
+      {review && notes.map((note) => (
         <div
           key={`${note.side}:${note.line}`}
           slot={api.getLineAnnotationName({ side: note.side, lineNumber: note.line })}
           className="flex flex-col gap-2 border-y border-line bg-bg px-3 py-3 font-sans text-[13px] leading-normal whitespace-normal"
         >
           {note.threads.map((thread) => (
-            <Thread key={thread.id} thread={thread} queryKey={queryKey} inline />
+            <Thread key={thread.id} thread={thread} queryKey={review.queryKey} inline />
           ))}
-          {note.draft && <LineComposer pr={pr} path={file.filename} patch={patch} draft={note.draft} queryKey={queryKey} onDone={() => setDraft(null)} />}
+          {note.draft && <LineComposer pr={review.pr} path={file.filename} patch={patch} draft={note.draft} queryKey={review.queryKey} onDone={() => setDraft(null)} />}
         </div>
       ))}
     </div>

@@ -11,7 +11,7 @@ import { Skeleton } from '@/ui/primitives';
 import { toast } from '@/ui/toast';
 import { MUTATIONS, prFilesQuery, prViewedQuery, repoPath, type PullRequest, type ReviewThread, type ViewedState } from '../query';
 import { diffAnchor } from './anchor';
-import { FileDiff, type DiffMode, type PrFile } from './FileDiff';
+import { FileDiff, type DiffMode, type FileReview, type PrFile } from './FileDiff';
 import { FileTree } from './FileTree';
 import { isOpenLineThread, nextOpenThread } from './threads';
 
@@ -20,7 +20,7 @@ import { isOpenLineThread, nextOpenThread } from './threads';
  * keeps it there for a moment: viewed files collapse and lazily rendered diffs above it change height after
  * the first scroll. Any user input releases it.
  */
-function pinScroll(card: HTMLElement, inner?: (card: HTMLElement) => Element | null) {
+export function pinScroll(card: HTMLElement, inner?: (card: HTMLElement) => Element | null) {
   const until = Date.now() + 1500;
   let released = false;
   const release = () => (released = true);
@@ -39,9 +39,9 @@ function pinScroll(card: HTMLElement, inner?: (card: HTMLElement) => Element | n
   tick();
 }
 
-const MODE_KEY = 'unmerged:diff-mode';
-const WRAP_KEY = 'unmerged:diff-wrap';
-const BIG_FILE = 600; // changed lines above which a file starts collapsed
+export const MODE_KEY = 'unmerged:diff-mode';
+export const WRAP_KEY = 'unmerged:diff-wrap';
+export const BIG_FILE = 600; // changed lines above which a file starts collapsed
 
 const NO_THREADS: ReviewThread[] = [];
 
@@ -91,6 +91,8 @@ export function FilesTab({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey
     if (el) cards.current.set(path, el);
     else cards.current.delete(path);
   }, []);
+  const source = useMemo(() => ({ nameWithOwner: `${owner}/${repo}`, oid: pr.headRefOid }), [owner, repo, pr.headRefOid]);
+  const review = useMemo<FileReview>(() => ({ pr, queryKey, onToggleViewed: toggleViewed }), [pr, queryKey, toggleViewed]);
 
   const threadsByPath = useMemo(() => {
     const map = new Map<string, ReviewThread[]>();
@@ -296,8 +298,8 @@ export function FilesTab({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey
           <FileDiff
             key={file.filename}
             file={file}
-            pr={pr}
-            queryKey={queryKey}
+            source={source}
+            review={review}
             anchor={anchors[file.filename]}
             mode={mode}
             wrap={wrap}
@@ -305,7 +307,6 @@ export function FilesTab({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey
             viewState={viewed.data?.[file.filename]}
             threads={threadsByPath.get(file.filename) ?? NO_THREADS}
             onSetOpen={setOpen}
-            onToggleViewed={toggleViewed}
             cardRef={cardRef}
           />
         ))}

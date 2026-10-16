@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowUpRight01Icon, Book02Icon, CheckListIcon, CircleDotIcon, ComputerIcon, GitPullRequestIcon, Home01Icon, Key01Icon, Moon02Icon, Notification03Icon, Sun03Icon, UserIcon } from '@hugeicons/core-free-icons';
+import { ArrowUpRight01Icon, Book02Icon, CheckListIcon, CircleDotIcon, ComputerIcon, GitCommitHorizontalIcon, GitPullRequestIcon, Home01Icon, Key01Icon, Moon02Icon, Notification03Icon, Sun03Icon, UserIcon } from '@hugeicons/core-free-icons';
 import { GitHubError, rest } from '@/github/client';
 import { cx } from '@/lib/cx';
 import { saveToken } from '@/lib/persist';
@@ -11,6 +11,7 @@ const SURFACES: Record<Surface, { label: string; path: string; icon: ReactNode }
   profile: { label: 'Profiles', path: 'github.com/<user>', icon: <HugeiconsIcon icon={UserIcon} /> },
   pr: { label: 'Pull requests', path: '…/pull/<number>', icon: <HugeiconsIcon icon={GitPullRequestIcon} /> },
   issue: { label: 'Issues', path: '…/issues/<number>', icon: <HugeiconsIcon icon={CircleDotIcon} /> },
+  commit: { label: 'Commits', path: '…/commit/<sha>, …/pull/<number>/commits/<sha>', icon: <HugeiconsIcon icon={GitCommitHorizontalIcon} /> },
   repo: { label: 'Repositories', path: 'github.com/<owner>/<repo>, /issues, /pulls', icon: <HugeiconsIcon icon={Book02Icon} /> },
   work: { label: 'Pull request & issue lists', path: 'github.com/pulls, /issues', icon: <HugeiconsIcon icon={CheckListIcon} /> },
   notifications: { label: 'Notifications', path: 'github.com/notifications', icon: <HugeiconsIcon icon={Notification03Icon} /> },

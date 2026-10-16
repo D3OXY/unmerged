@@ -73,16 +73,21 @@ export function CommitList({ commits, nameWithOwner, commitHref = (oid) => `/${n
 // Check runs that finished without failing; GitHub counts these toward "4 / 4".
 const PASSING = new Set(['SUCCESS', 'NEUTRAL', 'SKIPPED']);
 
+/** A commit's checks as passed and total, the way GitHub counts them ("4 / 4"). */
+export function checkCounts({ contexts }: NonNullable<CommitRowData['statusCheckRollup']>) {
+  return {
+    total: contexts.checkRunCount + contexts.statusContextCount,
+    passed: [...(contexts.checkRunCountsByState ?? []), ...(contexts.statusContextCountsByState ?? [])]
+      .filter((s) => PASSING.has(s.state))
+      .reduce((sum, s) => sum + s.count, 0),
+  };
+}
+
 function CommitRow({ commit, nameWithOwner, href }: { commit: CommitRowData; nameWithOwner: string; href: string }) {
   const [open, setOpen] = useState(false);
   const user = commit.author?.user;
   const rollup = commit.statusCheckRollup;
-  const checks = rollup && {
-    total: rollup.contexts.checkRunCount + rollup.contexts.statusContextCount,
-    passed: [...(rollup.contexts.checkRunCountsByState ?? []), ...(rollup.contexts.statusContextCountsByState ?? [])]
-      .filter((s) => PASSING.has(s.state))
-      .reduce((sum, s) => sum + s.count, 0),
-  };
+  const checks = rollup && checkCounts(rollup);
 
   return (
     <div className="border-b border-line last:border-b-0">
@@ -104,14 +109,7 @@ function CommitRow({ commit, nameWithOwner, href }: { commit: CommitRowData; nam
           </div>
           <div className="flex items-center gap-1.5 text-[12px] text-subtle">
             <span>
-              {user ? (
-                <a href={user.login.endsWith('[bot]') ? `/apps/${user.login.slice(0, -5)}` : `/${user.login}`} className="text-muted hover:text-fg hover:underline">
-                  {user.login}
-                </a>
-              ) : (
-                <span className="text-muted">{commit.author?.name}</span>
-              )}{' '}
-              committed <span title={fullDate(commit.committedDate)}>{timeAgo(commit.committedDate)}</span>
+              <CommitPerson person={commit.author} /> committed <span title={fullDate(commit.committedDate)}>{timeAgo(commit.committedDate)}</span>
             </span>
             {checks && checks.total > 0 && (
               <span className="flex items-center gap-1 tabular-nums" title={`${checks.passed} of ${checks.total} checks passed`}>
@@ -152,6 +150,17 @@ function CommitRow({ commit, nameWithOwner, href }: { commit: CommitRowData; nam
         </pre>
       )}
     </div>
+  );
+}
+
+/** A commit's author or committer: their profile (an app's page for bots), or the name in the commit when no account matches. */
+export function CommitPerson({ person }: { person: CommitRowData['author'] }) {
+  const user = person?.user;
+  if (!user) return <span className="text-muted">{person?.name}</span>;
+  return (
+    <a href={user.login.endsWith('[bot]') ? `/apps/${user.login.slice(0, -5)}` : `/${user.login}`} className="text-muted hover:text-fg hover:underline">
+      {user.login}
+    </a>
   );
 }
 
