@@ -2,6 +2,7 @@ import { ArrowUpRight } from 'lucide-react';
 import { tokenItem, useStorageItem } from '@/lib/settings';
 import { leaveClassic } from '@/lib/classic';
 import { HomePage } from '@/pages/home/HomePage';
+import { FollowsPage } from '@/pages/profile/FollowsPage';
 import { ProfilePage } from '@/pages/profile/ProfilePage';
 import { PrPage } from '@/pages/pr/PrPage';
 import { RepoPage } from '@/pages/repo/RepoPage';
@@ -24,7 +25,12 @@ export function App() {
   return (
     <>
       {route.kind === 'home' && <HomePage />}
-      {route.kind === 'profile' && <ProfilePage key={route.login} login={route.login} />}
+      {route.kind === 'profile' &&
+        (route.tab === 'overview' ? (
+          <ProfilePage key={route.login} login={route.login} />
+        ) : (
+          <FollowsPage key={route.login} login={route.login} tab={route.tab} />
+        ))}
       {route.kind === 'pr' && <PrPage key={`${route.owner}/${route.repo}#${route.number}`} {...route} />}
       {route.kind === 'repo' && <RepoPage key={`${route.owner}/${route.repo}`.toLowerCase()} {...route} />}
       <CommandPalette />

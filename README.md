@@ -14,12 +14,14 @@
 | Page | URL | Fallback |
 |---|---|---|
 | Home | `github.com/` (signed in) | Logged-out marketing page is left alone |
-| Profile | `github.com/<user>` | Organizations and `?tab=` views stay on GitHub |
+| Profile | `github.com/<user>`, `?tab=followers`, `?tab=following` | Organizations and other `?tab=` views stay on GitHub |
 | Pull request | `github.com/<owner>/<repo>/pull/<n>` plus `/commits`, `/checks`, `/files` | Single-commit views stay on GitHub |
 | Repository | `github.com/<owner>/<repo>`, `/tree/…`, `/blob/…` | Issues, Actions, Settings, etc. stay on GitHub |
 
 Every other page is untouched. Each page can be switched off from the toolbar popup, and **Classic** (sidebar
 or ⌘K) shows the stock page for the current URL with a pill to come back.
+
+The theme follows GitHub's appearance setting by default; pick Light or Dark from the popup, the sidebar, or ⌘K.
 
 ## Install (dev)
 

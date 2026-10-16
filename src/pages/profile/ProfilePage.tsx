@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowUpRight, Building2, CalendarDays, GitFork, Link2, Lock, MapPin, Search, Star, UserPlus, UserCheck } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowUpRight, AtSign, Building2, CalendarDays, GitFork, Heart, Link2, Lock, MapPin, Search, Star } from 'lucide-react';
+import { fetchAchievements, type Achievement } from '@/github/achievements';
 import { gql, restHtml } from '@/github/client';
 import { absolutizeReadme } from '@/github/readme';
 import { REPO_CARD_FIELDS, type RepoCard } from '@/github/types';
@@ -11,27 +12,35 @@ import { formatCount, formatMonthYear, timeAgo } from '@/lib/time';
 import { useTitle } from '@/lib/useTitle';
 import { Button } from '@/ui/Button';
 import { Avatar, Empty, LanguageDot, Markdown, Panel, Pill, SectionHeader, Skeleton } from '@/ui/primitives';
-import { toast } from '@/ui/toast';
 import { PrStateIcon } from '@/ui/status';
 import { PR_ROW_FIELDS, type PrRowData } from '@/ui/WorkRow';
 import { ContributionGraph, type ContributionWeek } from './ContributionGraph';
+import { FollowButton } from './FollowButton';
 
 const PROFILE_QUERY = /* GraphQL */ `
   query Profile($login: String!) {
     user(login: $login) {
-      id login name avatarUrl bio company location websiteUrl twitterUsername pronouns createdAt
+      id login name avatarUrl bio company location websiteUrl pronouns createdAt
       status { emojiHTML message }
       followers { totalCount }
       following { totalCount }
       starredRepositories { totalCount }
-      isViewer viewerIsFollowing viewerCanFollow
+      sponsors { totalCount }
+      isViewer viewerIsFollowing viewerCanFollow isFollowingViewer hasSponsorsListing
+      isHireable isEmployee isGitHubStar isDeveloperProgramMember isCampusExpert isBountyHunter
+      socialAccounts(first: 10) { nodes { provider url displayName } }
       organizations(first: 12) { nodes { login avatarUrl } }
       pinnedItems(first: 6, types: [REPOSITORY]) { nodes { ... on Repository { ...RepoCard } } }
-      repositories(first: 20, ownerAffiliations: OWNER, isFork: false, orderBy: { field: PUSHED_AT, direction: DESC }) {
+      repositories(first: 100, ownerAffiliations: OWNER, isFork: false, orderBy: { field: PUSHED_AT, direction: DESC }) {
         totalCount nodes { ...RepoCard }
+      }
+      repositoriesContributedTo(first: 12, includeUserRepositories: false, contributionTypes: [COMMIT, PULL_REQUEST, PULL_REQUEST_REVIEW]) {
+        nodes { ...RepoCard owner { avatarUrl } }
       }
       pullRequests(first: 6, orderBy: { field: UPDATED_AT, direction: DESC }) { nodes { ...PrRow } }
       contributionsCollection {
+        totalCommitContributions totalPullRequestContributions totalPullRequestReviewContributions totalIssueContributions
+        restrictedContributionsCount
         contributionCalendar { totalContributions weeks { contributionDays { date contributionCount contributionLevel } } }
       }
     }
@@ -49,25 +58,49 @@ type Profile = {
   company: string | null;
   location: string | null;
   websiteUrl: string | null;
-  twitterUsername: string | null;
   pronouns: string | null;
   createdAt: string;
   status: { emojiHTML: string | null; message: string | null } | null;
   followers: { totalCount: number };
   following: { totalCount: number };
   starredRepositories: { totalCount: number };
+  sponsors: { totalCount: number };
   isViewer: boolean;
   viewerIsFollowing: boolean;
   viewerCanFollow: boolean;
+  isFollowingViewer: boolean;
+  hasSponsorsListing: boolean;
+  isHireable: boolean;
+  isEmployee: boolean;
+  isGitHubStar: boolean;
+  isDeveloperProgramMember: boolean;
+  isCampusExpert: boolean;
+  isBountyHunter: boolean;
+  socialAccounts: { nodes: { provider: string; url: string; displayName: string }[] };
   organizations: { nodes: { login: string; avatarUrl: string }[] };
   pinnedItems: { nodes: RepoCard[] };
   repositories: { totalCount: number; nodes: RepoCard[] };
+  repositoriesContributedTo: { nodes: (RepoCard & { owner: { avatarUrl: string } })[] };
   pullRequests: { nodes: PrRowData[] };
-  contributionsCollection: { contributionCalendar: { totalContributions: number; weeks: ContributionWeek[] } };
+  contributionsCollection: {
+    totalCommitContributions: number;
+    totalPullRequestContributions: number;
+    totalPullRequestReviewContributions: number;
+    totalIssueContributions: number;
+    restrictedContributionsCount: number;
+    contributionCalendar: { totalContributions: number; weeks: ContributionWeek[] };
+  };
 };
 
-const FOLLOW = /* GraphQL */ `mutation Follow($id: ID!) { followUser(input: { userId: $id }) { clientMutationId } }`;
-const UNFOLLOW = /* GraphQL */ `mutation Unfollow($id: ID!) { unfollowUser(input: { userId: $id }) { clientMutationId } }`;
+// Profile flags worth a badge, in display order.
+const BADGES = [
+  ['isEmployee', 'Staff'],
+  ['isGitHubStar', 'GitHub Star'],
+  ['isHireable', 'Available for hire'],
+  ['isCampusExpert', 'Campus Expert'],
+  ['isBountyHunter', 'Security bug bounty hunter'],
+  ['isDeveloperProgramMember', 'Developer Program Member'],
+] as const satisfies [keyof Profile, string][];
 
 /** A person's profile: identity, activity, and work, at a glance. Organizations fall back to GitHub. */
 export function ProfilePage({ login }: { login: string }) {
@@ -97,17 +130,11 @@ export function ProfilePage({ login }: { login: string }) {
     staleTime: 10 * 60_000,
   });
 
-  const follow = useMutation({
-    mutationFn: (user: Profile) => gql(user.viewerIsFollowing ? UNFOLLOW : FOLLOW, { id: user.id }),
-    onSuccess: (_, user) => {
-      queryClient.setQueryData<Profile>(['profile', login.toLowerCase()], {
-        ...user,
-        viewerIsFollowing: !user.viewerIsFollowing,
-        followers: { totalCount: user.followers.totalCount + (user.viewerIsFollowing ? -1 : 1) },
-      });
-    },
-    onError: toast.error,
-  });
+  const setFollowing = (following: boolean) =>
+    queryClient.setQueryData<Profile | null>(
+      ['profile', login.toLowerCase()],
+      (user) => user && { ...user, viewerIsFollowing: following, followers: { totalCount: user.followers.totalCount + (following ? 1 : -1) } },
+    );
 
   if (error) {
     return (
@@ -123,24 +150,22 @@ export function ProfilePage({ login }: { login: string }) {
       <PageHeader
         crumbs={[{ label: 'People' }, { label: user?.login ?? login }]}
         actions={
-          user &&
-          (user.isViewer ? (
-            <Button size="sm" onClick={() => location.assign('/settings/profile')}>
-              Edit profile
-            </Button>
-          ) : (
-            user.viewerCanFollow && (
-              <Button
-                size="sm"
-                variant={user.viewerIsFollowing ? 'secondary' : 'primary'}
-                loading={follow.isPending}
-                icon={user.viewerIsFollowing ? <UserCheck className="size-3.5" /> : <UserPlus className="size-3.5" />}
-                onClick={() => follow.mutate(user)}
-              >
-                {user.viewerIsFollowing ? 'Following' : 'Follow'}
-              </Button>
-            )
-          ))
+          user && (
+            <>
+              {user.hasSponsorsListing && !user.isViewer && (
+                <Button size="sm" icon={<Heart className="size-3.5 text-[#db61a2]" />} onClick={() => location.assign(`/sponsors/${user.login}`)}>
+                  Sponsor
+                </Button>
+              )}
+              {user.isViewer ? (
+                <Button size="sm" onClick={() => location.assign('/settings/profile')}>
+                  Edit profile
+                </Button>
+              ) : (
+                user.viewerCanFollow && <FollowButton user={user} onToggled={setFollowing} />
+              )}
+            </>
+          )
         }
       />
       {isPending || !user ? (
@@ -149,15 +174,7 @@ export function ProfilePage({ login }: { login: string }) {
         <div className="mx-auto max-w-[1180px] animate-enter px-6 pt-10 pb-20">
           <ProfileHeader user={user} />
 
-          <Panel className="mt-8 p-5">
-            <div className="mb-3 flex items-baseline justify-between">
-              <h2 className="text-[13px] font-medium">
-                {user.contributionsCollection.contributionCalendar.totalContributions.toLocaleString()} contributions
-                <span className="font-normal text-muted"> in the last year</span>
-              </h2>
-            </div>
-            <ContributionGraph weeks={user.contributionsCollection.contributionCalendar.weeks} />
-          </Panel>
+          <Contributions user={user} />
 
           <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
             <div className="flex min-w-0 flex-col gap-8">
@@ -185,6 +202,8 @@ export function ProfilePage({ login }: { login: string }) {
             </div>
 
             <aside className="flex flex-col gap-8">
+              <Achievements login={user.login} />
+              <Languages repos={user.repositories.nodes} />
               <section>
                 <SectionHeader title="Recent pull requests" />
                 <Panel className="p-1.5">
@@ -194,6 +213,7 @@ export function ProfilePage({ login }: { login: string }) {
                   ))}
                 </Panel>
               </section>
+              <ContributedTo repos={user.repositoriesContributedTo.nodes} />
               {user.organizations.nodes.length > 0 && (
                 <section>
                   <SectionHeader title="Organizations" />
@@ -229,9 +249,15 @@ function ProfileHeader({ user }: { user: Profile }) {
             </span>
           )}
         </div>
-        <div className="mt-0.5 text-[14px] text-muted">
-          @{user.login}
-          {user.pronouns && <span className="text-subtle"> · {user.pronouns}</span>}
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] text-muted">
+          <span>
+            @{user.login}
+            {user.pronouns && <span className="text-subtle"> · {user.pronouns}</span>}
+          </span>
+          {user.isFollowingViewer && <Pill>Follows you</Pill>}
+          {BADGES.filter(([flag]) => user[flag]).map(([flag, label]) => (
+            <Pill key={flag}>{label}</Pill>
+          ))}
         </div>
         {user.bio && <p className="mt-3 max-w-[640px] text-[14px] leading-relaxed text-fg/90">{user.bio}</p>}
 
@@ -245,13 +271,13 @@ function ProfileHeader({ user }: { user: Profile }) {
               </a>
             </Meta>
           )}
-          {user.twitterUsername && (
-            <Meta icon={<span className="text-[11px] font-semibold">𝕏</span>}>
-              <a href={`https://x.com/${user.twitterUsername}`} target="_blank" rel="noreferrer" className="hover:text-fg">
-                @{user.twitterUsername}
+          {user.socialAccounts.nodes.map((account) => (
+            <Meta key={account.url} icon={account.provider === 'TWITTER' ? <span className="text-[11px] font-semibold">𝕏</span> : <AtSign />}>
+              <a href={account.url} target="_blank" rel="noreferrer" title={account.provider.toLowerCase()} className="hover:text-fg">
+                {account.displayName}
               </a>
             </Meta>
-          )}
+          ))}
           <Meta icon={<CalendarDays />}>Joined {formatMonthYear(user.createdAt)}</Meta>
         </div>
       </div>
@@ -260,6 +286,7 @@ function ProfileHeader({ user }: { user: Profile }) {
         <Count href={`/${user.login}?tab=followers`} value={user.followers.totalCount} label="Followers" />
         <Count href={`/${user.login}?tab=following`} value={user.following.totalCount} label="Following" />
         <Count href={`/${user.login}?tab=stars`} value={user.starredRepositories.totalCount} label="Stars" />
+        {user.hasSponsorsListing && <Count href={`/sponsors/${user.login}`} value={user.sponsors.totalCount} label="Sponsors" />}
       </div>
     </div>
   );
@@ -328,8 +355,12 @@ function RepoMeta({ repo, className }: { repo: RepoCard; className?: string }) {
 
 function RepoList({ user }: { user: Profile }) {
   const [filter, setFilter] = useState('');
+  // The 100 most recently pushed are loaded; the first 20 show until a filter searches all of them.
   const repos = useMemo(
-    () => user.repositories.nodes.filter((repo) => `${repo.name} ${repo.description ?? ''}`.toLowerCase().includes(filter.toLowerCase())),
+    () =>
+      filter
+        ? user.repositories.nodes.filter((repo) => `${repo.name} ${repo.description ?? ''}`.toLowerCase().includes(filter.toLowerCase()))
+        : user.repositories.nodes.slice(0, 20),
     [user.repositories.nodes, filter],
   );
 
@@ -350,7 +381,7 @@ function RepoList({ user }: { user: Profile }) {
           <input
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            placeholder="Filter recently pushed repositories…"
+            placeholder="Filter repositories…"
             className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-subtle"
           />
         </label>
@@ -372,6 +403,156 @@ function RepoList({ user }: { user: Profile }) {
             </div>
             <RepoMeta repo={repo} className="hidden md:flex" />
             {repo.pushedAt && <span className="w-20 shrink-0 text-right text-[12px] text-subtle">{timeAgo(repo.pushedAt)}</span>}
+          </a>
+        ))}
+      </Panel>
+    </section>
+  );
+}
+
+/** The year's heatmap, with the totals behind it. */
+function Contributions({ user }: { user: Profile }) {
+  const c = user.contributionsCollection;
+  const stats = [
+    [c.totalCommitContributions, 'commits'],
+    [c.totalPullRequestContributions, 'pull requests'],
+    [c.totalPullRequestReviewContributions, 'reviews'],
+    [c.totalIssueContributions, 'issues'],
+    [c.restrictedContributionsCount, 'private'],
+  ] as const;
+  return (
+    <Panel className="mt-8 p-5">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+        <h2 className="text-[13px] font-medium">
+          {c.contributionCalendar.totalContributions.toLocaleString()} contributions
+          <span className="font-normal text-muted"> in the last year</span>
+        </h2>
+        <div className="flex flex-wrap gap-x-4 text-[12px] text-subtle">
+          {stats
+            .filter(([count]) => count > 0)
+            .map(([count, label]) => (
+              <span key={label}>
+                <span className="font-medium text-muted tabular-nums">{count.toLocaleString()}</span> {label}
+              </span>
+            ))}
+        </div>
+      </div>
+      <ContributionGraph weeks={c.contributionCalendar.weeks} />
+    </Panel>
+  );
+}
+
+const METALS: Record<string, string> = { bronze: '#c38b5f', silver: '#a5b1bd', gold: '#e3b341' };
+
+function Achievements({ login }: { login: string }) {
+  const { data } = useQuery({
+    queryKey: ['achievements', login.toLowerCase()],
+    queryFn: () => fetchAchievements(login),
+    staleTime: 60 * 60_000,
+  });
+  if (!data?.length) return null;
+  return (
+    <section>
+      <SectionHeader
+        title="Achievements"
+        count={data.length}
+        action={
+          <a href={`/${login}?tab=achievements`} className="flex items-center gap-1 text-[12px] text-subtle hover:text-fg">
+            View all <ArrowUpRight className="size-3" />
+          </a>
+        }
+      />
+      <div className="flex flex-wrap gap-2">
+        {data.map((achievement) => (
+          <AchievementBadge key={achievement.slug} login={login} achievement={achievement} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function AchievementBadge({ login, achievement: { slug, name, image, tier } }: { login: string; achievement: Achievement }) {
+  const metal = tier?.metal ? METALS[tier.metal] : undefined;
+  return (
+    <a
+      href={`/${login}?achievement=${slug}&tab=achievements`}
+      title={tier ? `${name} ${tier.label}` : name}
+      className="relative transition-transform hover:scale-105"
+    >
+      <img src={image} alt={name} className="size-16" />
+      {tier && (
+        <span
+          className="absolute right-0 bottom-0 rounded-full border border-line-strong bg-elevated px-1.5 text-[10.5px] leading-4 font-semibold"
+          style={metal ? { color: metal, borderColor: `color-mix(in srgb, ${metal} 45%, transparent)` } : undefined}
+        >
+          {tier.label}
+        </span>
+      )}
+    </a>
+  );
+}
+
+/** Share of primary languages across the user's own (non-fork) repositories. */
+function Languages({ repos }: { repos: RepoCard[] }) {
+  const languages = useMemo(() => {
+    const counts = new Map<string, { name: string; color: string | null; count: number }>();
+    for (const { primaryLanguage: lang } of repos) {
+      if (!lang) continue;
+      const entry = counts.get(lang.name) ?? { ...lang, count: 0 };
+      entry.count++;
+      counts.set(lang.name, entry);
+    }
+    const sorted = [...counts.values()].sort((a, b) => b.count - a.count);
+    const total = sorted.reduce((sum, l) => sum + l.count, 0);
+    const top = sorted.slice(0, 6);
+    const other = sorted.slice(6).reduce((sum, l) => sum + l.count, 0);
+    if (other) top.push({ name: 'Other', color: null, count: other });
+    return top.map((l) => ({ ...l, share: l.count / total }));
+  }, [repos]);
+
+  if (!languages.length) return null;
+  return (
+    <section>
+      <SectionHeader title="Languages" />
+      <Panel className="p-4">
+        <div className="flex h-2 gap-0.5 overflow-hidden rounded-full">
+          {languages.map((l) => (
+            <span key={l.name} style={{ flexGrow: l.share, background: l.color ?? 'var(--u-subtle)' }} />
+          ))}
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[12px]">
+          {languages.map((l) => (
+            <span key={l.name} className="flex min-w-0 items-center gap-1.5">
+              <LanguageDot color={l.color} />
+              <span className="truncate">{l.name}</span>
+              <span className="ml-auto text-subtle tabular-nums">{Math.round(l.share * 100)}%</span>
+            </span>
+          ))}
+        </div>
+      </Panel>
+    </section>
+  );
+}
+
+/** Other people's repositories the user committed to, opened PRs on, or reviewed in the last year. */
+function ContributedTo({ repos }: { repos: Profile['repositoriesContributedTo']['nodes'] }) {
+  // GitHub ignores ordering on this connection; most-starred first reads best.
+  const top = useMemo(() => [...repos].sort((a, b) => b.stargazerCount - a.stargazerCount).slice(0, 6), [repos]);
+  if (!top.length) return null;
+  return (
+    <section>
+      <SectionHeader title="Contributed to" />
+      <Panel className="p-1.5">
+        {top.map((repo) => (
+          <a key={repo.id} href={repo.url} data-row className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 hover:bg-hover focus:bg-hover focus:outline-none">
+            <Avatar src={repo.owner.avatarUrl} size={18} square />
+            <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">{repo.nameWithOwner}</span>
+            {repo.stargazerCount > 0 && (
+              <span className="flex shrink-0 items-center gap-1 text-[11.5px] text-subtle">
+                <Star className="size-3" />
+                {formatCount(repo.stargazerCount)}
+              </span>
+            )}
           </a>
         ))}
       </Panel>

@@ -1,12 +1,9 @@
 import { useState } from 'react';
 import { ArrowRight, KeyRound } from 'lucide-react';
-import { tokenItem } from '@/lib/settings';
+import { NEW_TOKEN_URL, tokenItem } from '@/lib/settings';
 import { openClassic } from '@/lib/classic';
 import { Button } from '@/ui/Button';
 import { Logo } from './Logo';
-
-const NEW_TOKEN_URL =
-  'https://github.com/settings/tokens/new?description=Unmerged&scopes=repo,read:org,read:user,user:follow,notifications';
 
 /** Shown until a GitHub token is saved (or after GitHub rejects the saved one). */
 export function TokenGate({ rejected }: { rejected?: boolean }) {
