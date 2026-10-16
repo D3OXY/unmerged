@@ -8,6 +8,7 @@ import { cx } from '@/lib/cx';
 import { isPinned, pin, unpin } from '@/lib/pins';
 import { matchRoute } from '@/lib/routes';
 import { pinsItem, themeItem, useStorageItem, type Theme } from '@/lib/settings';
+import { useUnreadCount } from '@/pages/notifications/queries';
 import { Avatar, Kbd } from '@/ui/primitives';
 import { paletteOpen } from './commands';
 import { Logo } from './Logo';
@@ -26,6 +27,7 @@ export function Sidebar({ active }: { active?: NavSection }) {
   const recent = useRecentRepos(viewer?.login);
   const [showAll, setShowAll] = useState(false);
   const recentRepos = (recent.data ?? []).filter((r) => !isPinned(pins, r.nameWithOwner));
+  const unread = useUnreadCount();
 
   return (
     <aside className="sticky top-0 hidden h-screen w-[232px] shrink-0 flex-col border-r border-line bg-panel/60 px-3 py-3 lg:flex">
@@ -68,6 +70,7 @@ export function Sidebar({ active }: { active?: NavSection }) {
         </NavItem>
         <NavItem href="/notifications" icon={<HugeiconsIcon icon={Notification03Icon} />} active={active === 'notifications'}>
           Notifications
+          {unread && <span className="ml-auto rounded-full bg-accent/15 px-1.5 text-[11px] font-medium text-accent tabular-nums">{unread}</span>}
         </NavItem>
         {viewer && (
           <NavItem href={`/${viewer.login}`} icon={<HugeiconsIcon icon={UserIcon} />} active={active === 'profile'}>

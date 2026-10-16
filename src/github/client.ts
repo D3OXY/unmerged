@@ -73,6 +73,23 @@ export async function rest<T>(
   return (text ? JSON.parse(text) : undefined) as T;
 }
 
+/**
+ * REST GET that also returns the response headers (paging links, poll intervals). `data` is null when a
+ * conditional request (`If-Modified-Since`) answers 304 Not Modified.
+ */
+export async function restWithHeaders<T>(path: string, headers: Record<string, string> = {}): Promise<{ data: T | null; headers: Headers }> {
+  const res = await fetch(`https://api.github.com${path}`, {
+    headers: { ...(await authHeaders()), Accept: 'application/vnd.github+json', ...headers },
+  });
+  if (res.status === 401) throw new AuthError('GitHub rejected the token');
+  if (res.status === 304) return { data: null, headers: res.headers };
+  if (!res.ok) {
+    const error = (await res.json().catch(() => null)) as { message?: string } | null;
+    throw new Error(error?.message ?? `GitHub API ${res.status}`);
+  }
+  return { data: (await res.json()) as T, headers: res.headers };
+}
+
 /** REST GET returning rendered HTML (READMEs). Resolves to null on 404. */
 export async function restHtml(path: string, signal?: AbortSignal): Promise<string | null> {
   const res = await fetch(`https://api.github.com${path}`, {
