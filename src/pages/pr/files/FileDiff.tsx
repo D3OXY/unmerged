@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { QueryKey } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowRight01Icon, Copy01Icon, File02Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { copy } from '@/lib/clipboard';
 import { cx } from '@/lib/cx';
-import type { PullRequest, ReviewThread } from '../query';
+import type { PullRequest, ReviewThread, ViewedState } from '../query';
 import { DiffBody } from './DiffBody';
 
 /** One file from GET /repos/{owner}/{repo}/pulls/{number}/files. `patch` is missing for binary or huge files. */
@@ -37,22 +37,26 @@ type Props = {
   mode: DiffMode;
   wrap: boolean;
   open: boolean;
-  viewed: boolean;
+  /** Undefined until the viewer's marks load. */
+  viewState?: ViewedState;
   threads: ReviewThread[];
-  onToggleOpen: () => void;
-  onToggleViewed: () => void;
-  cardRef: (el: HTMLElement | null) => void;
+  // Shared by every card (they take the path), so a card re-renders only when its own props change.
+  onSetOpen: (path: string, open: boolean) => void;
+  onToggleViewed: (change: { path: string; wasViewed: boolean }) => void;
+  cardRef: (path: string, el: HTMLElement | null) => void;
 };
 
 /** A file card: sticky header with view state, then the diff with inline review threads. */
-export function FileDiff({ file, pr, queryKey, anchor, mode: preferredMode, wrap, open, viewed, threads, onToggleOpen, onToggleViewed, cardRef }: Props) {
+export const FileDiff = memo(function FileDiff({ file, pr, queryKey, anchor, mode: preferredMode, wrap, open, viewState, threads, onSetOpen, onToggleViewed, cardRef }: Props) {
+  const viewed = viewState === 'VIEWED';
+  const onToggleOpen = () => onSetOpen(file.filename, !open);
   // One-sided files would leave half of a split view empty.
   const mode = file.status === 'added' || file.status === 'removed' ? 'unified' : preferredMode;
   const slash = file.filename.lastIndexOf('/');
   const status = STATUS[file.status];
 
   return (
-    <section id={anchor} ref={cardRef} className="scroll-mt-[104px] rounded-xl border border-line bg-panel">
+    <section id={anchor} ref={(el) => cardRef(file.filename, el)} className="scroll-mt-[104px] rounded-xl border border-line bg-panel">
       <header
         className={cx(
           'sticky top-[92px] z-10 flex h-11 items-center gap-2 bg-panel/95 px-3 backdrop-blur-xl',
@@ -79,11 +83,17 @@ export function FileDiff({ file, pr, queryKey, anchor, mode: preferredMode, wrap
         <a href={file.blob_url} title="View file" className="flex size-7 shrink-0 items-center justify-center rounded-md text-subtle hover:bg-hover hover:text-fg">
           <HugeiconsIcon icon={File02Icon} className="size-3.5" />
         </a>
+        {viewState === 'DISMISSED' && (
+          <span title="Changed since you marked it viewed" className="shrink-0 rounded-full bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning">
+            Changed since viewed
+          </span>
+        )}
         <button
           type="button"
-          onClick={onToggleViewed}
+          onClick={() => onToggleViewed({ path: file.filename, wasViewed: viewed })}
+          disabled={!viewState}
           className={cx(
-            'flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border px-2 text-[12px] transition-colors',
+            'flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border px-2 text-[12px] transition-colors disabled:cursor-default',
             viewed ? 'border-accent/40 bg-accent/12 text-fg' : 'border-line text-muted hover:border-line-strong hover:text-fg',
           )}
         >
@@ -109,7 +119,7 @@ export function FileDiff({ file, pr, queryKey, anchor, mode: preferredMode, wrap
         ))}
     </section>
   );
-}
+});
 
 /** GitHub's five-square diffstat. */
 function DiffStat({ file }: { file: PrFile }) {

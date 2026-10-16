@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowRight01Icon, Folder01Icon, Search01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { cx } from '@/lib/cx';
+import type { ViewedState } from '../query';
 import type { PrFile } from './FileDiff';
 import { statusDot } from './status';
 
@@ -38,8 +39,16 @@ function buildTree(files: PrFile[]): Node[] {
   return root.children.map(compress).sort((a, b) => Number(!!a.file) - Number(!!b.file));
 }
 
-/** Sidebar navigator for a PR's files: filterable tree with viewed marks and the file in view highlighted. */
-export function FileTree({ files, viewed, active, onSelect }: { files: PrFile[]; viewed: (path: string) => boolean; active?: string; onSelect: (path: string) => void }) {
+/**
+ * Sidebar navigator for a PR's files: filterable tree with viewed marks (and files changed since viewed) and
+ * the file in view highlighted.
+ */
+export function FileTree({ files, viewState, active, onSelect }: {
+  files: PrFile[];
+  viewState: (path: string) => ViewedState | undefined;
+  active?: string;
+  onSelect: (path: string) => void;
+}) {
   const [filter, setFilter] = useState('');
   const [closed, setClosed] = useState<Set<string>>(new Set());
   const tree = useMemo(
@@ -63,11 +72,14 @@ export function FileTree({ files, viewed, active, onSelect }: { files: PrFile[];
           )}
         >
           <span className={cx('size-1.5 shrink-0 rounded-full', statusDot(node.file.status))} />
-          <span className={cx('min-w-0 flex-1 truncate', viewed(node.path) && 'text-subtle')}>{node.name}</span>
-          {viewed(node.path) ? (
+          <span className={cx('min-w-0 flex-1 truncate', viewState(node.path) === 'VIEWED' && 'text-subtle')}>{node.name}</span>
+          {viewState(node.path) === 'VIEWED' ? (
             <HugeiconsIcon icon={Tick02Icon} className="size-3 shrink-0 text-accent" strokeWidth={3} />
           ) : (
-            <span className="shrink-0 font-mono text-[10.5px] text-subtle tabular-nums">
+            <span
+              title={viewState(node.path) === 'DISMISSED' ? 'Changed since viewed' : undefined}
+              className={cx('shrink-0 font-mono text-[10.5px] tabular-nums', viewState(node.path) === 'DISMISSED' ? 'text-warning' : 'text-subtle')}
+            >
               {node.file.additions + node.file.deletions}
             </span>
           )}
