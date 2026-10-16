@@ -142,20 +142,20 @@ const PAGES: { icon: IconSvgElement; title: string; url: string; body: string }[
   {
     icon: GitPullRequestIcon,
     title: 'Pull requests',
-    url: '/owner/repo/pull/123',
-    body: 'Conversation, commits, checks with re-runs, and diffs. Batch line comments into one review, suggest changes, merge.',
+    url: '/owner/repo/pull/123 · /pulls',
+    body: 'Conversation, commits, checks and diffs. Batch line comments into one review, suggest changes, edit in place and merge.',
+  },
+  {
+    icon: CircleDotIcon,
+    title: 'Issues',
+    url: '/owner/repo/issues/123 · /issues',
+    body: 'Timeline, comments and linked pull requests. Close as completed or not planned. Lists take any ?q= search.',
   },
   {
     icon: CodeIcon,
     title: 'Repositories',
     url: '/owner/repo',
     body: 'Code, files, commits, issues and pull requests, with go-to-file on t. Admins can edit the About sidebar.',
-  },
-  {
-    icon: CircleDotIcon,
-    title: 'Pull requests & issues',
-    url: '/pulls · /issues',
-    body: 'Your lists across every repository, with any ?q= search GitHub understands.',
   },
   {
     icon: Notification03Icon,
@@ -250,12 +250,13 @@ function Speed() {
 }
 
 const SHORTCUTS: { keys: string[]; label: string }[] = [
-  { keys: ['⌘', 'K'], label: 'Commands, repo and people search, owner/repo#123 jumps' },
+  { keys: ['⌘', 'K'], label: 'Commands, search, and jumps to owner/repo#123' },
   { keys: ['j', 'k'], label: 'Move between rows' },
   { keys: ['g', 'h'], label: 'Home' },
   { keys: ['g', 'p'], label: 'Your profile' },
   { keys: ['t'], label: 'Go to file' },
   { keys: ['⌘', '↵'], label: 'Send comment' },
+  { keys: ['?'], label: 'Every shortcut on the current page' },
 ];
 
 function Keyboard() {
@@ -264,7 +265,7 @@ function Keyboard() {
       id="keyboard"
       eyebrow="Keyboard first"
       title="Everything is a few keys away."
-      lede="⌘K searches your repos and people, jumps straight to owner/repo#123, and carries the actions for the page you're on."
+      lede="⌘K finds repos, people and your pull requests and issues by title, jumps to owner/repo#123 (or just #123 inside a repo), and carries the actions for the page you're on."
     >
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
         <Palette />
