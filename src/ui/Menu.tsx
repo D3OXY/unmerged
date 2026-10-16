@@ -15,23 +15,30 @@ const GAP = 6;
  * Small popover select. The panel is portaled to the app root with fixed positioning, so clipping
  * parents (overflow-hidden cards, scrolling sidebars, blurred headers) can't cut it off. It sits under
  * its trigger, flips above when there's no room, and follows the trigger while anything scrolls.
+ * An array `value` makes it multi-select (picks toggle; the menu stays open). `header` sits above the
+ * options, e.g. a search field.
  *
- * Opening moves focus to the checked option; ↑/↓, Home and End move between options. Choosing one, Escape
- * or Tab closes the menu and puts focus back on the trigger.
+ * Opening focuses the header's input if there is one, else the checked option; ↑/↓, Home and End move
+ * between options. Choosing one (in single-select), Escape or Tab closes the menu and puts focus back on
+ * the trigger.
  */
 export function Menu<T extends string>({
   value,
   options,
   onChange,
   trigger,
+  header,
   align = 'right',
 }: {
-  value: T;
+  value: T | T[];
   options: MenuOption<T>[];
   onChange: (value: T) => void;
   trigger: (open: () => void) => ReactNode;
+  header?: ReactNode;
   align?: 'left' | 'right';
 }) {
+  const multiple = Array.isArray(value);
+  const isSelected = (option: T) => (multiple ? value.includes(option) : option === value);
   const [open, setOpen] = useState(false);
   const [placement, setPlacement] = useState<Placement | null>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -47,11 +54,15 @@ export function Menu<T extends string>({
   // The panel moves into a portal once placed, so focus it then (once, not on every scroll).
   const placed = placement !== null;
   useEffect(() => {
-    if (placed) panelRef.current?.querySelector<HTMLElement>('[aria-checked="true"], [role="menuitemradio"]')?.focus();
+    const panel = panelRef.current;
+    if (!placed || !panel) return;
+    // One query per kind: a selector list would return whichever comes first in the panel.
+    const first = (selector: string) => panel.querySelector<HTMLElement>(selector);
+    (first('input') ?? first('[aria-checked="true"]') ?? first('[role^="menuitem"]'))?.focus();
   }, [placed]);
 
   const onKeyDown = (e: KeyboardEvent) => {
-    const items = [...(panelRef.current?.querySelectorAll<HTMLElement>('[role="menuitemradio"]') ?? [])];
+    const items = [...(panelRef.current?.querySelectorAll<HTMLElement>('[role^="menuitem"]') ?? [])];
     const index = items.findIndex((item) => item === e.target);
     const moves: Record<string, HTMLElement | undefined> = { ArrowDown: items[(index + 1) % items.length], ArrowUp: items.at(index - 1), Home: items[0], End: items.at(-1) };
     const target = moves[e.key];
@@ -96,20 +107,21 @@ export function Menu<T extends string>({
       style={placement ? { top: placement.top, left: placement.left, right: placement.right } : { visibility: 'hidden' }}
       className="fixed z-[60] max-h-80 w-64 animate-pop overflow-y-auto rounded-xl border border-line-strong bg-elevated p-1 shadow-2xl shadow-black/30"
     >
+      {header}
       {options.map((option) => (
         <button
           key={option.value}
           type="button"
-          role="menuitemradio"
-          aria-checked={option.value === value}
+          role={multiple ? 'menuitemcheckbox' : 'menuitemradio'}
+          aria-checked={isSelected(option.value)}
           tabIndex={-1}
           onClick={() => {
             onChange(option.value);
-            close();
+            if (!multiple) close();
           }}
           className="flex w-full cursor-pointer items-start gap-2 rounded-lg px-2.5 py-2 text-left hover:bg-hover"
         >
-          <HugeiconsIcon icon={Tick02Icon} className={cx('mt-0.5 size-3.5 shrink-0', option.value === value ? 'text-accent' : 'invisible')} />
+          <HugeiconsIcon icon={Tick02Icon} className={cx('mt-0.5 size-3.5 shrink-0', isSelected(option.value) ? 'text-accent' : 'invisible')} />
           <span>
             <span className="block text-[13px] font-medium">{option.label}</span>
             {option.hint && <span className="block text-[12px] text-muted">{option.hint}</span>}

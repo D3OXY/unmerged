@@ -1,6 +1,6 @@
 import { queryOptions, type QueryClient } from '@tanstack/react-query';
 import { gql, rest } from '@/github/client';
-import type { Actor, CheckState, Label, PrState, ReviewDecision } from '@/github/types';
+import type { Actor, CheckState, IssueState, IssueStateReason, Label, PrState, ReviewDecision } from '@/github/types';
 import { persisted } from '@/lib/persist';
 import type { PrTab } from '@/lib/routes';
 import { summarizeChecks } from './checks';
@@ -25,6 +25,12 @@ const ROLLUP = /* GraphQL */ `
   }
 `;
 
+// Everything CommentBody needs to toggle reactions on a comment or the description.
+const REACTIONS = 'viewerCanReact reactionGroups { content viewerHasReacted reactors { totalCount } }';
+// An issue or pull request mentioned in the timeline or linked to close.
+const ISSUE_REF = 'number title url state stateReason repository { nameWithOwner }';
+const REF = `__typename ... on Issue { ${ISSUE_REF} } ... on PullRequest { number title url state repository { nameWithOwner } }`;
+
 export const PR_QUERY = /* GraphQL */ `
   query PullRequest($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner, name: $repo) {
@@ -32,7 +38,7 @@ export const PR_QUERY = /* GraphQL */ `
       mergeCommitAllowed squashMergeAllowed rebaseMergeAllowed autoMergeAllowed
       viewerDefaultMergeMethod
       pullRequest(number: $number) {
-        id number title url state isDraft createdAt mergedAt closedAt bodyHTML
+        id number title url state isDraft createdAt mergedAt closedAt bodyHTML body ${REACTIONS}
         author { login avatarUrl }
         baseRefName headRefName headRefOid isCrossRepository
         headRepositoryOwner { login }
@@ -44,17 +50,18 @@ export const PR_QUERY = /* GraphQL */ `
         autoMergeRequest { mergeMethod enabledBy { login } }
         mergedBy { login avatarUrl }
         viewerDidAuthor viewerCanUpdate viewerCanMergeAsAdmin viewerCanUpdateBranch
-        viewerCanEnableAutoMerge viewerCanDisableAutoMerge
+        viewerCanEnableAutoMerge viewerCanDisableAutoMerge viewerCanLabel viewerCanAssign
         mergeHeadline: viewerMergeHeadlineText(mergeType: MERGE)
         mergeBody: viewerMergeBodyText(mergeType: MERGE)
         squashHeadline: viewerMergeHeadlineText(mergeType: SQUASH)
         squashBody: viewerMergeBodyText(mergeType: SQUASH)
-        labels(first: 20) { nodes { name color } }
-        assignees(first: 10) { nodes { login avatarUrl } }
+        labels(first: 20) { nodes { id name color } }
+        assignees(first: 10) { nodes { id login avatarUrl } }
+        closingIssuesReferences(first: 10) { nodes { ${ISSUE_REF} } }
         reviewRequests(first: 20) {
           nodes { requestedReviewer { __typename ... on User { login avatarUrl } ... on Team { name avatarUrl } ... on Bot { login avatarUrl } } }
         }
-        latestOpinionatedReviews(first: 20) { nodes { state author { login avatarUrl } } }
+        latestOpinionatedReviews(first: 20) { nodes { state author { login avatarUrl ... on User { id } } } }
         viewerPendingReview: reviews(first: 1, states: PENDING) { nodes { id comments { totalCount } } }
         commits(last: 1) {
           totalCount
@@ -66,9 +73,13 @@ export const PR_QUERY = /* GraphQL */ `
         }
         files(first: 100) { totalCount nodes { path additions deletions changeType } }
         reviewThreads(first: 50) {
+          totalCount
           nodes {
             id isResolved isOutdated path line diffSide viewerCanResolve viewerCanUnresolve viewerCanReply
-            comments(first: 30) { nodes { id author { login avatarUrl } bodyHTML createdAt diffHunk state } }
+            comments(first: 30) {
+              totalCount
+              nodes { id author { login avatarUrl } bodyHTML body createdAt diffHunk state viewerCanUpdate viewerCanDelete ${REACTIONS} }
+            }
           }
         }
         timelineItems(
@@ -76,13 +87,15 @@ export const PR_QUERY = /* GraphQL */ `
           itemTypes: [
             ISSUE_COMMENT, PULL_REQUEST_REVIEW, PULL_REQUEST_COMMIT, MERGED_EVENT, CLOSED_EVENT, REOPENED_EVENT,
             HEAD_REF_FORCE_PUSHED_EVENT, LABELED_EVENT, REVIEW_REQUESTED_EVENT, READY_FOR_REVIEW_EVENT,
-            CONVERT_TO_DRAFT_EVENT, HEAD_REF_DELETED_EVENT, RENAMED_TITLE_EVENT
+            CONVERT_TO_DRAFT_EVENT, HEAD_REF_DELETED_EVENT, RENAMED_TITLE_EVENT, CROSS_REFERENCED_EVENT, CONNECTED_EVENT,
+            DISCONNECTED_EVENT, ASSIGNED_EVENT, UNASSIGNED_EVENT, UNLABELED_EVENT, REVIEW_DISMISSED_EVENT,
+            AUTO_MERGE_ENABLED_EVENT, AUTO_MERGE_DISABLED_EVENT, BASE_REF_FORCE_PUSHED_EVENT
           ]
         ) {
           totalCount
           nodes {
             __typename
-            ... on IssueComment { id author { login avatarUrl } bodyHTML createdAt }
+            ... on IssueComment { id author { login avatarUrl } bodyHTML body createdAt viewerCanUpdate viewerCanDelete ${REACTIONS} }
             ... on PullRequestReview { id author { login avatarUrl } state bodyHTML submittedAt createdAt }
             ... on PullRequestCommit {
               id
@@ -101,6 +114,16 @@ export const PR_QUERY = /* GraphQL */ `
               id actor { login avatarUrl } createdAt
               requestedReviewer { __typename ... on User { login } ... on Team { name } ... on Bot { login } }
             }
+            ... on CrossReferencedEvent { id actor { login avatarUrl } createdAt source { ${REF} } }
+            ... on ConnectedEvent { id actor { login avatarUrl } createdAt subject { ${REF} } }
+            ... on DisconnectedEvent { id actor { login avatarUrl } createdAt subject { ${REF} } }
+            ... on AssignedEvent { id actor { login avatarUrl } createdAt assignee { ... on Actor { login } } }
+            ... on UnassignedEvent { id actor { login avatarUrl } createdAt assignee { ... on Actor { login } } }
+            ... on UnlabeledEvent { id actor { login avatarUrl } createdAt label { name color } }
+            ... on ReviewDismissedEvent { id actor { login avatarUrl } createdAt dismissalMessage review { author { login } } }
+            ... on AutoMergeEnabledEvent { id actor { login avatarUrl } createdAt }
+            ... on AutoMergeDisabledEvent { id actor { login avatarUrl } createdAt }
+            ... on BaseRefForcePushedEvent { id actor { login avatarUrl } createdAt ref { name } }
           }
         }
       }
@@ -139,10 +162,36 @@ type Reviewer =
   | { __typename: 'Team'; name: string; avatarUrl: string | null }
   | { __typename: 'Mannequin' };
 
+export type ReactionContent = 'THUMBS_UP' | 'THUMBS_DOWN' | 'LAUGH' | 'HOORAY' | 'CONFUSED' | 'HEART' | 'ROCKET' | 'EYES';
+export type ReactionGroup = { content: ReactionContent; viewerHasReacted: boolean; reactors: { totalCount: number } };
+
+/** The editable side of a comment or the PR description: its markdown source, permissions and reactions. */
+export type CommentFields = {
+  id: string;
+  body: string;
+  viewerCanUpdate: boolean;
+  viewerCanDelete?: boolean;
+  viewerCanReact: boolean;
+  reactionGroups: ReactionGroup[];
+};
+
+export type IssueRef = {
+  number: number;
+  title: string;
+  url: string;
+  state: IssueState;
+  stateReason: IssueStateReason | null;
+  repository: { nameWithOwner: string };
+};
+/** An issue or pull request mentioned in, or linked to, this one. */
+export type Reference =
+  | ({ __typename: 'Issue' } & IssueRef)
+  | { __typename: 'PullRequest'; number: number; title: string; url: string; state: PrState; repository: { nameWithOwner: string } };
+
 type Event<T extends string, Extra = object> = { __typename: T; id: string; actor: Actor; createdAt: string } & Extra;
 
 export type TimelineItem =
-  | { __typename: 'IssueComment'; id: string; author: Actor; bodyHTML: string; createdAt: string }
+  | ({ __typename: 'IssueComment'; author: Actor; bodyHTML: string; createdAt: string } & CommentFields)
   | { __typename: 'PullRequestReview'; id: string; author: Actor; state: ReviewState; bodyHTML: string; submittedAt: string | null; createdAt: string }
   | {
       __typename: 'PullRequestCommit';
@@ -166,7 +215,17 @@ export type TimelineItem =
   | Event<'ConvertToDraftEvent'>
   | Event<'LabeledEvent', { label: Label }>
   | Event<'RenamedTitleEvent', { previousTitle: string; currentTitle: string }>
-  | Event<'ReviewRequestedEvent', { requestedReviewer: { __typename: string; login?: string; name?: string } | null }>;
+  | Event<'ReviewRequestedEvent', { requestedReviewer: { __typename: string; login?: string; name?: string } | null }>
+  | Event<'CrossReferencedEvent', { source: Reference }>
+  | Event<'ConnectedEvent', { subject: Reference }>
+  | Event<'DisconnectedEvent', { subject: Reference }>
+  | Event<'AssignedEvent', { assignee: { login: string } | null }>
+  | Event<'UnassignedEvent', { assignee: { login: string } | null }>
+  | Event<'UnlabeledEvent', { label: Label }>
+  | Event<'ReviewDismissedEvent', { dismissalMessage: string | null; review: { author: { login: string } | null } | null }>
+  | Event<'AutoMergeEnabledEvent'>
+  | Event<'AutoMergeDisabledEvent'>
+  | Event<'BaseRefForcePushedEvent', { ref: { name: string } | null }>;
 
 export type ReviewThread = {
   id: string;
@@ -179,7 +238,10 @@ export type ReviewThread = {
   viewerCanUnresolve: boolean;
   viewerCanReply: boolean;
   /** PENDING comments belong to the viewer's unsubmitted review; only the viewer sees them. */
-  comments: { nodes: { id: string; author: Actor; bodyHTML: string; createdAt: string; diffHunk: string; state: 'PENDING' | 'SUBMITTED' }[] };
+  comments: {
+    totalCount: number;
+    nodes: ({ author: Actor; bodyHTML: string; createdAt: string; diffHunk: string; state: 'PENDING' | 'SUBMITTED' } & CommentFields)[];
+  };
 };
 
 export type PullRequest = {
@@ -193,6 +255,9 @@ export type PullRequest = {
   mergedAt: string | null;
   closedAt: string | null;
   bodyHTML: string;
+  body: string;
+  viewerCanReact: boolean;
+  reactionGroups: ReactionGroup[];
   author: Actor;
   baseRefName: string;
   headRefName: string;
@@ -217,14 +282,17 @@ export type PullRequest = {
   viewerCanUpdateBranch: boolean;
   viewerCanEnableAutoMerge: boolean;
   viewerCanDisableAutoMerge: boolean;
+  viewerCanLabel: boolean;
+  viewerCanAssign: boolean;
   mergeHeadline: string;
   mergeBody: string;
   squashHeadline: string;
   squashBody: string;
-  labels: { nodes: Label[] };
-  assignees: { nodes: NonNullable<Actor>[] };
+  labels: { nodes: (Label & { id: string })[] };
+  assignees: { nodes: (NonNullable<Actor> & { id: string })[] };
+  closingIssuesReferences: { nodes: IssueRef[] };
   reviewRequests: { nodes: { requestedReviewer: Reviewer | null }[] };
-  latestOpinionatedReviews: { nodes: { state: ReviewState; author: Actor }[] };
+  latestOpinionatedReviews: { nodes: { state: ReviewState; author: (NonNullable<Actor> & { id?: string }) | null }[] };
   /**
    * Only its author can see a pending review, so this is the viewer's, wherever it was started. Missing from
    * results persisted before it was queried.
@@ -235,7 +303,7 @@ export type PullRequest = {
     nodes: { commit: { statusCheckRollup: { state: CheckState; contexts: { nodes: CheckContext[] } } | null } }[];
   };
   files: { totalCount: number; nodes: { path: string; additions: number; deletions: number; changeType: string }[] };
-  reviewThreads: { nodes: ReviewThread[] };
+  reviewThreads: { totalCount: number; nodes: ReviewThread[] };
   timelineItems: { totalCount: number; nodes: TimelineItem[] };
 };
 
@@ -299,11 +367,30 @@ export const MUTATIONS = {
   replyToThread: m('AddPullRequestReviewThreadReply', '{ pullRequestReviewThreadId: $id, body: $body }', '$id: ID!, $body: String!'),
 };
 
+// ── Edits: reviewers, assignees, labels, title and description, comments, reactions ──
+export const EDIT_MUTATIONS = {
+  requestReviews: m('RequestReviews', '{ pullRequestId: $id, userIds: $ids, union: true }', '$id: ID!, $ids: [ID!]!'),
+  addAssignees: m('AddAssigneesToAssignable', '{ assignableId: $id, assigneeIds: $ids }', '$id: ID!, $ids: [ID!]!'),
+  removeAssignees: m('RemoveAssigneesFromAssignable', '{ assignableId: $id, assigneeIds: $ids }', '$id: ID!, $ids: [ID!]!'),
+  addLabels: m('AddLabelsToLabelable', '{ labelableId: $id, labelIds: $ids }', '$id: ID!, $ids: [ID!]!'),
+  removeLabels: m('RemoveLabelsFromLabelable', '{ labelableId: $id, labelIds: $ids }', '$id: ID!, $ids: [ID!]!'),
+  updateTitle: m('UpdatePullRequest', '{ pullRequestId: $id, title: $title }', '$id: ID!, $title: String!'),
+  updateBody: m('UpdatePullRequest', '{ pullRequestId: $id, body: $body }', '$id: ID!, $body: String!'),
+  updateComment: m('UpdateIssueComment', '{ id: $id, body: $body }', '$id: ID!, $body: String!'),
+  deleteComment: m('DeleteIssueComment', '{ id: $id }', '$id: ID!'),
+  updateReviewComment: m('UpdatePullRequestReviewComment', '{ pullRequestReviewCommentId: $id, body: $body }', '$id: ID!, $body: String!'),
+  deleteReviewComment: m('DeletePullRequestReviewComment', '{ id: $id }', '$id: ID!'),
+  addReaction: m('AddReaction', '{ subjectId: $id, content: $content }', '$id: ID!, $content: ReactionContent!'),
+  removeReaction: m('RemoveReaction', '{ subjectId: $id, content: $content }', '$id: ID!, $content: ReactionContent!'),
+};
+
 const prKey = (owner: string, repo: string, number: number) => [owner.toLowerCase(), repo.toLowerCase(), number] as const;
 
 export const prQuery = (owner: string, repo: string, number: number) =>
   queryOptions({
-    queryKey: ['pr', ...prKey(owner, repo, number)],
+    // The version keeps results persisted by an older build (missing newer fields) from rendering.
+    // Bump it whenever PR_QUERY gains fields.
+    queryKey: ['pr', 2, ...prKey(owner, repo, number)],
     queryFn: () => gql<PrData>(PR_QUERY, { owner, repo, number }, true),
     persister: persisted,
   });
