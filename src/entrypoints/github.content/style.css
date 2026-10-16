@@ -107,6 +107,26 @@
   & .markdown-alert-warning { border-color: var(--u-yellow); }
   & .markdown-alert-caution { border-color: var(--u-red); }
 
+  /* Suggested changes in review comments: GitHub renders them as a small blob table. */
+  & .js-suggested-changes-blob {
+    border: 1px solid var(--u-border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 0 0 12px;
+    & > :first-child { padding: 4px 10px; font-size: 12px; color: var(--u-muted); background: var(--u-elevated); border-bottom: 1px solid var(--u-border); }
+    & table { display: table; width: 100%; margin: 0; font-family: var(--font-mono); font-size: 12px; line-height: 20px; }
+    & td { border: 0; padding: 0 10px; white-space: pre; }
+    & .blob-num { width: 1%; text-align: right; color: var(--u-subtle); user-select: none; }
+    & .blob-num::before { content: attr(data-line-number); }
+    & .blob-code-inner::before { display: inline-block; width: 1.5ch; color: var(--u-subtle); }
+    & .blob-code-marker-deletion::before { content: '-'; }
+    & .blob-code-marker-addition::before { content: '+'; }
+    & .blob-num-deletion, & .blob-code-deletion { background: color-mix(in srgb, var(--u-red) 10%, transparent); }
+    & .blob-num-addition, & .blob-code-addition { background: color-mix(in srgb, var(--u-green) 10%, transparent); }
+    & .blob-code-deletion .x { background: color-mix(in srgb, var(--u-red) 25%, transparent); border-radius: 2px; }
+    & .blob-code-addition .x { background: color-mix(in srgb, var(--u-green) 25%, transparent); border-radius: 2px; }
+  }
+
   /* GitHub's syntax highlighting classes. */
   & .pl-c { color: var(--u-subtle); font-style: italic; }
   & .pl-k, & .pl-smi + .pl-k { color: #e5609b; }

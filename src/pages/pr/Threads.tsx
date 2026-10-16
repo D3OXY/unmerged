@@ -3,8 +3,10 @@ import type { QueryKey } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowRight01Icon, CheckmarkCircle02Icon, FileCodeIcon } from '@hugeicons/core-free-icons';
 import { cx } from '@/lib/cx';
+import { useDraft } from '@/lib/drafts';
 import { timeAgo } from '@/lib/time';
 import { Button } from '@/ui/Button';
+import { CommentBox } from '@/ui/CommentBox';
 import { Avatar, Markdown, Pill, SectionHeader } from '@/ui/primitives';
 import { MUTATIONS, type ReviewThread } from './query';
 import { usePrMutation } from './usePrMutation';
@@ -46,9 +48,7 @@ export function Threads({ threads, queryKey }: { threads: ReviewThread[]; queryK
 /** One review thread. `inline` drops the file/hunk context for use inside a diff. */
 export function Thread({ thread, queryKey, inline }: { thread: ReviewThread; queryKey: QueryKey; inline?: boolean }) {
   const [collapsed, setCollapsed] = useState(thread.isResolved);
-  const [reply, setReply] = useState('');
   const toggle = usePrMutation(queryKey);
-  const send = usePrMutation(queryKey);
   const first = thread.comments.nodes[0];
   const hunk = first?.diffHunk.split('\n').slice(-6) ?? [];
 
@@ -108,33 +108,36 @@ export function Thread({ thread, queryKey, inline }: { thread: ReviewThread; que
                 <div className="min-w-0 flex-1">
                   <div className="mb-1 text-[12.5px]">
                     <span className="font-semibold">{comment.author?.login}</span> <span className="text-subtle">{timeAgo(comment.createdAt)}</span>
+                    {comment.state === 'PENDING' && <Pill className="ml-1.5 h-[18px] border-warning/40 text-warning">Pending</Pill>}
                   </div>
                   <Markdown html={comment.bodyHTML} className="text-[13px]" />
                 </div>
               </div>
             ))}
           </div>
-          {thread.viewerCanReply && (
-            <form
-              className="flex gap-2 border-t border-line p-2.5"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (reply.trim()) send.mutate({ query: MUTATIONS.replyToThread, variables: { id: thread.id, body: reply.trim() } }, { onSuccess: () => setReply('') });
-              }}
-            >
-              <input
-                value={reply}
-                onChange={(e) => setReply(e.target.value)}
-                placeholder="Reply…"
-                className="h-8 flex-1 rounded-lg border border-line bg-bg px-3 text-[12.5px] outline-none focus:border-accent/60"
-              />
-              <Button size="sm" type="submit" variant="primary" disabled={!reply.trim()} loading={send.isPending} className="h-8">
-                Reply
-              </Button>
-            </form>
-          )}
+          {thread.viewerCanReply && <ThreadReply thread={thread} queryKey={queryKey} />}
         </>
       )}
+    </div>
+  );
+}
+
+/** Reply box under a thread; its draft is kept per thread. */
+function ThreadReply({ thread, queryKey }: { thread: ReviewThread; queryKey: QueryKey }) {
+  const [reply, setReply, clearReply] = useDraft(thread.id);
+  const send = usePrMutation(queryKey);
+  const text = reply.trim();
+  const submit = () => {
+    if (text) send.mutate({ query: MUTATIONS.replyToThread, variables: { id: thread.id, body: text } }, { onSuccess: clearReply });
+  };
+
+  return (
+    <div className="border-t border-line p-2.5">
+      <CommentBox value={reply} onChange={setReply} onSubmit={submit} rows={2} placeholder="Reply…" className="bg-bg">
+        <Button size="sm" variant="primary" disabled={!text} loading={send.isPending} onClick={submit} className="ml-auto">
+          Reply
+        </Button>
+      </CommentBox>
     </div>
   );
 }

@@ -113,6 +113,7 @@ function OpenBox({ repo, pr, queryKey }: { repo: Repo; pr: PullRequest; queryKey
       query: MUTATIONS.merge,
       variables: { id: pr.id, method, oid: pr.headRefOid, ...commitFields },
       success: `Merged #${pr.number}`,
+      nextAfter: pr.url,
     });
 
   const ready = pr.mergeStateStatus === 'CLEAN' || pr.mergeStateStatus === 'HAS_HOOKS' || pr.mergeStateStatus === 'UNSTABLE';
