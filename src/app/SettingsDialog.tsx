@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
 import { RotateCw, X } from 'lucide-react';
 import { isUnpacked } from '@/lib/settings';
 import { createStore } from '@/lib/store';
 import { Button } from '@/ui/Button';
+import { Modal } from '@/ui/Modal';
 import { Logo } from './Logo';
 import { SettingsPanel } from './SettingsPanel';
 
@@ -27,44 +27,31 @@ export function SettingsDialog() {
 function Dialog() {
   const close = () => settingsOpen.set(false);
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && settingsOpen.set(false);
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
-
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 px-4 py-[10vh] backdrop-blur-[2px]" onPointerDown={close}>
-      <div
-        role="dialog"
-        aria-label="Settings"
-        className="w-[400px] max-w-full animate-pop overflow-hidden rounded-2xl border border-line-strong bg-elevated shadow-2xl shadow-black/50"
-        onPointerDown={(e) => e.stopPropagation()}
-      >
-        <header className="flex items-center gap-2.5 px-4 pt-4 pb-3">
-          <Logo size={22} />
-          <span className="flex-1 text-[14px] font-semibold tracking-tight">Settings</span>
-          <button
-            type="button"
-            onClick={close}
-            aria-label="Close"
-            className="flex size-7 cursor-pointer items-center justify-center rounded-md text-subtle hover:bg-hover hover:text-fg"
-          >
-            <X className="size-4" />
-          </button>
-        </header>
+    <Modal label="Settings" onClose={close} className="w-[400px]">
+      <header className="flex items-center gap-2.5 px-4 pt-4 pb-3">
+        <Logo size={22} />
+        <span className="flex-1 text-[14px] font-semibold tracking-tight">Settings</span>
+        <button
+          type="button"
+          onClick={close}
+          aria-label="Close"
+          className="flex size-7 cursor-pointer items-center justify-center rounded-md text-subtle hover:bg-hover hover:text-fg"
+        >
+          <X className="size-4" />
+        </button>
+      </header>
 
-        <SettingsPanel />
+      <SettingsPanel />
 
-        <footer className="flex h-11 items-center justify-between border-t border-line px-4 text-[11.5px] text-subtle">
-          <span className="tabular-nums">Unmerged v{browser.runtime.getManifest().version}</span>
-          {isUnpacked() && (
-            <Button size="sm" variant="ghost" icon={<RotateCw className="size-3.5" />} onClick={reloadExtension}>
-              Reload extension
-            </Button>
-          )}
-        </footer>
-      </div>
-    </div>
+      <footer className="flex h-11 items-center justify-between border-t border-line px-4 text-[11.5px] text-subtle">
+        <span className="tabular-nums">Unmerged v{browser.runtime.getManifest().version}</span>
+        {isUnpacked() && (
+          <Button size="sm" variant="ghost" icon={<RotateCw className="size-3.5" />} onClick={reloadExtension}>
+            Reload extension
+          </Button>
+        )}
+      </footer>
+    </Modal>
   );
 }
