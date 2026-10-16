@@ -55,6 +55,7 @@ export const PR_QUERY = /* GraphQL */ `
           nodes { requestedReviewer { __typename ... on User { login avatarUrl } ... on Team { name avatarUrl } ... on Bot { login avatarUrl } } }
         }
         latestOpinionatedReviews(first: 20) { nodes { state author { login avatarUrl } } }
+        viewerPendingReview: reviews(first: 1, states: PENDING) { nodes { id comments { totalCount } } }
         commits(last: 1) {
           totalCount
           nodes {
@@ -67,7 +68,7 @@ export const PR_QUERY = /* GraphQL */ `
         reviewThreads(first: 50) {
           nodes {
             id isResolved isOutdated path line diffSide viewerCanResolve viewerCanUnresolve viewerCanReply
-            comments(first: 30) { nodes { id author { login avatarUrl } bodyHTML createdAt diffHunk } }
+            comments(first: 30) { nodes { id author { login avatarUrl } bodyHTML createdAt diffHunk state } }
           }
         }
         timelineItems(
@@ -177,7 +178,8 @@ export type ReviewThread = {
   viewerCanResolve: boolean;
   viewerCanUnresolve: boolean;
   viewerCanReply: boolean;
-  comments: { nodes: { id: string; author: Actor; bodyHTML: string; createdAt: string; diffHunk: string }[] };
+  /** PENDING comments belong to the viewer's unsubmitted review; only the viewer sees them. */
+  comments: { nodes: { id: string; author: Actor; bodyHTML: string; createdAt: string; diffHunk: string; state: 'PENDING' | 'SUBMITTED' }[] };
 };
 
 export type PullRequest = {
@@ -223,6 +225,11 @@ export type PullRequest = {
   assignees: { nodes: NonNullable<Actor>[] };
   reviewRequests: { nodes: { requestedReviewer: Reviewer | null }[] };
   latestOpinionatedReviews: { nodes: { state: ReviewState; author: Actor }[] };
+  /**
+   * Only its author can see a pending review, so this is the viewer's, wherever it was started. Missing from
+   * results persisted before it was queried.
+   */
+  viewerPendingReview?: { nodes: { id: string; comments: { totalCount: number } }[] };
   commits: {
     totalCount: number;
     nodes: { commit: { statusCheckRollup: { state: CheckState; contexts: { nodes: CheckContext[] } } | null } }[];
@@ -249,13 +256,23 @@ export type Repo = NonNullable<PrData['repository']>;
 /** "owner/repo" of a pull request, for REST paths. */
 export const repoPath = (pr: { url: string }) => new URL(pr.url).pathname.split('/').slice(1, 3).join('/');
 
-// Mutations. Each returns only a clientMutationId; the page refetches the PR afterwards.
+// Mutations. Each returns only a clientMutationId (except `startReview`); the page refetches the PR afterwards.
 const m = (name: string, input: string, args: string) =>
   `mutation ${name}(${args}) { ${name[0]!.toLowerCase()}${name.slice(1)}(input: ${input}) { clientMutationId } }`;
 
 export const MUTATIONS = {
   addComment: m('AddComment', '{ subjectId: $id, body: $body }', '$id: ID!, $body: String!'),
   addReview: m('AddPullRequestReview', '{ pullRequestId: $id, event: $event, body: $body }', '$id: ID!, $event: PullRequestReviewEvent!, $body: String'),
+  // A pending review collects line comments (`addReviewThread`) until `submitReview` sends them with one verdict.
+  startReview: /* GraphQL */ `mutation StartReview($id: ID!, $oid: GitObjectID) {
+    addPullRequestReview(input: { pullRequestId: $id, commitOID: $oid }) { pullRequestReview { id } }
+  }`,
+  addReviewThread: m(
+    'AddPullRequestReviewThread',
+    '{ pullRequestReviewId: $review, path: $path, line: $line, side: $side, startLine: $startLine, startSide: $startSide, body: $body }',
+    '$review: ID!, $path: String!, $line: Int!, $side: DiffSide!, $startLine: Int, $startSide: DiffSide, $body: String!',
+  ),
+  submitReview: m('SubmitPullRequestReview', '{ pullRequestReviewId: $id, event: $event, body: $body }', '$id: ID!, $event: PullRequestReviewEvent!, $body: String'),
   merge: m(
     'MergePullRequest',
     '{ pullRequestId: $id, mergeMethod: $method, commitHeadline: $headline, commitBody: $body, expectedHeadOid: $oid }',

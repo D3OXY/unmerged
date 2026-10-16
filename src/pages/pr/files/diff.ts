@@ -40,3 +40,18 @@ export function oldContents(newText: string, patch: string) {
   copyUntil(next.length);
   return old.join('\n');
 }
+
+/** New-file lines `start`–`end` (1-based) as the patch shows them, or null when some fall outside its hunks. */
+export function newLines(patch: string, start: number, end: number) {
+  const lines: string[] = [];
+  let line = 0;
+  for (const raw of patch.split('\n')) {
+    const hunk = raw.match(/^@@ -\d+(?:,\d+)? \+(\d+)/);
+    if (hunk) line = Number(hunk[1]);
+    else if (raw[0] === ' ' || raw[0] === '+') {
+      if (line >= start && line <= end) lines.push(raw.slice(1));
+      line++;
+    }
+  }
+  return lines.length === end - start + 1 ? lines : null;
+}

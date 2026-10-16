@@ -3,13 +3,15 @@ import { useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/
 import type { FileDiff as DiffInstance, SelectedLineRange } from '@pierre/diffs';
 import { gql, rest } from '@/github/client';
 import { loadDiffs } from '@/lib/diffs';
+import { useDraft } from '@/lib/drafts';
 import { useIsDark } from '@/lib/settings';
 import { Button } from '@/ui/Button';
+import { CommentBox } from '@/ui/CommentBox';
 import { Skeleton } from '@/ui/primitives';
 import { toast } from '@/ui/toast';
-import { repoPath, type PullRequest, type ReviewThread } from '../query';
+import { MUTATIONS, repoPath, type PullRequest, type ReviewThread } from '../query';
 import { Thread } from '../Threads';
-import { gitPatch, oldContents } from './diff';
+import { gitPatch, newLines, oldContents } from './diff';
 import type { DiffMode, PrFile } from './FileDiff';
 
 type Side = 'additions' | 'deletions';
@@ -157,60 +159,100 @@ export function DiffBody({ file, patch, pr, queryKey, mode, wrap, threads }: {
           {note.threads.map((thread) => (
             <Thread key={thread.id} thread={thread} queryKey={queryKey} inline />
           ))}
-          {note.draft && <LineComposer pr={pr} path={file.filename} draft={note.draft} queryKey={queryKey} onDone={() => setDraft(null)} />}
+          {note.draft && <LineComposer pr={pr} path={file.filename} patch={patch} draft={note.draft} queryKey={queryKey} onDone={() => setDraft(null)} />}
         </div>
       ))}
     </div>
   );
 }
 
-/** Posts a single (non-review) comment on a line or a range of lines. */
-function LineComposer({ pr, path, draft, queryKey, onDone }: { pr: PullRequest; path: string; draft: Draft; queryKey: QueryKey; onDone: () => void }) {
-  const [body, setBody] = useState('');
+type StartedReview = { addPullRequestReview: { pullRequestReview: { id: string } } };
+
+/**
+ * Comments on a line or a range of lines: adds it to the viewer's pending review (starting one if needed)
+ * or, while no review is under way, posts it on its own. Like GitHub, single comments go away while a
+ * review is pending. The draft is kept per line.
+ */
+function LineComposer({ pr, path, patch, draft, queryKey, onDone }: { pr: PullRequest; path: string; patch: string; draft: Draft; queryKey: QueryKey; onDone: () => void }) {
+  const [body, setBody, clearBody] = useDraft(`${pr.id}:${path}:${draft.side}:${draft.end}`);
+  const textarea = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
+  const pending = pr.viewerPendingReview?.nodes[0];
   const range = draft.start !== draft.end || draft.startSide !== draft.side;
+  const text = body.trim();
   const send = useMutation({
-    mutationFn: () =>
-      rest(`/repos/${repoPath(pr)}/pulls/${pr.number}/comments`, {
-        method: 'POST',
-        body: {
-          body: body.trim(),
-          commit_id: pr.headRefOid,
-          path,
-          line: draft.end,
-          side: githubSide(draft.side),
-          ...(range && { start_line: draft.start, start_side: githubSide(draft.startSide) }),
-        },
-      }),
+    mutationFn: async (to: 'review' | 'single') => {
+      const side = githubSide(draft.side);
+      const startSide = githubSide(draft.startSide);
+      if (to === 'single') {
+        return rest(`/repos/${repoPath(pr)}/pulls/${pr.number}/comments`, {
+          method: 'POST',
+          body: { body: text, commit_id: pr.headRefOid, path, line: draft.end, side, ...(range && { start_line: draft.start, start_side: startSide }) },
+        });
+      }
+      const review = pending?.id ?? (await gql<StartedReview>(MUTATIONS.startReview, { id: pr.id, oid: pr.headRefOid })).addPullRequestReview.pullRequestReview.id;
+      return gql(MUTATIONS.addReviewThread, { review, path, body: text, line: draft.end, side, ...(range && { startLine: draft.start, startSide }) });
+    },
     onSuccess: async () => {
+      clearBody();
       await queryClient.invalidateQueries({ queryKey });
       onDone();
     },
     onError: toast.error,
   });
+  const submit = (to: 'review' | 'single') => {
+    if (text) send.mutate(to);
+  };
+  const cancel = () => {
+    clearBody();
+    onDone();
+  };
+
+  // Suggestions replace new-side lines, so they're offered only there. The lines' text comes from the patch;
+  // lines outside it (expanded context) leave an empty block to fill in.
+  const canSuggest = draft.side === 'additions' && draft.startSide === 'additions';
+  const suggest = () => {
+    const el = textarea.current;
+    const at = el?.selectionStart ?? body.length;
+    const before = body.slice(0, at);
+    const head = `${before && !before.endsWith('\n') ? '\n' : ''}\`\`\`suggestion\n${(newLines(patch, draft.start, draft.end) ?? []).join('\n')}`;
+    setBody(`${before}${head}\n\`\`\`\n${body.slice(el?.selectionEnd ?? at)}`);
+    // Caret at the end of the suggested lines, where the edit starts.
+    requestAnimationFrame(() => {
+      el?.focus();
+      el?.setSelectionRange(at + head.length, at + head.length);
+    });
+  };
 
   return (
-    <div className="rounded-xl border border-line-strong bg-panel">
-      <textarea
-        autoFocus
-        rows={3}
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && body.trim()) send.mutate();
-          if (e.key === 'Escape') onDone();
-        }}
-        placeholder={range ? `Comment on lines ${draft.start}–${draft.end}…` : `Comment on line ${draft.end}…`}
-        className="block w-full resize-y bg-transparent px-3 py-2.5 text-[13px] outline-none placeholder:text-subtle"
-      />
-      <div className="flex justify-end gap-2 border-t border-line px-2.5 py-2">
-        <Button size="sm" variant="ghost" onClick={onDone}>
+    <CommentBox
+      value={body}
+      onChange={setBody}
+      onSubmit={() => submit(pending ? 'review' : 'single')}
+      onClose={onDone}
+      autoFocus
+      textareaRef={textarea}
+      placeholder={range ? `Comment on lines ${draft.start}–${draft.end}…` : `Comment on line ${draft.end}…`}
+      className="border-line-strong"
+    >
+      {canSuggest && (
+        <Button size="sm" variant="ghost" onClick={suggest}>
+          Suggest change
+        </Button>
+      )}
+      <div className="ml-auto flex items-center gap-2">
+        <Button size="sm" variant="ghost" onClick={cancel}>
           Cancel
         </Button>
-        <Button size="sm" variant="primary" disabled={!body.trim()} loading={send.isPending} onClick={() => send.mutate()}>
-          Comment
+        {!pending && (
+          <Button size="sm" variant="primary" disabled={!text} loading={send.isPending && send.variables === 'single'} onClick={() => submit('single')}>
+            Add single comment
+          </Button>
+        )}
+        <Button size="sm" variant={pending ? 'primary' : 'secondary'} disabled={!text} loading={send.isPending && send.variables === 'review'} onClick={() => submit('review')}>
+          {pending ? 'Add to review' : 'Start a review'}
         </Button>
       </div>
-    </div>
+    </CommentBox>
   );
 }
