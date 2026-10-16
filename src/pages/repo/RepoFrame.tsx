@@ -1,0 +1,184 @@
+import type { ReactNode } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Archive, BookOpen, CircleDot, Code2, Eye, EyeOff, GitFork, GitPullRequest, Lock, MessagesSquare, Pin, PinOff, Play, Settings, Star, TrendingUp } from 'lucide-react';
+import { gql } from '@/github/client';
+import { PageHeader, Shell } from '@/app/Shell';
+import { openClassic } from '@/lib/classic';
+import { cx } from '@/lib/cx';
+import { pin, unpin, useIsPinned } from '@/lib/pins';
+import type { RepoView } from '@/lib/routes';
+import { formatCount } from '@/lib/time';
+import { Button } from '@/ui/Button';
+import { Menu } from '@/ui/Menu';
+import { Avatar, Pill } from '@/ui/primitives';
+import { Tab, TabBar } from '@/ui/Tabs';
+import { toast } from '@/ui/toast';
+import { REPO_MUTATIONS, REPO_QUERY, type Repo, type Subscription } from './query';
+
+const repoKey = (owner: string, name: string) => ['repo', owner.toLowerCase(), name.toLowerCase()];
+
+/** The repo's metadata. Shared by the frame and the page inside it (one request). */
+export const useRepo = (owner: string, name: string) =>
+  useQuery({ queryKey: repoKey(owner, name), queryFn: () => gql<{ repository: Repo | null }>(REPO_QUERY, { owner, name }, true) });
+
+const LIST_TITLES: Partial<Record<RepoView, string>> = { issues: 'Issues', pulls: 'Pull requests' };
+
+/** Frame for every repo view: breadcrumbs with Watch/Star/Fork, the repo's name, and tabs between views. */
+export function RepoFrame({ owner, name, view, children }: { owner: string; name: string; view: RepoView; children: ReactNode }) {
+  const meta = useRepo(owner, name);
+  const repo = meta.data?.repository;
+  const nwo = repo?.nameWithOwner ?? `${owner}/${name}`;
+  const list = LIST_TITLES[view];
+  const crumbs = [{ label: owner, href: `/${owner}` }, { label: name, href: `/${owner}/${name}` }, ...(list ? [{ label: list }] : [])];
+
+  if (meta.error || (meta.data && !repo)) {
+    return (
+      <Shell>
+        <PageHeader crumbs={crumbs} />
+        <div className="p-10 text-[13px]">
+          <p className="text-danger">{meta.error?.message ?? "Repository not found, or your token can't see it."}</p>
+          <Button className="mt-4" onClick={openClassic}>
+            Open in classic GitHub
+          </Button>
+        </div>
+      </Shell>
+    );
+  }
+
+  return (
+    <Shell>
+      <PageHeader crumbs={crumbs} actions={repo && <RepoActions repo={repo} queryKey={repoKey(owner, name)} />} />
+      <div className="mx-auto max-w-[1240px] animate-enter px-6 pt-8 pb-8">
+        {repo ? <RepoHeader repo={repo} /> : <div className="h-[34px]" />}
+        <RepoTabs repo={repo ?? undefined} nwo={nwo} view={view} />
+        {children}
+      </div>
+    </Shell>
+  );
+}
+
+function RepoHeader({ repo }: { repo: Repo }) {
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <Avatar src={repo.owner.avatarUrl} size={34} square />
+      <h1 className="text-[22px] font-semibold tracking-tight">
+        <a href={`/${repo.owner.login}`} className="font-normal text-muted hover:text-fg">
+          {repo.owner.login}
+        </a>
+        <span className="mx-1.5 font-normal text-subtle">/</span>
+        {repo.name}
+      </h1>
+      <Pill>
+        {repo.isPrivate && <Lock className="size-3" />}
+        {repo.isPrivate ? 'Private' : 'Public'}
+      </Pill>
+      {repo.isArchived && (
+        <Pill className="border-warning/30 text-warning">
+          <Archive className="size-3" /> Archived
+        </Pill>
+      )}
+      {repo.isTemplate && <Pill>Template</Pill>}
+      {repo.parent && (
+        <span className="text-[12.5px] text-subtle">
+          forked from{' '}
+          <a href={`/${repo.parent.nameWithOwner}`} className="text-muted hover:text-fg hover:underline">
+            {repo.parent.nameWithOwner}
+          </a>
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Code (with commits under it), Issues and Pull requests are ours; the other tabs link to GitHub's pages.
+ * Optional tabs stay hidden until the repo loads.
+ */
+function RepoTabs({ repo, nwo, view }: { repo?: Repo; nwo: string; view: RepoView }) {
+  const tabs: { label: string; href: string; icon: ReactNode; views?: RepoView[]; count?: number; show?: boolean }[] = [
+    { label: 'Code', href: `/${nwo}`, icon: <Code2 />, views: ['code', 'commits'] },
+    { label: 'Issues', href: `/${nwo}/issues`, icon: <CircleDot />, views: ['issues'], count: repo?.issues.totalCount, show: !!repo?.hasIssuesEnabled },
+    { label: 'Pull requests', href: `/${nwo}/pulls`, icon: <GitPullRequest />, views: ['pulls'], count: repo?.pullRequests.totalCount },
+    { label: 'Discussions', href: `/${nwo}/discussions`, icon: <MessagesSquare />, show: !!repo?.hasDiscussionsEnabled },
+    { label: 'Actions', href: `/${nwo}/actions`, icon: <Play /> },
+    { label: 'Wiki', href: `/${nwo}/wiki`, icon: <BookOpen />, show: !!repo?.hasWikiEnabled },
+    { label: 'Insights', href: `/${nwo}/pulse`, icon: <TrendingUp /> },
+    { label: 'Settings', href: `/${nwo}/settings`, icon: <Settings />, show: !!repo?.viewerCanAdminister },
+  ];
+  return (
+    <TabBar className="mt-5 mb-6">
+      {tabs
+        .filter((t) => t.show !== false)
+        .map((t) => (
+          <Tab key={t.label} href={t.href} active={!!t.views?.includes(view)} icon={t.icon} label={t.label} count={t.count || undefined} />
+        ))}
+    </TabBar>
+  );
+}
+
+const WATCH_LABEL: Record<Subscription, string> = { UNSUBSCRIBED: 'Watch', SUBSCRIBED: 'Watching', IGNORED: 'Ignoring' };
+
+/** Pin / Watch / Fork / Star, with optimistic counts. */
+function RepoActions({ repo, queryKey }: { repo: Repo; queryKey: unknown[] }) {
+  const queryClient = useQueryClient();
+  const patch = (changes: Partial<Repo>) => queryClient.setQueryData<{ repository: Repo }>(queryKey, (d) => d && { repository: { ...d.repository, ...changes } });
+  const rollback = (error: Error) => {
+    toast.error(error);
+    return queryClient.invalidateQueries({ queryKey });
+  };
+
+  const star = useMutation({
+    mutationFn: (starred: boolean) => gql(starred ? REPO_MUTATIONS.unstar : REPO_MUTATIONS.star, { id: repo.id }),
+    onMutate: (starred) => patch({ viewerHasStarred: !starred, stargazerCount: repo.stargazerCount + (starred ? -1 : 1) }),
+    onError: rollback,
+  });
+  const watch = useMutation({
+    mutationFn: (state: Subscription) => gql(REPO_MUTATIONS.subscribe, { id: repo.id, state }),
+    onMutate: (state) => patch({ viewerSubscription: state }),
+    onError: rollback,
+  });
+  const subscription = repo.viewerSubscription ?? 'UNSUBSCRIBED';
+  const pinned = useIsPinned(repo.nameWithOwner);
+
+  return (
+    <>
+      <Button
+        size="sm"
+        variant={pinned ? 'secondary' : 'ghost'}
+        icon={pinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />}
+        onClick={() => (pinned ? unpin(repo.nameWithOwner) : pin(repo.nameWithOwner))}
+        title={pinned ? 'Unpin from sidebar' : 'Pin to sidebar'}
+      >
+        {pinned ? 'Pinned' : 'Pin'}
+      </Button>
+      <Menu<Subscription>
+        value={subscription}
+        options={[
+          { value: 'UNSUBSCRIBED', label: 'Participating and @mentions', hint: 'Only when you take part or are mentioned' },
+          { value: 'SUBSCRIBED', label: 'All activity', hint: 'Every issue, pull request and release' },
+          { value: 'IGNORED', label: 'Ignore', hint: 'Never be notified' },
+        ]}
+        onChange={(state) => watch.mutate(state)}
+        trigger={(open) => (
+          <Button size="sm" variant="ghost" icon={subscription === 'IGNORED' ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />} onClick={open}>
+            {WATCH_LABEL[subscription]}
+            <span className="text-subtle tabular-nums">{formatCount(repo.watchers.totalCount)}</span>
+          </Button>
+        )}
+      />
+      <Button size="sm" variant="ghost" icon={<GitFork className="size-3.5" />} onClick={() => location.assign(`/${repo.nameWithOwner}/fork`)}>
+        Fork
+        <span className="text-subtle tabular-nums">{formatCount(repo.forkCount)}</span>
+      </Button>
+      <Button
+        size="sm"
+        variant={repo.viewerHasStarred ? 'secondary' : 'ghost'}
+        icon={<Star className={cx('size-3.5', repo.viewerHasStarred && 'fill-warning text-warning')} />}
+        onClick={() => star.mutate(repo.viewerHasStarred)}
+      >
+        {repo.viewerHasStarred ? 'Starred' : 'Star'}
+        <span className="text-subtle tabular-nums">{formatCount(repo.stargazerCount)}</span>
+      </Button>
+    </>
+  );
+}

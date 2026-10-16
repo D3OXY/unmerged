@@ -8,7 +8,7 @@ const SURFACES: Record<Surface, { label: string; path: string; icon: ReactNode }
   home: { label: 'Home', path: 'github.com', icon: <Home /> },
   profile: { label: 'Profiles', path: 'github.com/<user>', icon: <User /> },
   pr: { label: 'Pull requests', path: '…/pull/<number>', icon: <GitPullRequest /> },
-  repo: { label: 'Repositories', path: 'github.com/<owner>/<repo>', icon: <BookMarked /> },
+  repo: { label: 'Repositories', path: 'github.com/<owner>/<repo>, /issues, /pulls', icon: <BookMarked /> },
   work: { label: 'Pull request & issue lists', path: 'github.com/pulls, /issues', icon: <ListTodo /> },
   notifications: { label: 'Notifications', path: 'github.com/notifications', icon: <Bell /> },
 };
