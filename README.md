@@ -9,6 +9,10 @@
   same session, a calmer Linear/Vercel/Raycast-style UI.
 </p>
 
+<p align="center">
+  <img src=".github/screenshot.png" alt="A repository page in Unmerged, split diagonally between dark and light mode">
+</p>
+
 ## What it takes over
 
 | Page | URL | Fallback |
