@@ -2,6 +2,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import { achievementsQuery } from '@/github/achievements';
 import type { Route } from '@/lib/routes';
 import { prefetchHome } from '@/pages/home/queries';
+import { issueQuery } from '@/pages/issue/query';
 import { notificationsQuery, viewOf } from '@/pages/notifications/queries';
 import { prefetchPr } from '@/pages/pr/query';
 import {
@@ -46,6 +47,10 @@ export function prefetchRoute(client: QueryClient, route: Route, url: URL) {
         client.prefetchQuery(repoQuery(route.owner, route.repo));
         client.prefetchInfiniteQuery(workListQuery(url.searchParams.get('q') || repoListQuery(route.view), `${route.owner}/${route.repo}`));
       } else prefetchRepo(client, route.owner, route.repo, route.view, route.rest);
+      return;
+    case 'issue':
+      client.prefetchQuery(repoQuery(route.owner, route.repo));
+      client.prefetchQuery(issueQuery(route.owner, route.repo, route.number));
       return;
     case 'pr':
       prefetchPr(client, route.owner, route.repo, route.number, route.tab);

@@ -137,7 +137,7 @@ export function CommentCard({ author, createdAt, html, nested }: { author: Actor
   );
 }
 
-function EventLine({
+export function EventLine({
   icon,
   tone,
   actor,

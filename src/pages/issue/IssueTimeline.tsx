@@ -1,0 +1,124 @@
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CheckmarkCircle02Icon, Comment01Icon, Link02Icon, PencilEdit02Icon, Tag01Icon, UnavailableIcon, UndoIcon, UserAdd01Icon, UserRemove01Icon } from '@hugeicons/core-free-icons';
+import type { IssueStateReason } from '@/github/types';
+import { openClassic } from '@/lib/classic';
+import { cx } from '@/lib/cx';
+import { repoPath } from '@/pages/pr/query';
+import { CommentCard, EventLine } from '@/pages/pr/Timeline';
+import { Pill } from '@/ui/primitives';
+import { IssueIcon, PrStateIcon } from '@/ui/status';
+import { notPlanned, type Issue, type IssueTimelineItem, type Ref } from './query';
+
+/** The issue's activity on the PR timeline's rail: comments as cards, everything else as one-liners. */
+export function IssueTimeline({ issue }: { issue: Issue }) {
+  const { nodes, totalCount } = issue.timelineItems;
+  const hidden = totalCount - nodes.length;
+  const here = repoPath(issue);
+  return (
+    <div className="relative">
+      <div className="absolute top-2 bottom-2 left-[15px] w-px bg-line" />
+      {hidden > 0 && (
+        <EventLine icon={<HugeiconsIcon icon={Comment01Icon} />}>
+          {hidden} earlier events aren't shown.
+          <button type="button" onClick={openClassic} className="cursor-pointer text-accent hover:underline">
+            View in classic
+          </button>
+        </EventLine>
+      )}
+      {nodes.map((item) => (
+        <Entry key={item.id} item={item} issueUrl={issue.url} here={here} />
+      ))}
+    </div>
+  );
+}
+
+const CLOSED_AS: Partial<Record<IssueStateReason, string>> = { COMPLETED: ' as completed', NOT_PLANNED: ' as not planned', DUPLICATE: ' as a duplicate' };
+
+function Entry({ item, issueUrl, here }: { item: IssueTimelineItem; issueUrl: string; here: string }) {
+  switch (item.__typename) {
+    case 'IssueComment':
+      return <CommentCard author={item.author} createdAt={item.createdAt} html={item.bodyHTML} />;
+    case 'ClosedEvent': {
+      const planned = !notPlanned(item.stateReason);
+      const { closer } = item;
+      const via =
+        closer?.__typename === 'PullRequest' ? { url: closer.url, label: `#${closer.number}` } : closer?.__typename === 'Commit' ? { url: closer.url, label: closer.abbreviatedOid } : null;
+      return (
+        <EventLine icon={<HugeiconsIcon icon={planned ? CheckmarkCircle02Icon : UnavailableIcon} />} tone={planned ? 'merged' : undefined} actor={item.actor} at={item.createdAt}>
+          closed this{item.stateReason && CLOSED_AS[item.stateReason]}
+          {via && (
+            <>
+              in
+              <a href={via.url} className="font-medium text-fg/90 hover:underline">
+                {via.label}
+              </a>
+            </>
+          )}
+        </EventLine>
+      );
+    }
+    case 'ReopenedEvent':
+      return <EventLine icon={<HugeiconsIcon icon={UndoIcon} />} tone="success" actor={item.actor} at={item.createdAt}>reopened this</EventLine>;
+    case 'LabeledEvent':
+    case 'UnlabeledEvent':
+      return (
+        <EventLine icon={<HugeiconsIcon icon={Tag01Icon} />} actor={item.actor} at={item.createdAt}>
+          {item.__typename === 'LabeledEvent' ? 'added' : 'removed'} <Pill color={item.label.color}>{item.label.name}</Pill>
+        </EventLine>
+      );
+    case 'AssignedEvent':
+    case 'UnassignedEvent': {
+      const assigned = item.__typename === 'AssignedEvent';
+      const who = item.assignee?.login;
+      return (
+        <EventLine icon={<HugeiconsIcon icon={assigned ? UserAdd01Icon : UserRemove01Icon} />} actor={item.actor} at={item.createdAt}>
+          {who && who === item.actor?.login ? (
+            assigned ? 'self-assigned this' : 'removed their assignment'
+          ) : (
+            <>
+              {assigned ? 'assigned' : 'unassigned'} {who && <span className="font-medium text-fg/90">{who}</span>}
+            </>
+          )}
+        </EventLine>
+      );
+    }
+    case 'CrossReferencedEvent':
+      return (
+        <EventLine icon={<HugeiconsIcon icon={Link02Icon} />} actor={item.actor} at={item.createdAt}>
+          <span className="shrink-0">mentioned this in</span>
+          <RefLink subject={item.source} here={here} />
+        </EventLine>
+      );
+    case 'RenamedTitleEvent':
+      return (
+        <EventLine icon={<HugeiconsIcon icon={PencilEdit02Icon} />} actor={item.actor} at={item.createdAt}>
+          renamed from <span className="text-fg/80 line-through decoration-subtle">{item.previousTitle}</span>
+        </EventLine>
+      );
+    case 'ConnectedEvent':
+      return (
+        <EventLine icon={<HugeiconsIcon icon={Link02Icon} />} actor={item.actor} at={item.createdAt}>
+          <span className="shrink-0">linked</span>
+          <RefLink subject={item.source.url === issueUrl ? item.subject : item.source} here={here} />
+        </EventLine>
+      );
+  }
+}
+
+/** Another issue or pull request: state icon, title and number (with its repo when it's elsewhere). */
+export function RefLink({ subject, here, className }: { subject: Ref; here: string; className?: string }) {
+  const repo = subject.repository.nameWithOwner;
+  return (
+    <a href={subject.url} title={subject.title} className={cx('flex min-w-0 items-center gap-1.5 text-fg/90 hover:text-fg', className)}>
+      {subject.__typename === 'Issue' ? (
+        <IssueIcon state={subject.state} stateReason={subject.stateReason} className="size-3.5" />
+      ) : (
+        <PrStateIcon state={subject.state} isDraft={subject.isDraft} className="size-3.5" />
+      )}
+      <span className="truncate">{subject.title}</span>
+      <span className="shrink-0 text-subtle">
+        {repo.toLowerCase() === here.toLowerCase() ? '' : repo}#{subject.number}
+      </span>
+    </a>
+  );
+}

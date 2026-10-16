@@ -135,7 +135,7 @@ export function FilesCard({ pr }: { pr: PullRequest }) {
   );
 }
 
-function Card({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
+export function Card({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
   return (
     <Panel className="p-2">
       <div className="flex h-7 items-center gap-1.5 px-2 text-[12px] font-medium text-muted">
@@ -147,7 +147,7 @@ function Card({ title, count, children }: { title: string; count?: number; child
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="py-1">
       <div className="px-2 pb-0.5 text-[11px] text-subtle">{label}</div>
@@ -156,7 +156,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function Person({ name, avatarUrl, trailing }: { name: string; avatarUrl: string | null; trailing?: ReactNode }) {
+export function Person({ name, avatarUrl, trailing }: { name: string; avatarUrl: string | null; trailing?: ReactNode }) {
   return (
     <div className="flex h-7 items-center gap-2 rounded-md px-2 text-[12.5px]">
       <Avatar src={avatarUrl} size={18} />

@@ -21,13 +21,21 @@ export const useRepo = (owner: string, name: string) => useQuery(repoQuery(owner
 
 const LIST_TITLES: Partial<Record<RepoView, string>> = { issues: 'Issues', pulls: 'Pull requests' };
 
-/** Frame for every repo view: breadcrumbs with Watch/Star/Fork, the repo's name, and tabs between views. */
-export function RepoFrame({ owner, name, view, children }: { owner: string; name: string; view: RepoView; children: ReactNode }) {
+/**
+ * Frame for every repo view: breadcrumbs with Watch/Star/Fork, the repo's name, and tabs between views.
+ * `item` is the last crumb of a page inside a list (an issue's "#12"); the list's crumb then links back.
+ */
+export function RepoFrame({ owner, name, view, item, children }: { owner: string; name: string; view: RepoView; item?: string; children: ReactNode }) {
   const meta = useRepo(owner, name);
   const repo = meta.data?.repository;
   const nwo = repo?.nameWithOwner ?? `${owner}/${name}`;
   const list = LIST_TITLES[view];
-  const crumbs = [{ label: owner, href: `/${owner}` }, { label: name, href: `/${owner}/${name}` }, ...(list ? [{ label: list }] : [])];
+  const crumbs = [
+    { label: owner, href: `/${owner}` },
+    { label: name, href: `/${owner}/${name}` },
+    ...(list ? [{ label: list, href: item && `/${owner}/${name}/${view}` }] : []),
+    ...(item ? [{ label: item }] : []),
+  ];
 
   if (meta.error || (meta.data && !repo)) {
     return (
