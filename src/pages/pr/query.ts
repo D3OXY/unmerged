@@ -420,16 +420,20 @@ export const prViewedQuery = (owner: string, repo: string, number: number) =>
     persister: persisted,
   });
 
+// Just what the patches' cache key needs, in a fraction of the full pull request's time.
+const PR_HEAD_QUERY = /* GraphQL */ `
+  query PullRequestHead($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner, name: $repo) { pullRequest(number: $number) { number headRefOid changedFiles } }
+  }
+`;
+
 /** What a pull request URL will show, started early (page load, link hover) by src/app/prefetch.ts. */
 export function prefetchPr(client: QueryClient, owner: string, repo: string, number: number, tab: PrTab) {
-  if (tab !== 'files') {
-    client.prefetchQuery(prQuery(owner, repo, number));
-    return;
-  }
+  client.prefetchQuery(prQuery(owner, repo, number));
+  if (tab !== 'files') return;
   client.prefetchQuery(prViewedQuery(owner, repo, number));
-  // Patches are keyed by the head commit, which comes with the pull request.
-  client
-    .fetchQuery(prQuery(owner, repo, number))
+  // Patches are keyed by the head commit; look it up on its own so they don't wait for the full pull request.
+  gql<{ repository: { pullRequest: Pick<PullRequest, 'number' | 'headRefOid' | 'changedFiles'> | null } | null }>(PR_HEAD_QUERY, { owner, repo, number })
     .then(({ repository }) => repository?.pullRequest && client.prefetchQuery(prFilesQuery(owner, repo, repository.pullRequest)))
     .catch(() => {});
 }
