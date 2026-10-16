@@ -56,7 +56,6 @@ describe('matchRoute', () => {
     ['https://github.com/o/r/commits/main/src', repo('commits', ['main', 'src'])],
     ['https://github.com/o/r/issues', repo('issues')],
     ['https://github.com/o/r/pulls?q=is:closed', repo('pulls')],
-    ['https://github.com/o/r/commit/abc123', null],
     ['https://github.com/o/r/actions', null],
     ['https://github.com/Owner/Repo', { kind: 'repo', owner: 'Owner', repo: 'Repo', view: 'code', rest: [] }],
 
@@ -67,7 +66,6 @@ describe('matchRoute', () => {
     ['https://github.com/o/r/pull/12/checks', pr('checks')],
     ['https://github.com/o/r/pull/12/files', pr('files')],
     ['https://github.com/o/r/pull/12/changes', pr('files')],
-    ['https://github.com/o/r/pull/12/commits/abc123', null],
     ['https://github.com/o/r/pull/12/unknown', null],
     ['https://github.com/o/r/pull/new', null],
 
@@ -75,6 +73,15 @@ describe('matchRoute', () => {
     ['https://github.com/o/r/issues/123', { kind: 'issue', owner: 'o', repo: 'r', number: 123 }],
     ['https://github.com/o/r/issues/new', null],
     ['https://github.com/o/r/issues/12/edit', null],
+    // Commits: hex SHAs of 7–40 characters only, so raw views, checks and branch names stay GitHub's
+    ['https://github.com/o/r/commit/20adf3c', { kind: 'commit', owner: 'o', repo: 'r', sha: '20adf3c' }],
+    ['https://github.com/o/r/pull/12/commits/abcdef1', { kind: 'commit', owner: 'o', repo: 'r', sha: 'abcdef1', pr: 12 }],
+    ['https://github.com/o/r/commit/abc123', null],
+    ['https://github.com/o/r/commit/20adf3c.patch', null],
+    ['https://github.com/o/r/commit/20adf3c.diff', null],
+    ['https://github.com/o/r/commit/20adf3c/checks', null],
+    ['https://github.com/o/r/commit/main', null],
+    ['https://github.com/o/r/pull/12/commits/abc123', null],
 
     // Malformed escapes are left to GitHub instead of throwing
     ['https://github.com/%E0%A4%A', null],

@@ -9,7 +9,7 @@ import { FileTree } from '@/pages/pr/files/FileTree';
 import { Empty, Panel, Skeleton } from '@/ui/primitives';
 import { commitFilesQuery } from './query';
 
-const notViewed = () => false;
+const notViewed = () => undefined;
 
 /** A commit's changed files: the PR Files tab's tree and diffs, without review (no threads, comments or "Viewed"). */
 export function CommitFiles({ owner, repo, sha }: { owner: string; repo: string; sha: string }) {
@@ -19,6 +19,13 @@ export function CommitFiles({ owner, repo, sha }: { owner: string; repo: string;
   const [openOverride, setOpenOverride] = useState<Record<string, boolean>>({});
   const [active, setActive] = useState<string>();
   const cards = useRef(new Map<string, HTMLElement>());
+  const source = useMemo(() => ({ nameWithOwner: `${owner}/${repo}`, oid: sha }), [owner, repo, sha]);
+  // Stable, so file cards only re-render when their own props change.
+  const setOpen = useCallback((path: string, open: boolean) => setOpenOverride((o) => ({ ...o, [path]: open })), []);
+  const cardRef = useCallback((path: string, el: HTMLElement | null) => {
+    if (el) cards.current.set(path, el);
+    else cards.current.delete(path);
+  }, []);
 
   // Track the file under the sticky headers to highlight it in the tree.
   useEffect(() => {
@@ -77,18 +84,11 @@ export function CommitFiles({ owner, repo, sha }: { owner: string; repo: string;
     setWrap(!wrap);
     localStorage.setItem(WRAP_KEY, String(!wrap));
   };
-  const source = useMemo(() => ({ nameWithOwner: `${owner}/${repo}`, oid: sha }), [owner, repo, sha]);
-  // Stable, so file cards only re-render when their own props change.
-  const setOpen = useCallback((path: string, open: boolean) => setOpenOverride((o) => ({ ...o, [path]: open })), []);
-  const cardRef = useCallback((path: string, el: HTMLElement | null) => {
-    if (el) cards.current.set(path, el);
-    else cards.current.delete(path);
-  }, []);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
       <aside className="hidden lg:sticky lg:top-[108px] lg:flex lg:max-h-[calc(100vh-124px)] lg:self-start">
-        <FileTree files={list} viewed={notViewed} active={active} onSelect={select} />
+        <FileTree files={list} viewState={notViewed} active={active} onSelect={select} />
       </aside>
 
       <div className="flex min-w-0 flex-col gap-3">
