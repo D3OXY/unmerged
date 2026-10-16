@@ -52,7 +52,12 @@ export function FileDiff({ file, pr, queryKey, anchor, mode: preferredMode, wrap
 
   return (
     <section id={anchor} ref={cardRef} className="scroll-mt-[104px] rounded-xl border border-line bg-panel">
-      <header className="sticky top-[92px] z-10 flex h-11 items-center gap-2 rounded-t-xl border-b border-line bg-panel/95 px-3 backdrop-blur-xl">
+      <header
+        className={cx(
+          'sticky top-[92px] z-10 flex h-11 items-center gap-2 bg-panel/95 px-3 backdrop-blur-xl',
+          open ? 'rounded-t-xl border-b border-line' : 'rounded-xl',
+        )}
+      >
         <button type="button" onClick={onToggleOpen} aria-label={open ? 'Collapse file' : 'Expand file'} className="flex size-6 cursor-pointer items-center justify-center rounded-md text-subtle hover:bg-hover hover:text-fg">
           <ChevronRight className={cx('size-3.5 transition-transform', open && 'rotate-90')} />
         </button>

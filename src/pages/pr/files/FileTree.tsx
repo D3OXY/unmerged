@@ -89,7 +89,7 @@ export function FileTree({ files, viewed, active, onSelect }: { files: PrFile[];
     );
 
   return (
-    <div className="flex min-h-0 flex-col">
+    <div className="flex min-h-0 w-full min-w-0 flex-col">
       <label className="mb-2 flex h-8 shrink-0 items-center gap-2 rounded-lg border border-line bg-panel px-2.5 focus-within:border-accent/50">
         <Search className="size-3.5 text-subtle" />
         <input
@@ -99,7 +99,7 @@ export function FileTree({ files, viewed, active, onSelect }: { files: PrFile[];
           className="min-w-0 flex-1 bg-transparent text-[12.5px] outline-none placeholder:text-subtle"
         />
       </label>
-      <div className="min-h-0 overflow-y-auto">{render(tree, 0)}</div>
+      <div className="min-h-0 overflow-x-hidden overflow-y-auto">{render(tree, 0)}</div>
     </div>
   );
 }
