@@ -69,7 +69,7 @@ const recentCache = cachedQuery<RepoSummary[]>('unmerged:recent-repos');
 export function useRecentRepos(login: string | undefined) {
   return useQuery({
     queryKey: ['recent-repos', login],
-    queryFn: async () => recentCache.save(await fetchRecentRepos(login!)),
+    queryFn: () => recentCache.save(fetchRecentRepos(login!)),
     enabled: !!login,
     initialData: recentCache.initialData,
     initialDataUpdatedAt: recentCache.initialDataUpdatedAt,

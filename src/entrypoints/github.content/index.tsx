@@ -4,16 +4,16 @@ import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@ta
 import { App } from '@/app/App';
 import { prefetchRoute } from '@/app/prefetch';
 import { installKeyboard } from '@/app/keyboard';
-import { appState, onApiError, type AppState } from '@/app/state';
+import { appState, authRejected, onApiError, type AppState } from '@/app/state';
 import { GitHubError } from '@/github/client';
 import { loadFonts } from '@/lib/fonts';
 import { classicPath, clearClassicUnless } from '@/lib/classic';
 import { emitNavigate, isModifiedClick, navigate, onNavigate, setOwns } from '@/lib/navigation';
 import { matchRoute, type Route } from '@/lib/routes';
 import { sessionLogin } from '@/lib/session';
-import { localCache } from '@/lib/localCache';
+import { localCache, setPageAccount } from '@/lib/localCache';
 import { trimPersisted } from '@/lib/persist';
-import { DEFAULT_SURFACES, isDark, surfacesItem, themeItem, type Surfaces, type Theme } from '@/lib/settings';
+import { accountItem, DEFAULT_SURFACES, isDark, surfacesItem, themeItem, type Surfaces, type Theme } from '@/lib/settings';
 
 const OWNING = 'unmerged-owning';
 
@@ -37,6 +37,8 @@ export default defineContentScript({
 
   async main(ctx) {
     const html = document.documentElement;
+    // Read now, applied before anything renders: API data cached in the page must be this account's.
+    const account = accountItem.getValue();
     const style = document.createElement('style');
     style.textContent = DOCUMENT_CSS;
     html.append(style);
@@ -114,6 +116,15 @@ export default defineContentScript({
     });
     const start = resolve(new URL(location.href));
     if (start?.owning) prefetchRoute(queryClient, start.route, new URL(location.href));
+
+    setPageAccount(await account);
+    // A new token or Disconnect (in the settings page): everything this tab holds is the old account's.
+    accountItem.watch((id) => {
+      setPageAccount(id);
+      if (html.classList.contains(OWNING)) return location.reload();
+      queryClient.clear();
+      authRejected.set(false);
+    });
 
     const ui = await createShadowRootUi(ctx, {
       name: 'unmerged-app',

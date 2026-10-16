@@ -3,7 +3,8 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowUpRight01Icon, Book02Icon, CheckListIcon, CircleDotIcon, ComputerIcon, GitPullRequestIcon, Home01Icon, Key01Icon, Moon02Icon, Notification03Icon, Sun03Icon, UserIcon } from '@hugeicons/core-free-icons';
 import { GitHubError, rest } from '@/github/client';
 import { cx } from '@/lib/cx';
-import { NEW_TOKEN_URL, surfacesItem, themeItem, tokenItem, useStorageItem, type Surface, type Theme } from '@/lib/settings';
+import { saveToken } from '@/lib/persist';
+import { NEW_TOKEN_URL, openSettingsPage, surfacesItem, themeItem, tokenItem, useStorageItem, type Surface, type Theme } from '@/lib/settings';
 
 const SURFACES: Record<Surface, { label: string; path: string; icon: ReactNode }> = {
   home: { label: 'Home', path: 'github.com', icon: <HugeiconsIcon icon={Home01Icon} /> },
@@ -23,7 +24,8 @@ const THEMES: { value: Theme; label: string; icon: ReactNode }[] = [
 
 /**
  * Unmerged's settings: the connected account, theme, and which pages it takes over. Shown in the toolbar
- * popup and in the in-page Settings dialog; every change applies to open tabs at once.
+ * popup (and the options page, its copy in a tab) and in the in-page Settings dialog; every change applies to
+ * open tabs at once. The token itself is only ever typed into the extension's pages, not into github.com.
  */
 export function SettingsPanel() {
   const theme = useStorageItem(themeItem);
@@ -100,7 +102,10 @@ const STATUS_LINE: Record<Exclude<AccountState['status'], 'rejected'>, { text: s
   offline: { text: "Couldn't reach GitHub", dot: 'bg-warning' },
 };
 
-/** Who the saved token signs in as, with a form to set or replace it. */
+// The in-page Settings dialog sends token changes to the extension's settings page instead.
+const onGitHub = location.hostname === 'github.com';
+
+/** Who the saved token signs in as, with a form to set, replace or remove it (outside github.com). */
 function Account({ token }: { token: string }) {
   const [account, setAccount] = useState<AccountState>({ status: 'checking' });
   const [editing, setEditing] = useState(false);
@@ -118,11 +123,24 @@ function Account({ token }: { token: string }) {
     };
   }, [token]);
 
+  const rejected = !!token && account.status === 'rejected';
+  if (onGitHub && (!token || rejected)) {
+    return (
+      <div className="flex items-center gap-3">
+        <p className="min-w-0 flex-1 text-[12.5px] leading-snug text-muted">
+          {rejected ? <span className="text-danger">GitHub rejected the saved token.</span> : 'No GitHub token yet.'} Tokens are added in
+          Unmerged's settings.
+        </p>
+        <SmallButton onClick={openSettingsPage}>Open settings</SmallButton>
+      </div>
+    );
+  }
   if (!token || editing || account.status === 'rejected') {
     return (
       <TokenForm
-        problem={account.status === 'rejected' && !editing ? 'GitHub rejected the saved token.' : undefined}
+        problem={rejected && !editing ? 'GitHub rejected the saved token.' : undefined}
         onCancel={editing ? () => setEditing(false) : undefined}
+        onDisconnect={token ? () => saveToken('') : undefined}
         onSaved={() => setEditing(false)}
       />
     );
@@ -149,30 +167,37 @@ function Account({ token }: { token: string }) {
           {line.text}
         </div>
       </div>
-      <button
-        type="button"
-        onClick={() => setEditing(true)}
-        className="h-7 cursor-pointer rounded-md border border-line px-2.5 text-[12px] font-medium text-muted transition-colors hover:border-line-strong hover:text-fg"
-      >
-        Change token
-      </button>
+      <SmallButton onClick={onGitHub ? openSettingsPage : () => setEditing(true)}>Change token</SmallButton>
     </div>
   );
 }
 
-function TokenForm({ problem, onCancel, onSaved }: { problem?: string; onCancel?: () => void; onSaved: () => void }) {
+function SmallButton({ onClick, children }: { onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="h-7 shrink-0 cursor-pointer rounded-md border border-line px-2.5 text-[12px] font-medium text-muted transition-colors hover:border-line-strong hover:text-fg"
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Saving a token, or disconnecting, also drops everything cached for the previous one (see `saveToken`). */
+function TokenForm({ problem, onCancel, onDisconnect, onSaved }: { problem?: string; onCancel?: () => void; onDisconnect?: () => void; onSaved: () => void }) {
   const [value, setValue] = useState('');
   return (
     <form
       onSubmit={async (event) => {
         event.preventDefault();
-        await tokenItem.setValue(value.trim());
+        await saveToken(value.trim());
         onSaved();
       }}
     >
       <p className="mb-2 text-[12.5px] leading-snug text-muted">
         {problem && <span className="text-danger">{problem} </span>}
-        Paste a GitHub token. It stays in this browser and is only sent to GitHub's API.
+        Paste a GitHub token. It's kept in the extension's storage and sent only to api.github.com.
       </p>
       <div className="flex gap-2">
         <label className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-lg border border-line bg-bg px-2.5 transition-colors focus-within:border-accent/60">
@@ -199,11 +224,18 @@ function TokenForm({ problem, onCancel, onSaved }: { problem?: string; onCancel?
         <a href={NEW_TOKEN_URL} target="_blank" rel="noreferrer" className="flex items-center gap-0.5 text-accent hover:underline">
           Create a token <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3" />
         </a>
-        {onCancel && (
-          <button type="button" onClick={onCancel} className="cursor-pointer text-subtle hover:text-fg">
-            Cancel
-          </button>
-        )}
+        <span className="flex items-center gap-3">
+          {onDisconnect && (
+            <button type="button" onClick={onDisconnect} className="cursor-pointer text-subtle hover:text-danger">
+              Disconnect
+            </button>
+          )}
+          {onCancel && (
+            <button type="button" onClick={onCancel} className="cursor-pointer text-subtle hover:text-fg">
+              Cancel
+            </button>
+          )}
+        </span>
       </div>
     </form>
   );

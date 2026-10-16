@@ -14,7 +14,7 @@ const themeCache = localCache<Theme>('theme');
 const applyTheme = (theme: Theme) => document.documentElement.classList.toggle('dark', isDark(theme));
 applyTheme(themeCache.get() ?? 'auto');
 
-/** Toolbar popup: the settings panel under Unmerged's name. */
+/** Toolbar popup, also served in a tab as the options page: the settings panel under Unmerged's name. */
 function Popup() {
   const theme = useStorageItem(themeItem);
 

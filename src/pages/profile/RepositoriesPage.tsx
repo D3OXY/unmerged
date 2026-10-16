@@ -114,10 +114,14 @@ export function RepositoriesPage({ login }: { login: string }) {
 
   const countOf = (type: RepoType) => repos.filter(TYPES[type].test).length;
 
-  const patchRepo = (id: string, changes: Partial<Repo>) =>
+  // A page fetch already in flight would land after the patch and undo it, so it's cancelled first (the
+  // background loading above resumes on its own).
+  const patchRepo = async (id: string, changes: Partial<Repo>) => {
+    await queryClient.cancelQueries({ queryKey: options.queryKey });
     queryClient.setQueryData(options.queryKey, (data) =>
       data && { ...data, pages: data.pages.map((page) => page && { ...page, nodes: page.nodes.map((r) => (r.id === id ? { ...r, ...changes } : r)) }) },
     );
+  };
 
   const filtered = filters.q.trim() !== '' || filters.type !== 'all' || filters.language !== '';
   const languageName = languages.find(([key]) => key === filters.language)?.[1].name ?? filters.language;
@@ -262,12 +266,12 @@ function Chip({ children, onRemove }: { children: ReactNode; onRemove: () => voi
 }
 
 /** `onChange` patches the cached repo: optimistically on star/unstar, and back if GitHub refuses. */
-function RepoRow({ repo, onChange }: { repo: Repo; onChange: (changes: Partial<Repo>) => void }) {
+function RepoRow({ repo, onChange }: { repo: Repo; onChange: (changes: Partial<Repo>) => Promise<void> }) {
   const star = useMutation({
     mutationFn: (starred: boolean) => gql(starred ? REPO_MUTATIONS.unstar : REPO_MUTATIONS.star, { id: repo.id }),
-    onMutate: (starred) => {
+    onMutate: async (starred) => {
       const before = { viewerHasStarred: repo.viewerHasStarred, stargazerCount: repo.stargazerCount };
-      onChange({ viewerHasStarred: !starred, stargazerCount: repo.stargazerCount + (starred ? -1 : 1) });
+      await onChange({ viewerHasStarred: !starred, stargazerCount: repo.stargazerCount + (starred ? -1 : 1) });
       return before;
     },
     onError: (error, _, before) => {
