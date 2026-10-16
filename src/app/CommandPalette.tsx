@@ -138,7 +138,8 @@ function matches(haystack: string, query: string) {
 
 /** Pull requests and issues the home page and lists have already loaded, so title matches show at once. */
 function cachedWork(client: QueryClient): Work[] {
-  const prs = [homeQueries.reviewRequested(), homeQueries.authored(), homeQueries.merged()].flatMap((q) => client.getQueryData(q.queryKey)?.nodes ?? []);
+  // Home's "recently merged" rows are too slim to list here; the live search still finds those PRs.
+  const prs = [homeQueries.reviewRequested(), homeQueries.authored()].flatMap((q) => client.getQueryData(q.queryKey)?.nodes ?? []);
   const issues = client.getQueryData(homeQueries.assigned().queryKey)?.nodes ?? [];
   const lists = client.getQueriesData<InfiniteData<ListPage>>({ queryKey: ['work'] }).flatMap(([, data]) => data?.pages.flatMap((page) => page.results.nodes) ?? []);
   return [...prs.map((pr) => ({ ...pr, __typename: 'PullRequest' as const })), ...issues.map((issue) => ({ ...issue, __typename: 'Issue' as const })), ...lists];
