@@ -34,6 +34,23 @@ function weekAgo() {
   return `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}T00:00:00${zone}`;
 }
 
+export const STANDINGS = [
+  { key: 'fix', title: 'Needs your fix' },
+  { key: 'ready', title: 'Ready to merge' },
+  { key: 'waiting', title: 'Waiting' },
+] as const;
+
+/**
+ * Where one of your open PRs stands: it needs your fix (changes requested or CI failing), is ready to merge
+ * (approved, and CI green or absent) or is waiting on others (review, running checks, or it's a draft).
+ */
+export function standing(pr: Pick<PrRowData, 'isDraft' | 'reviewDecision' | 'commits'>): (typeof STANDINGS)[number]['key'] {
+  const checks = pr.commits.nodes[0]?.commit.statusCheckRollup?.state;
+  if (pr.reviewDecision === 'CHANGES_REQUESTED' || checks === 'FAILURE' || checks === 'ERROR') return 'fix';
+  if (!pr.isDraft && pr.reviewDecision === 'APPROVED' && (!checks || checks === 'SUCCESS')) return 'ready';
+  return 'waiting';
+}
+
 export const homeQueries = {
   reviewRequested: () => search<PrRowData>('review-requested', 'is:open is:pr review-requested:@me archived:false sort:updated-desc', 15, 'PrRow', PR_ROW_FIELDS),
   authored: () => search<PrRowData>('authored', 'is:open is:pr author:@me archived:false sort:updated-desc', 15, 'PrRow', PR_ROW_FIELDS),
