@@ -1,11 +1,11 @@
 import './style.css';
 import { createRoot, type Root } from 'react-dom/client';
-import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from '@/app/App';
 import { prefetchRoute } from '@/app/prefetch';
 import { installKeyboard } from '@/app/keyboard';
-import { appState, authRejected, type AppState } from '@/app/state';
-import { AuthError } from '@/github/client';
+import { appState, onApiError, type AppState } from '@/app/state';
+import { GitHubError } from '@/github/client';
 import { loadFonts } from '@/lib/fonts';
 import { classicPath, clearClassicUnless } from '@/lib/classic';
 import { emitNavigate, isModifiedClick, navigate, onNavigate, setOwns } from '@/lib/navigation';
@@ -101,11 +101,16 @@ export default defineContentScript({
     }
 
     // Made before the UI so the page's requests start now, not after React and our styles are ready.
+    // Only network failures and 5xx are retried: a 4xx (or a GraphQL error) would answer the same again.
+    // Mutations run even while queries are paused for a rate limit (see onApiError), so an action fails
+    // with the reason instead of firing by itself once the limit resets.
     const queryClient = new QueryClient({
       defaultOptions: {
-        queries: { staleTime: 30_000, refetchOnWindowFocus: true, retry: (n, err) => !(err instanceof AuthError) && n < 2 },
+        queries: { staleTime: 30_000, refetchOnWindowFocus: true, retry: (n, err) => !(err instanceof GitHubError && err.status < 500) && n < 2 },
+        mutations: { networkMode: 'always' },
       },
-      queryCache: new QueryCache({ onError: (err) => err instanceof AuthError && authRejected.set(true) }),
+      queryCache: new QueryCache({ onError: onApiError }),
+      mutationCache: new MutationCache({ onError: onApiError }),
     });
     const start = resolve(new URL(location.href));
     if (start?.owning) prefetchRoute(queryClient, start.route, new URL(location.href));
@@ -117,6 +122,7 @@ export default defineContentScript({
       append: 'last',
       isolateEvents: true,
       onMount(element) {
+        loadFonts();
         container = element;
         container.classList.add('u-root');
         applyTheme();
@@ -150,7 +156,6 @@ export default defineContentScript({
     };
 
     sync(new URL(location.href));
-    loadFonts();
     installKeyboard(ui.shadowHost, () => html.classList.contains(OWNING));
 
     const setSurfaces = (value: Surfaces) => {

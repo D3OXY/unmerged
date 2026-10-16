@@ -1,8 +1,9 @@
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowUpRight01Icon } from '@hugeicons/core-free-icons';
+import { ArrowUpRight01Icon, Cancel01Icon, Clock01Icon, SquareLock02Icon } from '@hugeicons/core-free-icons';
 import { tokenItem, useStorageItem } from '@/lib/settings';
 import { leaveClassic } from '@/lib/classic';
 import type { ProfileTab } from '@/lib/routes';
+import { formatTime } from '@/lib/time';
 import { HomePage } from '@/pages/home/HomePage';
 import { NotificationsPage } from '@/pages/notifications/NotificationsPage';
 import { AchievementsPage } from '@/pages/profile/AchievementsPage';
@@ -17,7 +18,7 @@ import { Toaster } from '@/ui/toast';
 import { CommandPalette } from './CommandPalette';
 import { SettingsDialog } from './SettingsDialog';
 import { Logo } from './Logo';
-import { appState, authRejected } from './state';
+import { appState, authRejected, githubBlock } from './state';
 import { TokenGate } from './TokenGate';
 
 export function App() {
@@ -46,7 +47,46 @@ export function App() {
       <CommandPalette />
       <SettingsDialog />
       <Toaster />
+      <GitHubBanner />
     </>
+  );
+}
+
+/** Says why pages stopped loading: the token's rate limit (until it resets) or an organization's SAML SSO. */
+function GitHubBanner() {
+  const block = githubBlock.use();
+  if (!block) return null;
+  return (
+    <div
+      role="status"
+      className="fixed bottom-4 left-1/2 z-50 flex max-w-lg -translate-x-1/2 animate-pop items-center gap-2.5 rounded-xl border border-line-strong bg-elevated py-2 pr-2 pl-3.5 text-[13px] shadow-2xl shadow-black/30"
+    >
+      <HugeiconsIcon icon={block.kind === 'rate-limit' ? Clock01Icon : SquareLock02Icon} className="size-4 shrink-0 text-warning" />
+      {block.kind === 'rate-limit' ? (
+        <span className="py-1 pr-1.5">GitHub's rate limit for your token is used up. Unmerged pauses until {formatTime(block.resetAt)}.</span>
+      ) : (
+        <>
+          <span>An organization requires SAML SSO for your token.</span>
+          <a
+            // Without GitHub's link, a classic token's "Configure SSO" lives on the tokens page.
+            href={block.authorizeUrl ?? 'https://github.com/settings/tokens'}
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium whitespace-nowrap text-accent hover:underline"
+          >
+            Authorize SSO
+          </a>
+          <button
+            type="button"
+            onClick={() => githubBlock.set(null)}
+            aria-label="Dismiss"
+            className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-subtle hover:bg-hover hover:text-fg"
+          >
+            <HugeiconsIcon icon={Cancel01Icon} className="size-4" />
+          </button>
+        </>
+      )}
+    </div>
   );
 }
 

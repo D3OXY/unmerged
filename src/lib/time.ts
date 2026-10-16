@@ -28,3 +28,7 @@ export const formatMonthYear = (iso: string) => monthYear.format(new Date(iso));
 
 const compact = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
 export const formatCount = (n: number) => compact.format(n);
+
+const clock = new Intl.DateTimeFormat('en', { timeStyle: 'short' });
+/** "3:42 PM", from ms since the epoch. */
+export const formatTime = (ms: number) => clock.format(ms);
