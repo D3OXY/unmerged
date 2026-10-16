@@ -40,7 +40,13 @@ Open github.com and paste a token when asked
 `pnpm dev` runs WXT with hot reload in a separate browser profile. `pnpm build:firefox` builds for Firefox.
 
 `pnpm check` runs everything CI runs except the Firefox build: `pnpm typecheck`, `pnpm test` (Vitest),
-`pnpm lint` (ESLint) and `pnpm build`.
+`pnpm lint` (ESLint), `pnpm build`, and the website's typecheck and build.
+
+## Website
+
+[unmerged.deoxy.dev](https://unmerged.deoxy.dev) lives in `site/`, a TanStack Start app in the same pnpm
+workspace. `pnpm site` runs it on port 3000. `pnpm --filter site build` prerenders every page, so
+`site/dist/client` is the whole site and can go on any static host.
 
 ## How it works
 
