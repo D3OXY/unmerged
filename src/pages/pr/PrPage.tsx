@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { BrowserIcon, Comment01Icon, ComputerTerminal01Icon, Copy01Icon, FileDiffIcon, GitCommitHorizontalIcon, GitPullRequestDraftIcon, Link02Icon, TaskDone01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
@@ -21,7 +21,7 @@ import { ChecksTab } from './ChecksTab';
 import { CommitsTab } from './CommitsTab';
 import { ConversationTab } from './ConversationTab';
 import { FilesTab } from './files/FilesTab';
-import { MUTATIONS, prefetchPr, prFilesQuery, prQuery, type PullRequest, type Repo } from './query';
+import { isSettling, MUTATIONS, prefetchPr, prFilesQuery, prQuery, prStatusQuery, type PullRequest, type Repo } from './query';
 import { usePrMutation } from './usePrMutation';
 
 type Props = { owner: string; repo: string; number: number; tab: PrTab };
@@ -46,6 +46,7 @@ export function PrPage({ owner, repo, number, tab }: Props) {
   const { data, isPending, error } = useQuery(query);
 
   const pr = data?.repository?.pullRequest;
+  const poll = useStatusPoll(owner, repo, number, pr);
   const base = `/${owner}/${repo}`;
   useTitle(pr && `${pr.title} · Pull Request #${number} · ${owner}/${repo}`);
   const crumbs = [
@@ -84,13 +85,38 @@ export function PrPage({ owner, repo, number, tab }: Props) {
       {isPending || !pr || !data.repository ? (
         <PrSkeleton />
       ) : (
-        <PrView pr={pr} repo={data.repository} tab={tab} queryKey={queryKey} />
+        <PrView pr={pr} repo={data.repository} tab={tab} queryKey={queryKey} poll={poll} />
       )}
     </Shell>
   );
 }
 
-function PrView({ pr, repo, tab, queryKey }: { pr: PullRequest; repo: Repo; tab: PrTab; queryKey: QueryKey }) {
+type StatusPoll = ReturnType<typeof useStatusPoll>;
+
+/**
+ * Keeps an open PR's checks, mergeability and queue spot live: polls the small status query (which writes
+ * into the full PR) while GitHub is still deciding. `watch()` polls for a minute regardless, because a re-run
+ * GitHub hasn't queued yet still looks finished.
+ */
+function useStatusPoll(owner: string, repo: string, number: number, pr: PullRequest | null | undefined) {
+  const queryClient = useQueryClient();
+  const status = prStatusQuery(owner, repo, number);
+  const [watchedAt, setWatchedAt] = useState<number>();
+  useEffect(() => {
+    if (watchedAt === undefined) return;
+    const id = setTimeout(() => setWatchedAt(undefined), 60_000);
+    return () => clearTimeout(id);
+  }, [watchedAt]);
+  const watching = watchedAt !== undefined;
+  useQuery({ ...status, enabled: !!pr && (watching || isSettling(pr)), refetchInterval: 10_000 });
+  const watch = () => {
+    setWatchedAt(Date.now());
+    queryClient.invalidateQueries(status);
+  };
+  return { watching, watch };
+}
+
+function PrView({ pr, repo, tab, queryKey, poll }: { pr: PullRequest; repo: Repo; tab: PrTab; queryKey: QueryKey; poll: StatusPoll }) {
   const approve = usePrMutation(queryKey);
   const draft = usePrMutation(queryKey);
   const total = pr.additions + pr.deletions || 1;
@@ -183,7 +209,7 @@ function PrView({ pr, repo, tab, queryKey }: { pr: PullRequest; repo: Repo; tab:
 
       {tab === 'conversation' && <ConversationTab pr={pr} repo={repo} queryKey={queryKey} />}
       {tab === 'commits' && <CommitsTab pr={pr} />}
-      {tab === 'checks' && <ChecksTab pr={pr} />}
+      {tab === 'checks' && <ChecksTab pr={pr} watching={poll.watching} onRerun={poll.watch} />}
       {tab === 'files' && <FilesTab pr={pr} queryKey={queryKey} />}
     </div>
   );

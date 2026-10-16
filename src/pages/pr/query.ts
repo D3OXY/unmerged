@@ -6,6 +6,25 @@ import type { PrTab } from '@/lib/routes';
 import { summarizeChecks } from './checks';
 import type { PrFile } from './files/FileDiff';
 
+// The head commit's checks, as the PR header, Conversation tab and merge box show them.
+const ROLLUP = /* GraphQL */ `
+  state
+  contexts(first: 100) {
+    nodes {
+      __typename
+      ... on CheckRun {
+        id name status conclusion detailsUrl
+        isRequired(pullRequestNumber: $number)
+        checkSuite { app { name logoUrl } workflowRun { workflow { name } } }
+      }
+      ... on StatusContext {
+        id context state targetUrl description avatarUrl
+        isRequired(pullRequestNumber: $number)
+      }
+    }
+  }
+`;
+
 export const PR_QUERY = /* GraphQL */ `
   query PullRequest($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner, name: $repo) {
@@ -40,23 +59,7 @@ export const PR_QUERY = /* GraphQL */ `
           totalCount
           nodes {
             commit {
-              statusCheckRollup {
-                state
-                contexts(first: 100) {
-                  nodes {
-                    __typename
-                    ... on CheckRun {
-                      id name status conclusion detailsUrl
-                      isRequired(pullRequestNumber: $number)
-                      checkSuite { app { name logoUrl } workflowRun { workflow { name } } }
-                    }
-                    ... on StatusContext {
-                      id context state targetUrl description avatarUrl
-                      isRequired(pullRequestNumber: $number)
-                    }
-                  }
-                }
-              }
+              statusCheckRollup { ${ROLLUP} }
             }
           }
         }
@@ -285,14 +288,64 @@ export const prQuery = (owner: string, repo: string, number: number) =>
   queryOptions({
     queryKey: ['pr', ...prKey(owner, repo, number)],
     queryFn: () => gql<PrData>(PR_QUERY, { owner, repo, number }, true),
-    // Poll while GitHub is still deciding something (checks, mergeability, queue).
-    refetchInterval: (query) => {
-      const pr = query.state.data?.repository?.pullRequest;
-      if (!pr || pr.state !== 'OPEN') return false;
-      const pending = summarizeChecks(pr.commits.nodes[0]?.commit.statusCheckRollup?.contexts.nodes ?? []).PENDING > 0;
-      return pending || pr.mergeable === 'UNKNOWN' || pr.isInMergeQueue ? 10_000 : false;
-    },
     persister: persisted,
+  });
+
+const PR_STATUS_QUERY = /* GraphQL */ `
+  query PullRequestStatus($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner, name: $repo) {
+      pullRequest(number: $number) {
+        state headRefOid mergeable mergeStateStatus isInMergeQueue
+        mergeQueueEntry { position }
+        commits(last: 1) { nodes { commit { statusCheckRollup { ${ROLLUP} } } } }
+        timelineItems { totalCount }
+      }
+    }
+  }
+`;
+
+type PrStatus = Pick<PullRequest, 'state' | 'headRefOid' | 'mergeable' | 'mergeStateStatus' | 'isInMergeQueue' | 'mergeQueueEntry'> & {
+  commits: { nodes: PullRequest['commits']['nodes'] };
+  timelineItems: { totalCount: number };
+};
+
+/** True while GitHub is still deciding something about an open PR: its checks, mergeability or queue spot. */
+export const isSettling = (pr: PullRequest) =>
+  pr.state === 'OPEN' &&
+  (summarizeChecks(pr.commits.nodes[0]?.commit.statusCheckRollup?.contexts.nodes ?? []).PENDING > 0 ||
+    pr.mergeable === 'UNKNOWN' ||
+    pr.isInMergeQueue);
+
+/**
+ * The few PR fields that change while CI runs, polled by PrPage instead of the full PR. Each result is
+ * written into the cached full PR, so everything reading it (merge box, Checks tab icon) stays current. When
+ * the head commit, state or timeline moved, the full PR is refetched instead.
+ */
+export const prStatusQuery = (owner: string, repo: string, number: number) =>
+  queryOptions({
+    queryKey: ['pr-status', ...prKey(owner, repo, number)],
+    queryFn: async ({ client, queryKey }) => {
+      const { repository } = await gql<{ repository: { pullRequest: PrStatus | null } | null }>(PR_STATUS_QUERY, { owner, repo, number });
+      const status = repository?.pullRequest ?? null;
+      const previous = client.getQueryData<PrStatus | null>(queryKey);
+      const full = prQuery(owner, repo, number).queryKey;
+      const cached = client.getQueryData(full)?.repository;
+      const pr = cached?.pullRequest;
+      if (!status || !cached || !pr) return status;
+
+      const { commits, timelineItems, ...fields } = status;
+      // This counts every timeline item, the full PR only some kinds, so compare it with the last poll.
+      const timelineMoved = previous && previous.timelineItems.totalCount !== timelineItems.totalCount;
+      if (status.headRefOid !== pr.headRefOid || status.state !== pr.state || timelineMoved) {
+        // A slow refetch can outlast one poll; let it finish rather than restart it.
+        client.invalidateQueries({ queryKey: full }, { cancelRefetch: false });
+      } else {
+        // Keep the PR's own age, so this doesn't hold off its next refetch on focus or mount.
+        const updatedAt = client.getQueryState(full)?.dataUpdatedAt;
+        client.setQueryData(full, { repository: { ...cached, pullRequest: { ...pr, ...fields, commits: { ...pr.commits, nodes: commits.nodes } } } }, { updatedAt });
+      }
+      return status;
+    },
   });
 
 /** Every changed file with its patch. GitHub serves at most 3000 files, 100 per page. */
