@@ -13,6 +13,7 @@ import { MUTATIONS, prFilesQuery, prViewedQuery, repoPath, type PullRequest, typ
 import { diffAnchor } from './anchor';
 import { FileDiff, type DiffMode, type PrFile } from './FileDiff';
 import { FileTree } from './FileTree';
+import { isOpenLineThread, nextOpenThread } from './threads';
 
 /**
  * Scrolls a file card under the sticky headers, or `inner(card)` to the middle of the screen once it exists, and
@@ -186,21 +187,11 @@ export function FilesTab({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey
     if (card) requestAnimationFrame(() => pinScroll(card));
   }, [currentFile, viewed.data, toggleViewed]);
 
-  // Unresolved threads anchored to a diff line, in page order.
-  const threadOrder = useMemo(() => {
-    const index = new Map(list?.map((f, i) => [f.filename, i]));
-    return (a: ReviewThread, b: ReviewThread) =>
-      (index.get(a.path) ?? 0) - (index.get(b.path) ?? 0) || (a.line ?? 0) - (b.line ?? 0) || a.id.localeCompare(b.id);
-  }, [list]);
-  const openThreads = useMemo(
-    () => pr.reviewThreads.nodes.filter((t): t is ReviewThread & { line: number } => !t.isResolved && t.line !== null).sort(threadOrder),
-    [pr.reviewThreads.nodes, threadOrder],
-  );
+  const hasOpenThreads = pr.reviewThreads.nodes.some(isOpenLineThread);
 
   /** Jumps to the unresolved thread after the last one jumped to, wrapping around. */
   const nextThread = useCallback(() => {
-    const last = lastThread.current;
-    const thread = (last && openThreads.find((t) => threadOrder(t, last) > 0)) || openThreads[0];
+    const thread = nextOpenThread(pr.reviewThreads.nodes, list ?? [], lastThread.current);
     if (!thread) return;
     lastThread.current = thread;
     const side = thread.diffSide === 'LEFT' ? 'deletions' : 'additions';
@@ -211,7 +202,7 @@ export function FilesTab({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey
       },
       () => select(thread.path),
     );
-  }, [openThreads, threadOrder, select]);
+  }, [pr.reviewThreads.nodes, list, select]);
 
   usePageHotkey('n', useCallback(() => step(1), [step]));
   usePageHotkey('p', useCallback(() => step(-1), [step]));
@@ -224,11 +215,11 @@ export function FilesTab({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey
       { id: 'pr-files:previous', group, title: 'Previous file', hint: 'P', icon: <HugeiconsIcon icon={ArrowUp01Icon} />, perform: () => step(-1) },
       { id: 'pr-files:viewed', group, title: 'Toggle viewed', hint: 'V', icon: <HugeiconsIcon icon={ViewIcon} />, perform: toggleCurrentViewed },
     ];
-    if (openThreads.length) {
+    if (hasOpenThreads) {
       entries.push({ id: 'pr-files:thread', group, title: 'Next unresolved thread', hint: ']', icon: <HugeiconsIcon icon={Comment01Icon} />, perform: nextThread });
     }
     return entries;
-  }, [step, toggleCurrentViewed, nextThread, openThreads.length]);
+  }, [step, toggleCurrentViewed, nextThread, hasOpenThreads]);
   useRegisterCommands('pr-files', commands);
 
   if (files.error) return <p className="text-[13px] text-danger">{files.error.message}</p>;
