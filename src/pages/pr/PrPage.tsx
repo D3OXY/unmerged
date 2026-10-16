@@ -7,6 +7,7 @@ import { openClassic } from '@/lib/classic';
 import { copy } from '@/lib/clipboard';
 import { cx } from '@/lib/cx';
 import { loadDiffs } from '@/lib/diffs';
+import { useIsDark } from '@/lib/settings';
 import { navigate } from '@/lib/navigation';
 import type { PrTab } from '@/lib/routes';
 import { timeAgo } from '@/lib/time';
@@ -19,7 +20,7 @@ import { ChecksTab } from './ChecksTab';
 import { CommitsTab } from './CommitsTab';
 import { ConversationTab } from './ConversationTab';
 import { FilesTab } from './files/FilesTab';
-import { MUTATIONS, prefetchPr, prQuery, type PullRequest, type Repo } from './query';
+import { MUTATIONS, prefetchPr, prFilesQuery, prQuery, type PullRequest, type Repo } from './query';
 import { usePrMutation } from './usePrMutation';
 
 type Props = { owner: string; repo: string; number: number; tab: PrTab };
@@ -28,15 +29,19 @@ type Props = { owner: string; repo: string; number: number; tab: PrTab };
 export function PrPage({ owner, repo, number, tab }: Props) {
   const query = prQuery(owner, repo, number);
   const { queryKey } = query;
-  // While the reader is on another tab, get Files changed ready: the diff renderer and the files themselves.
+  // While the reader is on another tab, get Files changed ready: the diff renderer, the files themselves,
+  // and the grammars for their languages.
   const queryClient = useQueryClient();
+  const dark = useIsDark();
   useEffect(() => {
     const id = requestIdleCallback(() => {
-      loadDiffs().catch(() => {});
       prefetchPr(queryClient, owner, repo, number, 'files');
+      Promise.all([loadDiffs(), queryClient.fetchQuery(prFilesQuery(owner, repo, number))])
+        .then(([renderer, files]) => renderer.preloadHighlighting(files.map((f) => f.filename), dark))
+        .catch(() => {});
     });
     return () => cancelIdleCallback(id);
-  }, [queryClient, owner, repo, number]);
+  }, [queryClient, owner, repo, number, dark]);
   const { data, isPending, error } = useQuery(query);
 
   const pr = data?.repository?.pullRequest;

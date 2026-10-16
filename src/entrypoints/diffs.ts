@@ -45,7 +45,13 @@ async function highlightLines(text: string, path: string, dark: boolean) {
   return html;
 }
 
-const api = { FileDiff, getLineAnnotationName, getSingularPatch, prepareContainer, highlightLines };
+/** Loads the theme and the grammars these files need, so the first diff or file shown doesn't wait on them. */
+async function preloadHighlighting(paths: string[], dark: boolean) {
+  const langs = [...new Set(paths.map(getFiletypeFromFileName))].filter((lang) => lang !== 'text');
+  await getSharedHighlighter({ themes: [dark ? 'pierre-dark' : 'pierre-light'], langs });
+}
+
+const api = { FileDiff, getLineAnnotationName, getSingularPatch, prepareContainer, highlightLines, preloadHighlighting };
 
 export type DiffsApi = typeof api;
 
