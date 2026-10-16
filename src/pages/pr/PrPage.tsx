@@ -21,7 +21,7 @@ import { ChecksTab } from './ChecksTab';
 import { CommitsTab } from './CommitsTab';
 import { ConversationTab } from './ConversationTab';
 import { FilesTab } from './files/FilesTab';
-import { EDIT_MUTATIONS, isSettling, MUTATIONS, prefetchPr, prFilesQuery, prQuery, prStatusQuery, prViewedQuery, type PullRequest, type Repo } from './query';
+import { EDIT_MUTATIONS, isSettling, MUTATIONS, prFilesQuery, prQuery, prStatusQuery, prViewedQuery, type PullRequest, type Repo } from './query';
 import { usePrMutation } from './usePrMutation';
 
 type Props = { owner: string; repo: string; number: number; tab: PrTab };

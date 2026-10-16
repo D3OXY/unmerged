@@ -185,6 +185,14 @@ type Candidates = {
 };
 
 /**
+ * What the picker lists: the current selection first (unless searching, when only matches show), then the
+ * candidates, each once, minus any whose label is in `hide`.
+ */
+export function pickerOptions(selected: MenuOption<string>[], candidates: MenuOption<string>[], search: string, hide: (string | null | undefined)[]) {
+  return [...(search ? [] : selected), ...candidates].filter((option, i, all) => !hide.includes(option.label) && all.findIndex((o) => o.value === option.value) === i);
+}
+
+/**
  * Searchable multi-select over the repo's assignable users or labels (option values are node ids). A pick
  * applies at once, `add` or (if it was selected) `remove`, and shows as done while the PR refetches.
  * Options whose label is in `hide` aren't offered.
@@ -230,9 +238,7 @@ function Picker({
   const [inFlight, setInFlight] = useState<string[]>([]);
 
   const isSelected = (id: string) => selected.some((o) => o.value === id);
-  const options = [...(search ? [] : selected), ...(candidates.data ?? [])].filter(
-    (option, i, all) => !hide.includes(option.label) && all.findIndex((o) => o.value === option.value) === i,
-  );
+  const options = pickerOptions(selected, candidates.data ?? [], search, hide);
 
   const toggle = (id: string) => {
     const query = isSelected(id) ? remove : add;

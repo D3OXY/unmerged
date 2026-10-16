@@ -4,9 +4,10 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { Delete02Icon, PencilEdit02Icon, SmilePlusIcon } from '@hugeicons/core-free-icons';
 import { cx } from '@/lib/cx';
 import { Button } from '@/ui/Button';
+import { CommentBox } from '@/ui/CommentBox';
 import { Menu, type MenuOption } from '@/ui/Menu';
 import { Markdown } from '@/ui/primitives';
-import { EDIT_MUTATIONS, type CommentFields, type ReactionContent } from './query';
+import { EDIT_MUTATIONS, type CommentFields, type ReactionContent, type ReactionGroup } from './query';
 import { usePrMutation } from './usePrMutation';
 
 // What each kind of comment saves and deletes with. The description can be edited but not deleted.
@@ -27,32 +28,29 @@ export function CommentBody({ html, kind, node, queryKey, className }: Editable 
   const { update, remove: removeQuery } = EDIT[kind];
 
   if (draft !== null) {
-    const submit = () => save.mutate({ query: update, variables: { id: node.id, body: draft } }, { onSuccess: () => setDraft(null) });
+    // Only the description may be saved empty.
+    const empty = kind !== 'pr' && !draft.trim();
+    const submit = () => {
+      if (!empty) save.mutate({ query: update, variables: { id: node.id, body: draft } }, { onSuccess: () => setDraft(null) });
+    };
     return (
-      <div>
-        <textarea
-          autoFocus
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') setDraft(null);
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault();
-              submit();
-            }
-          }}
-          rows={Math.min(20, Math.max(4, draft.split('\n').length + 1))}
-          className="block w-full resize-y rounded-lg border border-line bg-bg px-3 py-2 font-mono text-[12.5px] leading-relaxed outline-none focus:border-accent/60"
-        />
-        <div className="mt-2 flex justify-end gap-2">
-          <Button size="sm" variant="ghost" onClick={() => setDraft(null)}>
-            Cancel
-          </Button>
-          <Button size="sm" variant="primary" disabled={kind !== 'pr' && !draft.trim()} loading={save.isPending} onClick={submit}>
-            Save
-          </Button>
-        </div>
-      </div>
+      <CommentBox
+        autoFocus
+        value={draft}
+        onChange={setDraft}
+        onSubmit={submit}
+        onClose={() => setDraft(null)}
+        rows={Math.min(20, Math.max(4, draft.split('\n').length + 1))}
+        placeholder={kind === 'pr' ? 'Describe this pull request… Markdown supported' : 'Markdown supported'}
+        className="bg-bg"
+      >
+        <Button size="sm" variant="ghost" onClick={() => setDraft(null)} className="ml-auto">
+          Cancel
+        </Button>
+        <Button size="sm" variant="primary" disabled={empty} loading={save.isPending} onClick={submit}>
+          Save
+        </Button>
+      </CommentBox>
     );
   }
 
@@ -106,6 +104,15 @@ const EMOJI: Record<ReactionContent, [emoji: string, name: string]> = {
 };
 const OPTIONS = (Object.keys(EMOJI) as ReactionContent[]).map((value): MenuOption<ReactionContent> => ({ value, label: EMOJI[value].join('  ') }));
 
+/** GitHub's reaction counts with the viewer's not-yet-refetched toggles (`flipped`) applied. */
+export function withFlips(groups: ReactionGroup[], flipped: ReactionContent[]) {
+  return groups.map(({ content, viewerHasReacted, reactors }) => {
+    const flip = flipped.includes(content);
+    const reacted = viewerHasReacted !== flip;
+    return { content, reacted, count: reactors.totalCount + (flip ? (reacted ? 1 : -1) : 0) };
+  });
+}
+
 /** Reaction counts as chips; clicking one (or picking from the smiley menu) toggles yours at once. */
 function Reactions({ node, queryKey }: { node: CommentFields; queryKey: QueryKey }) {
   const react = usePrMutation(queryKey);
@@ -113,11 +120,7 @@ function Reactions({ node, queryKey }: { node: CommentFields; queryKey: QueryKey
   const [pending, setPending] = useState({ groups: node.reactionGroups, flipped: [] as ReactionContent[] });
   const flipped = pending.groups === node.reactionGroups ? pending.flipped : [];
 
-  const reactions = node.reactionGroups.map(({ content, viewerHasReacted, reactors }) => {
-    const flip = flipped.includes(content);
-    const reacted = viewerHasReacted !== flip;
-    return { content, reacted, count: reactors.totalCount + (flip ? (reacted ? 1 : -1) : 0) };
-  });
+  const reactions = withFlips(node.reactionGroups, flipped);
 
   const toggle = (content: ReactionContent) => {
     if (!node.viewerCanReact) return;

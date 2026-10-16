@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient, type InfiniteData, type QueryClient } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Book02Icon, CircleDotIcon, ComputerIcon, GitPullRequestIcon, Home01Icon, KeyboardIcon, Moon02Icon, Notification03Icon, Search01Icon, Settings02Icon, StarIcon, Sun03Icon, UserIcon } from '@hugeicons/core-free-icons';
@@ -8,6 +8,7 @@ import { sessionLogin } from '@/lib/session';
 import { themeItem } from '@/lib/settings';
 import { cx } from '@/lib/cx';
 import { formatCount } from '@/lib/time';
+import { useDebounced } from '@/lib/useDebounced';
 import { homeQueries } from '@/pages/home/queries';
 import type { ListPage } from '@/pages/work/queries';
 import { Modal } from '@/ui/Modal';
@@ -58,15 +59,6 @@ type SearchResult = {
 };
 
 const WORK_LIMIT = 8;
-
-function useDebounced<T>(value: T, ms: number) {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const id = setTimeout(() => setDebounced(value), ms);
-    return () => clearTimeout(id);
-  }, [value, ms]);
-  return debounced;
-}
 
 /** Commands that are always available, regardless of page: navigation, appearance and help. */
 function navigationCommands(): Command[] {
