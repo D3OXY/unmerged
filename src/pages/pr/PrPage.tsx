@@ -112,7 +112,16 @@ function PrView({ pr, repo, tab, queryKey }: { pr: PullRequest; repo: Repo; tab:
         group: 'Pull request',
         title: 'Approve',
         icon: <HugeiconsIcon icon={Tick02Icon} />,
-        perform: () => approve.mutate({ query: MUTATIONS.addReview, variables: { id: pr.id, event: 'APPROVE' }, success: 'Approved' }),
+        // Like the composer: a pending review goes out with the approval.
+        perform: () => {
+          const pending = pr.viewerPendingReview?.nodes[0];
+          approve.mutate({
+            query: pending ? MUTATIONS.submitReview : MUTATIONS.addReview,
+            variables: { id: pending?.id ?? pr.id, event: 'APPROVE' },
+            success: 'Approved',
+            nextAfter: pr.url,
+          });
+        },
       });
     }
     if (pr.state === 'OPEN' && pr.viewerCanUpdate && !pr.isDraft) {
