@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Analytics01Icon, Archive02Icon, BookOpen01Icon, CircleDotIcon, CodeIcon, GitForkIcon, GitPullRequestIcon, MessageMultiple02Icon, PinIcon, PinOffIcon, PlayIcon, Settings02Icon, SquareLock02Icon, StarIcon, ViewIcon, ViewOffSlashIcon } from '@hugeicons/core-free-icons';
+import { Analytics01Icon, Archive02Icon, BookOpen01Icon, CircleDotIcon, CodeIcon, GitForkIcon, GitPullRequestCreateIcon, GitPullRequestIcon, MessageMultiple02Icon, PinIcon, PinOffIcon, PlayIcon, PlusSignIcon, Settings02Icon, SquareLock02Icon, StarIcon, ViewIcon, ViewOffSlashIcon } from '@hugeicons/core-free-icons';
 import { gql } from '@/github/client';
 import { PageHeader, Shell } from '@/app/Shell';
 import { openClassic } from '@/lib/classic';
@@ -98,7 +98,8 @@ function RepoHeader({ repo }: { repo: Repo }) {
 
 /**
  * Code (with commits under it), Issues and Pull requests are ours; the other tabs link to GitHub's pages.
- * Optional tabs stay hidden until the repo loads.
+ * Optional tabs stay hidden until the repo loads. The list views get a New issue / New pull request link
+ * to GitHub's form.
  */
 function RepoTabs({ repo, nwo, view }: { repo?: Repo; nwo: string; view: RepoView }) {
   const tabs: { label: string; href: string; icon: ReactNode; views?: RepoView[]; count?: number; show?: boolean }[] = [
@@ -111,8 +112,24 @@ function RepoTabs({ repo, nwo, view }: { repo?: Repo; nwo: string; view: RepoVie
     { label: 'Insights', href: `/${nwo}/pulse`, icon: <HugeiconsIcon icon={Analytics01Icon} /> },
     { label: 'Settings', href: `/${nwo}/settings`, icon: <HugeiconsIcon icon={Settings02Icon} />, show: !!repo?.viewerCanAdminister },
   ];
+  const create =
+    repo &&
+    !repo.isArchived &&
+    (view === 'issues'
+      ? repo.hasIssuesEnabled && { label: 'New issue', href: `/${nwo}/issues/new`, icon: PlusSignIcon }
+      : view === 'pulls' && { label: 'New pull request', href: `/${nwo}/compare`, icon: GitPullRequestCreateIcon });
   return (
-    <TabBar className="mt-5 mb-6">
+    <TabBar
+      className="mt-5 mb-6"
+      trailing={
+        create && (
+          <a href={create.href} className="flex h-7 items-center gap-1.5 rounded-md bg-success px-2.5 text-[12px] font-medium text-white hover:brightness-110">
+            <HugeiconsIcon icon={create.icon} className="size-3.5" />
+            {create.label}
+          </a>
+        )
+      }
+    >
       {tabs
         .filter((t) => t.show !== false)
         .map((t) => (

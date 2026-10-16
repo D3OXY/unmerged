@@ -136,6 +136,32 @@
     & .blob-code-addition .x { background: color-mix(in srgb, var(--u-green) 25%, transparent); border-radius: 2px; }
   }
 
+  /* Theme-specific images follow Unmerged's theme. External images arrive proxied, with the URL as written in
+     data-canonical-src; <picture> variants are tagged like this by absolutizeReadme (src/github/readme.ts). */
+  & img:is([src$='#gh-dark-mode-only'], [data-canonical-src$='#gh-dark-mode-only']) { display: none; }
+  .dark & img:is([src$='#gh-dark-mode-only'], [data-canonical-src$='#gh-dark-mode-only']) { display: inline-block; }
+  .dark & img:is([src$='#gh-light-mode-only'], [data-canonical-src$='#gh-light-mode-only']) { display: none; }
+
+  /* Mermaid, GeoJSON, STL and math are drawn by GitHub's own scripts; show their source as code instead. */
+  & .js-render-enrichment-loader { display: none; }
+  & math-renderer {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    background: var(--u-elevated);
+    border: 1px solid var(--u-border);
+    padding: 0.1em 0.35em;
+    border-radius: 5px;
+  }
+  & math-renderer.js-display-math {
+    display: block;
+    white-space: pre-wrap;
+    font-size: 12.5px;
+    line-height: 1.6;
+    padding: 12px 14px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+  }
+
   /* GitHub's syntax highlighting classes. */
   & .pl-c { color: var(--u-subtle); font-style: italic; }
   & .pl-k, & .pl-smi + .pl-k { color: #e5609b; }

@@ -6,6 +6,7 @@ import { gql } from '@/github/client';
 import { cx } from '@/lib/cx';
 import { navigate } from '@/lib/navigation';
 import { useDismiss } from '@/ui/useDismiss';
+import { LoadError } from './LoadError';
 import { REFS_QUERY, type RefsData } from './query';
 
 /** Branch/tag switcher. `hrefFor` maps a ref to the same page on it (same folder, same history), like GitHub. */
@@ -61,7 +62,11 @@ export function BranchPicker({ owner, name, current, hrefFor }: { owner: string;
             ))}
           </div>
           <div className="max-h-72 overflow-y-auto p-1">
-            {refs.isPending && <div className="px-3 py-4 text-center text-[12px] text-subtle">Loading…</div>}
+            {refs.error ? (
+              <LoadError what={kind} error={refs.error} retry={refs.refetch} className="px-3 py-4 text-center" />
+            ) : (
+              refs.isPending && <div className="px-3 py-4 text-center text-[12px] text-subtle">Loading…</div>
+            )}
             {refs.data && !items.length && <div className="px-3 py-4 text-center text-[12px] text-subtle">Nothing found</div>}
             {items.map(({ name: refName }) => (
               <button

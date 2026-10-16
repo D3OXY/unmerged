@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { CircleDotIcon, Copy01Icon, FileSearchIcon, GitBranchIcon, GitPullRequestIcon, PinIcon, PinOffIcon, PlayIcon, Tag01Icon } from '@hugeicons/core-free-icons';
+import { CircleDotIcon, Copy01Icon, FileSearchIcon, GitBranchIcon, GitPullRequestCreateIcon, GitPullRequestIcon, PinIcon, PinOffIcon, PlayIcon, PlusSignIcon, Tag01Icon } from '@hugeicons/core-free-icons';
 import { useRegisterCommands, type Command } from '@/app/commands';
 import { usePageHotkey } from '@/app/keyboard';
 import { copy } from '@/lib/clipboard';
@@ -17,6 +17,7 @@ import { CloneMenu } from './CloneMenu';
 import { CommitsView } from './CommitsView';
 import { FileFinder } from './FileFinder';
 import { DEFAULT_REVISION, repoContentQuery, repoResolveQuery, type Repo } from './query';
+import { RecentPushes } from './RecentPushes';
 import { RepoFrame, useRepo } from './RepoFrame';
 import { RepoSidebar } from './RepoSidebar';
 import { TreeSkeleton, TreeView } from './TreeView';
@@ -50,7 +51,8 @@ export function RepoPage({ owner, repo: name, view, rest }: Props) {
   );
 
   const object = content.data?.repository?.object;
-  const history = content.data?.repository?.commit?.history;
+  const commit = content.data?.repository?.commit;
+  const history = commit?.history;
   // Waits for `repo`: an empty repository also has nothing at HEAD, and says so itself.
   const notFound = !!repo && ((rest.length > 0 && resolved.data === null) || (content.data && !object));
 
@@ -71,11 +73,12 @@ export function RepoPage({ owner, repo: name, view, rest }: Props) {
         repo && target ? <CommitsView key={`${target.ref}:${target.path}`} repo={repo} gitRef={target.ref} path={target.path} /> : <TreeSkeleton />
       ) : (
         <>
+          {repo && !rest.length && <RecentPushes repo={repo} />}
           {repo && target && <Toolbar repo={repo} gitRef={target.ref} path={target.path} />}
           {!object || !target || !repo ? (
             <TreeSkeleton />
           ) : object.__typename === 'Blob' ? (
-            <BlobView nameWithOwner={nwo} gitRef={target.ref} path={target.path} blob={object} lastCommit={history?.nodes[0]} />
+            <BlobView nameWithOwner={nwo} gitRef={target.ref} path={target.path} blob={object} lastCommit={history?.nodes[0]} commitOid={commit?.oid} />
           ) : target.path ? (
             <TreeView nameWithOwner={nwo} gitRef={target.ref} revision={revision!.ref} path={target.path} entries={object.entries} lastCommit={history?.nodes[0]} commitCount={history?.totalCount} />
           ) : (
@@ -110,6 +113,8 @@ function Toolbar({ repo, gitRef, path }: { repo: Repo; gitRef: string; path: str
       { id: 'repo:issues', group: 'Repository', title: 'Issues', icon: <HugeiconsIcon icon={CircleDotIcon} />, perform: () => navigate(`/${repo.nameWithOwner}/issues`) },
       { id: 'repo:pulls', group: 'Repository', title: 'Pull requests', icon: <HugeiconsIcon icon={GitPullRequestIcon} />, perform: () => navigate(`/${repo.nameWithOwner}/pulls`) },
       { id: 'repo:actions', group: 'Repository', title: 'Actions', icon: <HugeiconsIcon icon={PlayIcon} />, perform: () => navigate(`/${repo.nameWithOwner}/actions`) },
+      { id: 'repo:new-issue', group: 'Repository', title: 'New issue', icon: <HugeiconsIcon icon={PlusSignIcon} />, perform: () => navigate(`/${repo.nameWithOwner}/issues/new`) },
+      { id: 'repo:new-pr', group: 'Repository', title: 'New pull request', icon: <HugeiconsIcon icon={GitPullRequestCreateIcon} />, perform: () => navigate(`/${repo.nameWithOwner}/compare`) },
     ],
     [repo, openFinder, pinned],
   );
