@@ -46,7 +46,12 @@ const RESERVED = new Set([
 /** Maps a github.com URL to the Unmerged page that owns it, or null to leave GitHub alone. */
 export function matchRoute(url: URL): Route | null {
   if (url.hostname !== 'github.com') return null;
-  const parts = url.pathname.split('/').filter(Boolean).map(decodeURIComponent);
+  let parts: string[];
+  try {
+    parts = url.pathname.split('/').filter(Boolean).map(decodeURIComponent);
+  } catch {
+    return null; // A malformed `%` escape: GitHub's to deal with.
+  }
 
   if (parts.length === 0) return { kind: 'home' };
 
