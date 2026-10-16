@@ -1,43 +1,31 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Archive, BookOpen, CircleDot, Code2, Copy, Eye, EyeOff, FileSearch, GitBranch, GitFork, GitPullRequest, Lock, MessagesSquare, Play,
-  Pin, PinOff, Settings, Star, Tag, TrendingUp,
-} from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { CircleDot, Copy, FileSearch, GitBranch, GitPullRequest, Pin, PinOff, Play, Tag } from 'lucide-react';
 import { gql } from '@/github/client';
 import { useRegisterCommands, type Command } from '@/app/commands';
 import { usePageHotkey } from '@/app/keyboard';
-import { PageHeader, Shell } from '@/app/Shell';
-import { openClassic } from '@/lib/classic';
 import { copy } from '@/lib/clipboard';
-import { cx } from '@/lib/cx';
 import { navigate } from '@/lib/navigation';
 import { pin, unpin, useIsPinned } from '@/lib/pins';
-import { formatCount } from '@/lib/time';
-import type { RepoView } from '@/lib/routes';
 import { useTitle } from '@/lib/useTitle';
 import { Button } from '@/ui/Button';
-import { Menu } from '@/ui/Menu';
-import { Avatar, Kbd, Panel, Pill } from '@/ui/primitives';
-import { Tab, TabBar } from '@/ui/Tabs';
-import { toast } from '@/ui/toast';
+import { Kbd, Panel } from '@/ui/primitives';
 import { BlobView } from './BlobView';
 import { BranchPicker } from './BranchPicker';
 import { CloneMenu } from './CloneMenu';
 import { CommitsView } from './CommitsView';
 import { FileFinder } from './FileFinder';
-import { CONTENT_QUERY, REPO_MUTATIONS, REPO_QUERY, resolveRefPath, type ContentData, type Repo, type Subscription } from './query';
+import { CONTENT_QUERY, resolveRefPath, type ContentData, type Repo } from './query';
+import { RepoFrame, useRepo } from './RepoFrame';
 import { RepoSidebar } from './RepoSidebar';
 import { TreeSkeleton, TreeView } from './TreeView';
 import { treeUrl } from './urls';
 
-type Props = { owner: string; repo: string; view: RepoView; rest: string[] };
+type Props = { owner: string; repo: string; view: 'code' | 'commits'; rest: string[] };
 
-/** A repository: header and tabs over a code browser (root with sidebar, folders, files) or its commit history. */
+/** A repository's code browser (root with sidebar, folders, files) or its commit history. */
 export function RepoPage({ owner, repo: name, view, rest }: Props) {
-  const metaKey = ['repo', owner.toLowerCase(), name.toLowerCase()];
-  const meta = useQuery({ queryKey: metaKey, queryFn: () => gql<{ repository: Repo | null }>(REPO_QUERY, { owner, name }, true) });
-  const repo = meta.data?.repository;
+  const repo = useRepo(owner, name).data?.repository;
 
   // "<ref>/<path…>" → ref + path. Root URLs use the default branch.
   const resolved = useQuery({
@@ -64,121 +52,43 @@ export function RepoPage({ owner, repo: name, view, rest }: Props) {
         : nwo,
   );
 
-  const crumbs = [{ label: owner, href: `/${owner}` }, { label: name, href: `/${owner}/${name}` }];
-
-  if (meta.error || (meta.data && !repo)) {
-    return (
-      <Shell>
-        <PageHeader crumbs={crumbs} />
-        <div className="p-10 text-[13px]">
-          <p className="text-danger">{meta.error?.message ?? "Repository not found, or your token can't see it."}</p>
-          <Button className="mt-4" onClick={openClassic}>
-            Open in classic GitHub
-          </Button>
-        </div>
-      </Shell>
-    );
-  }
-
   const object = content.data?.repository?.object;
   const history = content.data?.repository?.commit?.history;
   const notFound = (rest.length > 0 && resolved.data === null) || (content.data && !object);
 
   return (
-    <Shell>
-      <PageHeader crumbs={crumbs} actions={repo && <RepoActions repo={repo} queryKey={metaKey} />} />
-      <div className="mx-auto max-w-[1240px] animate-enter px-6 pt-8 pb-8">
-        {repo ? <RepoHeader repo={repo} /> : <div className="h-[34px]" />}
-        <RepoTabs repo={repo ?? undefined} nwo={nwo} />
-
-        {repo?.isEmpty ? (
-          <Panel className="p-8 text-[13px] text-muted">
-            This repository is empty. Clone it with <code className="font-mono text-fg">gh repo clone {nwo}</code> and push your first commit.
-          </Panel>
-        ) : notFound ? (
-          <Panel className="p-8 text-[13px]">
-            <p className="text-danger">That branch, tag or path doesn't exist.</p>
-            <Button className="mt-4" onClick={() => navigate(`/${nwo}`)}>
-              Back to the default branch
-            </Button>
-          </Panel>
-        ) : view === 'commits' ? (
-          repo && target ? <CommitsView key={`${target.ref}:${target.path}`} repo={repo} gitRef={target.ref} path={target.path} /> : <TreeSkeleton />
-        ) : (
-          <>
-            {repo && target && <Toolbar repo={repo} gitRef={target.ref} path={target.path} />}
-            {!object || !target || !repo ? (
-              <TreeSkeleton />
-            ) : object.__typename === 'Blob' ? (
-              <BlobView nameWithOwner={nwo} gitRef={target.ref} path={target.path} blob={object} lastCommit={history?.nodes[0]} />
-            ) : target.path ? (
-              <TreeView nameWithOwner={nwo} gitRef={target.ref} path={target.path} entries={object.entries} lastCommit={history?.nodes[0]} commitCount={history?.totalCount} />
-            ) : (
-              <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_296px]">
-                <TreeView nameWithOwner={nwo} gitRef={target.ref} path="" entries={object.entries} lastCommit={history?.nodes[0]} commitCount={history?.totalCount} />
-                <RepoSidebar repo={repo} />
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </Shell>
-  );
-}
-
-function RepoHeader({ repo }: { repo: Repo }) {
-  return (
-    <div className="flex flex-wrap items-center gap-3">
-      <Avatar src={repo.owner.avatarUrl} size={34} square />
-      <h1 className="text-[22px] font-semibold tracking-tight">
-        <a href={`/${repo.owner.login}`} className="font-normal text-muted hover:text-fg">
-          {repo.owner.login}
-        </a>
-        <span className="mx-1.5 font-normal text-subtle">/</span>
-        {repo.name}
-      </h1>
-      <Pill>
-        {repo.isPrivate && <Lock className="size-3" />}
-        {repo.isPrivate ? 'Private' : 'Public'}
-      </Pill>
-      {repo.isArchived && (
-        <Pill className="border-warning/30 text-warning">
-          <Archive className="size-3" /> Archived
-        </Pill>
+    <RepoFrame owner={owner} name={name} view={view}>
+      {repo?.isEmpty ? (
+        <Panel className="p-8 text-[13px] text-muted">
+          This repository is empty. Clone it with <code className="font-mono text-fg">gh repo clone {nwo}</code> and push your first commit.
+        </Panel>
+      ) : notFound ? (
+        <Panel className="p-8 text-[13px]">
+          <p className="text-danger">That branch, tag or path doesn't exist.</p>
+          <Button className="mt-4" onClick={() => navigate(`/${nwo}`)}>
+            Back to the default branch
+          </Button>
+        </Panel>
+      ) : view === 'commits' ? (
+        repo && target ? <CommitsView key={`${target.ref}:${target.path}`} repo={repo} gitRef={target.ref} path={target.path} /> : <TreeSkeleton />
+      ) : (
+        <>
+          {repo && target && <Toolbar repo={repo} gitRef={target.ref} path={target.path} />}
+          {!object || !target || !repo ? (
+            <TreeSkeleton />
+          ) : object.__typename === 'Blob' ? (
+            <BlobView nameWithOwner={nwo} gitRef={target.ref} path={target.path} blob={object} lastCommit={history?.nodes[0]} />
+          ) : target.path ? (
+            <TreeView nameWithOwner={nwo} gitRef={target.ref} path={target.path} entries={object.entries} lastCommit={history?.nodes[0]} commitCount={history?.totalCount} />
+          ) : (
+            <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_296px]">
+              <TreeView nameWithOwner={nwo} gitRef={target.ref} path="" entries={object.entries} lastCommit={history?.nodes[0]} commitCount={history?.totalCount} />
+              <RepoSidebar repo={repo} />
+            </div>
+          )}
+        </>
       )}
-      {repo.isTemplate && <Pill>Template</Pill>}
-      {repo.parent && (
-        <span className="text-[12.5px] text-subtle">
-          forked from{' '}
-          <a href={`/${repo.parent.nameWithOwner}`} className="text-muted hover:text-fg hover:underline">
-            {repo.parent.nameWithOwner}
-          </a>
-        </span>
-      )}
-    </div>
-  );
-}
-
-/** Code is ours; the other tabs link to GitHub's pages. Optional tabs stay hidden until the repo loads. */
-function RepoTabs({ repo, nwo }: { repo?: Repo; nwo: string }) {
-  const tabs: { label: string; href: string; icon: ReactNode; count?: number; show?: boolean }[] = [
-    { label: 'Code', href: `/${nwo}`, icon: <Code2 /> },
-    { label: 'Issues', href: `/${nwo}/issues`, icon: <CircleDot />, count: repo?.issues.totalCount, show: !!repo?.hasIssuesEnabled },
-    { label: 'Pull requests', href: `/${nwo}/pulls`, icon: <GitPullRequest />, count: repo?.pullRequests.totalCount },
-    { label: 'Discussions', href: `/${nwo}/discussions`, icon: <MessagesSquare />, show: !!repo?.hasDiscussionsEnabled },
-    { label: 'Actions', href: `/${nwo}/actions`, icon: <Play /> },
-    { label: 'Wiki', href: `/${nwo}/wiki`, icon: <BookOpen />, show: !!repo?.hasWikiEnabled },
-    { label: 'Insights', href: `/${nwo}/pulse`, icon: <TrendingUp /> },
-    { label: 'Settings', href: `/${nwo}/settings`, icon: <Settings />, show: !!repo?.viewerCanAdminister },
-  ];
-  return (
-    <TabBar className="mt-5 mb-6">
-      {tabs
-        .filter((t) => t.show !== false)
-        .map((tab, i) => (
-          <Tab key={tab.label} href={tab.href} active={i === 0} icon={tab.icon} label={tab.label} count={tab.count || undefined} />
-        ))}
-    </TabBar>
+    </RepoFrame>
   );
 }
 
@@ -258,72 +168,5 @@ function Toolbar({ repo, gitRef, path }: { repo: Repo; gitRef: string; path: str
       </div>
       {finding && <FileFinder nameWithOwner={repo.nameWithOwner} gitRef={gitRef} onClose={() => setFinding(false)} />}
     </div>
-  );
-}
-
-const WATCH_LABEL: Record<Subscription, string> = { UNSUBSCRIBED: 'Watch', SUBSCRIBED: 'Watching', IGNORED: 'Ignoring' };
-
-/** Watch / Star / Fork, with optimistic counts. */
-function RepoActions({ repo, queryKey }: { repo: Repo; queryKey: unknown[] }) {
-  const queryClient = useQueryClient();
-  const patch = (changes: Partial<Repo>) => queryClient.setQueryData<{ repository: Repo }>(queryKey, (d) => d && { repository: { ...d.repository, ...changes } });
-  const rollback = (error: Error) => {
-    toast.error(error);
-    return queryClient.invalidateQueries({ queryKey });
-  };
-
-  const star = useMutation({
-    mutationFn: (starred: boolean) => gql(starred ? REPO_MUTATIONS.unstar : REPO_MUTATIONS.star, { id: repo.id }),
-    onMutate: (starred) => patch({ viewerHasStarred: !starred, stargazerCount: repo.stargazerCount + (starred ? -1 : 1) }),
-    onError: rollback,
-  });
-  const watch = useMutation({
-    mutationFn: (state: Subscription) => gql(REPO_MUTATIONS.subscribe, { id: repo.id, state }),
-    onMutate: (state) => patch({ viewerSubscription: state }),
-    onError: rollback,
-  });
-  const subscription = repo.viewerSubscription ?? 'UNSUBSCRIBED';
-  const pinned = useIsPinned(repo.nameWithOwner);
-
-  return (
-    <>
-      <Button
-        size="sm"
-        variant={pinned ? 'secondary' : 'ghost'}
-        icon={pinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />}
-        onClick={() => (pinned ? unpin(repo.nameWithOwner) : pin(repo.nameWithOwner))}
-        title={pinned ? 'Unpin from sidebar' : 'Pin to sidebar'}
-      >
-        {pinned ? 'Pinned' : 'Pin'}
-      </Button>
-      <Menu<Subscription>
-        value={subscription}
-        options={[
-          { value: 'UNSUBSCRIBED', label: 'Participating and @mentions', hint: 'Only when you take part or are mentioned' },
-          { value: 'SUBSCRIBED', label: 'All activity', hint: 'Every issue, pull request and release' },
-          { value: 'IGNORED', label: 'Ignore', hint: 'Never be notified' },
-        ]}
-        onChange={(state) => watch.mutate(state)}
-        trigger={(open) => (
-          <Button size="sm" variant="ghost" icon={subscription === 'IGNORED' ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />} onClick={open}>
-            {WATCH_LABEL[subscription]}
-            <span className="text-subtle tabular-nums">{formatCount(repo.watchers.totalCount)}</span>
-          </Button>
-        )}
-      />
-      <Button size="sm" variant="ghost" icon={<GitFork className="size-3.5" />} onClick={() => location.assign(`/${repo.nameWithOwner}/fork`)}>
-        Fork
-        <span className="text-subtle tabular-nums">{formatCount(repo.forkCount)}</span>
-      </Button>
-      <Button
-        size="sm"
-        variant={repo.viewerHasStarred ? 'secondary' : 'ghost'}
-        icon={<Star className={cx('size-3.5', repo.viewerHasStarred && 'fill-warning text-warning')} />}
-        onClick={() => star.mutate(repo.viewerHasStarred)}
-      >
-        {repo.viewerHasStarred ? 'Starred' : 'Star'}
-        <span className="text-subtle tabular-nums">{formatCount(repo.stargazerCount)}</span>
-      </Button>
-    </>
   );
 }

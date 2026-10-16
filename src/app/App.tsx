@@ -9,6 +9,7 @@ import { FollowsPage } from '@/pages/profile/FollowsPage';
 import { ProfilePage } from '@/pages/profile/ProfilePage';
 import { RepositoriesPage } from '@/pages/profile/RepositoriesPage';
 import { PrPage } from '@/pages/pr/PrPage';
+import { RepoListPage } from '@/pages/repo/RepoListPage';
 import { RepoPage } from '@/pages/repo/RepoPage';
 import { WorkListPage } from '@/pages/work/WorkListPage';
 import { Toaster } from '@/ui/toast';
@@ -35,7 +36,12 @@ export function App() {
       {route.kind === 'notifications' && <NotificationsPage />}
       {route.kind === 'profile' && <ProfileRoute key={route.login} login={route.login} tab={route.tab} />}
       {route.kind === 'pr' && <PrPage key={`${route.owner}/${route.repo}#${route.number}`} {...route} />}
-      {route.kind === 'repo' && <RepoPage key={`${route.owner}/${route.repo}`.toLowerCase()} {...route} />}
+      {route.kind === 'repo' &&
+        (route.view === 'issues' || route.view === 'pulls' ? (
+          <RepoListPage key={`${route.owner}/${route.repo}/${route.view}`.toLowerCase()} owner={route.owner} repo={route.repo} tab={route.view} />
+        ) : (
+          <RepoPage key={`${route.owner}/${route.repo}`.toLowerCase()} {...route} view={route.view} />
+        ))}
       <CommandPalette />
       <SettingsDialog />
       <Toaster />
