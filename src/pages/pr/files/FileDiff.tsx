@@ -124,9 +124,30 @@ function DiffStat({ file }: { file: PrFile }) {
   );
 }
 
+// A diff highlights as it mounts, synchronously. Mounted together (every card near the viewport at once) they
+// make one long task and nothing paints until the last is done, so they mount one per frame, in page order.
+const mountQueue: (() => void)[] = [];
+let draining = false;
+function mountInTurn(mount: () => void) {
+  mountQueue.push(mount);
+  if (draining) return;
+  draining = true;
+  const next = () => {
+    const mountNext = mountQueue.shift();
+    if (!mountNext) {
+      draining = false;
+      return;
+    }
+    mountNext();
+    // After the frame that paints this diff.
+    requestAnimationFrame(() => setTimeout(next));
+  };
+  next();
+}
+
 /**
- * Mounts its diff once the card comes within ~2 screens of the viewport and keeps it mounted, so a large
- * pull request doesn't render every file up front. Until then, holds roughly the diff's height.
+ * Mounts its diff once the card comes within ~2 screens of the viewport (see mountInTurn) and keeps it
+ * mounted, so a large pull request doesn't render every file up front. Until then, holds roughly its height.
  */
 function LazyBody({ estimatedHeight, children }: { estimatedHeight: number; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -134,7 +155,15 @@ function LazyBody({ estimatedHeight, children }: { estimatedHeight: number; chil
   useEffect(() => {
     const el = ref.current;
     if (near || !el) return;
-    const observer = new IntersectionObserver(([entry]) => entry?.isIntersecting && setNear(true), { rootMargin: '2000px 0px' });
+    let queued = false;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting || queued) return;
+        queued = true;
+        mountInTurn(() => setNear(true));
+      },
+      { rootMargin: '2000px 0px' },
+    );
     observer.observe(el);
     return () => observer.disconnect();
   }, [near]);
