@@ -107,7 +107,7 @@ export function DiffBody({ file, patch, pr, queryKey, mode, wrap, threads }: {
         };
       },
     }),
-    [dark, mode, wrap, pr, file, patch],
+    [dark, mode, wrap, pr.url, pr.headRefOid, file, patch],
   );
 
   useLayoutEffect(() => {

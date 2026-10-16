@@ -29,7 +29,6 @@ const CHECKS_QUERY = /* GraphQL */ `
                     nodes {
                       id name status conclusion startedAt completedAt detailsUrl title summary
                       isRequired(pullRequestNumber: $number)
-                      annotations(first: 50) { nodes { path title message annotationLevel location { start { line } } } }
                     }
                   }
                 }
@@ -39,6 +38,14 @@ const CHECKS_QUERY = /* GraphQL */ `
           }
         }
       }
+    }
+  }
+`;
+
+const ANNOTATIONS_QUERY = /* GraphQL */ `
+  query CheckRunAnnotations($id: ID!) {
+    node(id: $id) {
+      ... on CheckRun { annotations(first: 50) { nodes { path title message annotationLevel location { start { line } } } } }
     }
   }
 `;
@@ -62,7 +69,6 @@ type CheckRun = {
   title: string | null;
   summary: string | null;
   isRequired: boolean;
-  annotations: { nodes: Annotation[] };
 };
 
 type Suite = {
@@ -102,14 +108,17 @@ function OutcomeIcon({ outcome }: { outcome: CheckOutcome }) {
   return outcome === 'NEUTRAL' ? <HugeiconsIcon icon={MinusSignIcon} className="size-3.5 shrink-0 text-subtle" /> : <CheckIcon state={outcome} />;
 }
 
-/** CI for the head commit: runs grouped by workflow on the left, the selected run's annotations on the right. */
-export function ChecksTab({ pr }: { pr: PullRequest }) {
+/**
+ * CI for the head commit: runs grouped by workflow on the left, the selected run's annotations on the right.
+ * Polls while a run is unfinished, and throughout `watching` (just after a re-run, before GitHub queues it).
+ */
+export function ChecksTab({ pr, watching, onRerun }: { pr: PullRequest; watching: boolean; onRerun: () => void }) {
   const { data, isPending, error } = useQuery({
     queryKey: ['pr-checks', pr.id, pr.headRefOid],
     queryFn: () => gql<ChecksData>(CHECKS_QUERY, { id: pr.id, number: pr.number }),
     refetchInterval: (query) => {
       const suites = query.state.data?.node.commits.nodes[0]?.commit.checkSuites.nodes ?? [];
-      return suites.some((s) => s.checkRuns.nodes.some((r) => r.status !== 'COMPLETED')) ? 10_000 : false;
+      return watching || suites.some((s) => s.checkRuns.nodes.some((r) => r.status !== 'COMPLETED')) ? 15_000 : false;
     },
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -140,7 +149,7 @@ export function ChecksTab({ pr }: { pr: PullRequest }) {
     <div className="grid gap-6 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
       <div className="flex flex-col gap-4">
         {suites.map((suite) => (
-          <SuiteCard key={suite.id} suite={suite} runs={suite.runs} pr={pr} selectedId={selected?.id} onSelect={setSelectedId} />
+          <SuiteCard key={suite.id} suite={suite} runs={suite.runs} pr={pr} selectedId={selected?.id} onSelect={setSelectedId} onRerun={onRerun} />
         ))}
         {statuses.length > 0 && (
           <Panel className="p-1.5">
@@ -169,12 +178,14 @@ function SuiteCard({
   pr,
   selectedId,
   onSelect,
+  onRerun,
 }: {
   suite: Suite;
   runs: CheckRun[];
   pr: PullRequest;
   selectedId?: string;
   onSelect: (id: string) => void;
+  onRerun: () => void;
 }) {
   const queryClient = useQueryClient();
   const failed = runs.some((r) => runOutcome(r) === 'FAILURE');
@@ -183,6 +194,7 @@ function SuiteCard({
     mutationFn: () => rest(`/repos/${repoPath(pr)}/actions/runs/${run!.databaseId}/rerun-failed-jobs`, { method: 'POST' }),
     onSuccess: () => {
       toast.success(`Re-running failed jobs in ${run!.workflow.name}`);
+      onRerun();
       return queryClient.invalidateQueries({ queryKey: ['pr-checks', pr.id] });
     },
     onError: toast.error,
@@ -229,6 +241,13 @@ const LEVEL = {
 
 function RunDetail({ run, suite, repoUrl, oid }: { run: CheckRun; suite?: Suite; repoUrl: string; oid: string }) {
   const outcome = runOutcome(run);
+  // Only the selected run's annotations are fetched, again whenever its status moves on.
+  const { data, isPending } = useQuery({
+    queryKey: ['check-annotations', run.id, run.status],
+    queryFn: () => gql<{ node: { annotations: { nodes: Annotation[] } } | null }>(ANNOTATIONS_QUERY, { id: run.id }),
+    staleTime: Infinity,
+  });
+  const annotations = data?.node?.annotations.nodes ?? [];
   return (
     <Panel className="self-start overflow-hidden lg:sticky lg:top-[108px]">
       <div className="flex items-center gap-3 border-b border-line px-5 py-4">
@@ -249,10 +268,10 @@ function RunDetail({ run, suite, repoUrl, oid }: { run: CheckRun; suite?: Suite;
       <div className="flex max-h-[calc(100vh-220px)] flex-col gap-4 overflow-y-auto px-5 py-4">
         {run.title && <div className="text-[13px] font-medium">{run.title}</div>}
         {run.summary && <p className="text-[12.5px] leading-relaxed whitespace-pre-wrap text-muted">{run.summary}</p>}
-        {run.annotations.nodes.length > 0 && (
+        {annotations.length > 0 && (
           <div className="flex flex-col gap-2">
             <div className="text-[12px] font-medium text-muted">Annotations</div>
-            {run.annotations.nodes.map((a, i) => {
+            {annotations.map((a, i) => {
               const level = LEVEL[a.annotationLevel ?? 'NOTICE'];
               return (
                 <div key={i} className={cx('rounded-lg border bg-bg', level.tone)}>
@@ -269,7 +288,7 @@ function RunDetail({ run, suite, repoUrl, oid }: { run: CheckRun; suite?: Suite;
             })}
           </div>
         )}
-        {!run.title && !run.summary && !run.annotations.nodes.length && (
+        {!run.title && !run.summary && !annotations.length && !isPending && (
           <p className="text-[12.5px] text-subtle">
             {outcome === 'PENDING' ? 'This check is still running.' : 'No summary reported. Open the logs for details.'}
           </p>
