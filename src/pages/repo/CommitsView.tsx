@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { CalendarDays, ChevronDown, History, Users, X } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowDown01Icon, Calendar03Icon, Cancel01Icon, HistoryIcon, UserGroupIcon } from '@hugeicons/core-free-icons';
 import { gql, rest } from '@/github/client';
 import { formatDate } from '@/lib/time';
 import { Button } from '@/ui/Button';
@@ -136,13 +137,13 @@ export function CommitsView({ repo, gitRef, path }: { repo: Repo; gitRef: string
               {path}
             </a>
             <a href={commitsUrl(repo.nameWithOwner, gitRef) + search} title="Show all files" className="flex size-6 items-center justify-center rounded-md text-subtle hover:bg-hover hover:text-fg">
-              <X className="size-3.5" />
+              <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
             </a>
           </span>
         ) : (
           total !== undefined && (
             <span className="flex items-center gap-1.5 px-2 text-[12.5px] text-muted">
-              <History className="size-3.5 text-subtle" />
+              <HugeiconsIcon icon={HistoryIcon} className="size-3.5 text-subtle" />
               <b className="font-medium text-fg tabular-nums">{total.toLocaleString()}</b> commits
             </span>
           )
@@ -153,9 +154,9 @@ export function CommitsView({ repo, gitRef, path }: { repo: Repo; gitRef: string
             options={[{ value: '', label: 'All users' }, ...authors.map((login) => ({ value: login, label: login }))]}
             onChange={(login) => setFilters((f) => ({ ...f, author: login }))}
             trigger={(open) => (
-              <Button onClick={open} icon={<Users className="size-3.5 text-subtle" />}>
+              <Button onClick={open} icon={<HugeiconsIcon icon={UserGroupIcon} className="size-3.5 text-subtle" />}>
                 {filters.author || 'All users'}
-                <ChevronDown className="size-3.5 text-subtle" />
+                <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5 text-subtle" />
               </Button>
             )}
           />
@@ -167,9 +168,9 @@ export function CommitsView({ repo, gitRef, path }: { repo: Repo; gitRef: string
             ]}
             onChange={(key) => key !== 'custom' && setFilters((f) => ({ ...f, since: key === 'all' ? '' : daysAgo(PRESETS[key][1]), until: '' }))}
             trigger={(open) => (
-              <Button onClick={open} icon={<CalendarDays className="size-3.5 text-subtle" />}>
+              <Button onClick={open} icon={<HugeiconsIcon icon={Calendar03Icon} className="size-3.5 text-subtle" />}>
                 {preset ? PRESETS[preset][0] : range}
-                <ChevronDown className="size-3.5 text-subtle" />
+                <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5 text-subtle" />
               </Button>
             )}
           />

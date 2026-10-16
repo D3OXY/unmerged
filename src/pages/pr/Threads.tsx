@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { QueryKey } from '@tanstack/react-query';
-import { CheckCircle2, ChevronRight, FileCode2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowRight01Icon, CheckmarkCircle02Icon, FileCodeIcon } from '@hugeicons/core-free-icons';
 import { cx } from '@/lib/cx';
 import { timeAgo } from '@/lib/time';
 import { Button } from '@/ui/Button';
@@ -31,7 +32,7 @@ export function Threads({ threads, queryKey }: { threads: ReviewThread[]; queryK
       <div className="flex flex-col gap-3">
         {open.length === 0 && !showResolved && (
           <div className="flex items-center gap-2 rounded-xl border border-line bg-panel px-4 py-3 text-[12.5px] text-muted">
-            <CheckCircle2 className="size-4 text-success" /> All {resolved.length} threads resolved
+            <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-4 text-success" /> All {resolved.length} threads resolved
           </div>
         )}
         {[...open, ...(showResolved ? resolved : [])].map((thread) => (
@@ -55,12 +56,12 @@ export function Thread({ thread, queryKey, inline }: { thread: ReviewThread; que
     <div className={cx('overflow-hidden rounded-xl border border-line bg-panel', thread.isResolved && 'opacity-75')}>
       <div className="flex h-10 items-center gap-2 border-b border-line px-3">
         <button type="button" onClick={() => setCollapsed((c) => !c)} className="flex min-w-0 cursor-pointer items-center gap-2 text-left">
-          <ChevronRight className={cx('size-3.5 shrink-0 text-subtle transition-transform', !collapsed && 'rotate-90')} />
+          <HugeiconsIcon icon={ArrowRight01Icon} className={cx('size-3.5 shrink-0 text-subtle transition-transform', !collapsed && 'rotate-90')} />
           {inline ? (
             <span className="text-[12px] text-muted">{thread.isResolved ? 'Resolved thread' : 'Thread'}</span>
           ) : (
             <>
-              <FileCode2 className="size-3.5 shrink-0 text-subtle" />
+              <HugeiconsIcon icon={FileCodeIcon} className="size-3.5 shrink-0 text-subtle" />
               <span className="truncate font-mono text-[12px]">
                 {thread.path}
                 {thread.line && <span className="text-subtle">:{thread.line}</span>}

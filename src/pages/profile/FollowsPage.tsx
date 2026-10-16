@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, MapPin, Users } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Building03Icon, Location01Icon, UserGroupIcon } from '@hugeicons/core-free-icons';
 import { sessionLogin } from '@/lib/session';
 import { formatCount } from '@/lib/time';
 import { Button } from '@/ui/Button';
@@ -74,18 +75,18 @@ function PersonRow({ person, showFollowsYou, onToggled }: { person: Person; show
           <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[12px] text-subtle [&_svg]:size-3">
             {person.company && (
               <span className="flex items-center gap-1">
-                <Building2 />
+                <HugeiconsIcon icon={Building03Icon} />
                 {person.company}
               </span>
             )}
             {person.location && (
               <span className="flex items-center gap-1">
-                <MapPin />
+                <HugeiconsIcon icon={Location01Icon} />
                 {person.location}
               </span>
             )}
             <span className="flex items-center gap-1">
-              <Users />
+              <HugeiconsIcon icon={UserGroupIcon} />
               {formatCount(person.followers.totalCount)} follower{person.followers.totalCount === 1 ? '' : 's'}
             </span>
           </div>

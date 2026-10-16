@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import type { QueryKey } from '@tanstack/react-query';
-import { AlertTriangle, Check, ChevronDown, CircleDashed, GitBranch, GitMerge, Loader2, ShieldAlert, X } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Alert02Icon, ArrowDown01Icon, Cancel01Icon, DashedLineCircleIcon, GitBranchIcon, GitMergeIcon, Loading03Icon, ShieldAlertIcon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { useRegisterCommands } from '@/app/commands';
 import { cx } from '@/lib/cx';
 import { timeAgo } from '@/lib/time';
@@ -36,7 +37,7 @@ function MergedBox({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey }) {
     <Panel className="overflow-hidden">
       <div className="flex items-center gap-3 bg-merged/8 px-4 py-3.5">
         <span className="flex size-8 items-center justify-center rounded-full bg-merged/15 text-merged">
-          <GitMerge className="size-4" />
+          <HugeiconsIcon icon={GitMergeIcon} className="size-4" />
         </span>
         <div className="min-w-0">
           <div className="text-[13.5px] font-semibold">Merged</div>
@@ -67,7 +68,7 @@ function ClosedBox({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey }) {
   return (
     <Panel className="flex items-center gap-3 px-4 py-3.5">
       <span className="flex size-8 items-center justify-center rounded-full bg-danger/12 text-danger">
-        <X className="size-4" />
+        <HugeiconsIcon icon={Cancel01Icon} className="size-4" />
       </span>
       <div className="flex-1">
         <div className="text-[13.5px] font-semibold">Closed</div>
@@ -122,7 +123,7 @@ function OpenBox({ repo, pr, queryKey }: { repo: Repo; pr: PullRequest; queryKey
     useMemo(
       () =>
         ready && !pr.isDraft && !pr.isMergeQueueEnabled
-          ? [{ id: 'pr:merge', group: 'Pull request', title: `${METHOD_LABEL[method]}…`, icon: <GitMerge />, perform: () => startConfirm() }]
+          ? [{ id: 'pr:merge', group: 'Pull request', title: `${METHOD_LABEL[method]}…`, icon: <HugeiconsIcon icon={GitMergeIcon} />, perform: () => startConfirm() }]
           : [],
       [ready, pr, method],
     ),
@@ -136,7 +137,7 @@ function OpenBox({ repo, pr, queryKey }: { repo: Repo; pr: PullRequest; queryKey
     return (
       <Panel className="p-4">
         <div className="flex items-center gap-2 text-[13.5px] font-semibold">
-          <CircleDashed className="size-4 text-subtle" /> Draft
+          <HugeiconsIcon icon={DashedLineCircleIcon} className="size-4 text-subtle" /> Draft
         </div>
         <p className="mt-1 text-[12.5px] text-muted">This pull request can't be merged until it's ready for review.</p>
         {pr.viewerCanUpdate && (
@@ -213,7 +214,7 @@ function OpenBox({ repo, pr, queryKey }: { repo: Repo; pr: PullRequest; queryKey
           aria-label="Choose merge method"
           className="flex h-8 cursor-pointer items-center rounded-r-lg border-l border-black/20 bg-success px-2 text-white hover:brightness-110"
         >
-          <ChevronDown className="size-3.5" />
+          <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5" />
         </button>
       )}
     />
@@ -222,7 +223,7 @@ function OpenBox({ repo, pr, queryKey }: { repo: Repo; pr: PullRequest; queryKey
   let action: ReactNode;
   if (pr.isInMergeQueue) {
     action = (
-      <Row icon={<Loader2 className="size-4 animate-spin text-merged" />} title="Queued to merge" detail={pr.mergeQueueEntry ? `Position ${pr.mergeQueueEntry.position}` : undefined}>
+      <Row icon={<HugeiconsIcon icon={Loading03Icon} className="size-4 animate-spin text-merged" />} title="Queued to merge" detail={pr.mergeQueueEntry ? `Position ${pr.mergeQueueEntry.position}` : undefined}>
         <Button size="sm" loading={secondary.isPending} onClick={() => secondary.mutate({ query: MUTATIONS.dequeue, variables: { id: pr.id }, success: 'Removed from queue' })}>
           Remove
         </Button>
@@ -231,7 +232,7 @@ function OpenBox({ repo, pr, queryKey }: { repo: Repo; pr: PullRequest; queryKey
   } else if (pr.autoMergeRequest) {
     action = (
       <Row
-        icon={<GitMerge className="size-4 text-success" />}
+        icon={<HugeiconsIcon icon={GitMergeIcon} className="size-4 text-success" />}
         title="Auto-merge enabled"
         detail={`${METHOD_LABEL[pr.autoMergeRequest.mergeMethod]} · by ${pr.autoMergeRequest.enabledBy?.login ?? 'someone'}`}
       >
@@ -309,13 +310,13 @@ function OpenBox({ repo, pr, queryKey }: { repo: Repo; pr: PullRequest; queryKey
           </Button>
         )}
         {pr.viewerCanMergeAsAdmin && pr.mergeable !== 'CONFLICTING' ? (
-          <Button variant="danger" className="w-full justify-center" icon={<ShieldAlert className="size-3.5" />} onClick={() => startConfirm()}>
+          <Button variant="danger" className="w-full justify-center" icon={<HugeiconsIcon icon={ShieldAlertIcon} className="size-3.5" />} onClick={() => startConfirm()}>
             Bypass rules and merge
           </Button>
         ) : (
           !canAutoMerge && (
             <div className="flex items-center gap-2 rounded-lg bg-hover px-3 py-2 text-[12.5px] text-muted">
-              <AlertTriangle className="size-3.5 text-warning" />
+              <HugeiconsIcon icon={Alert02Icon} className="size-3.5 text-warning" />
               {pr.mergeable === 'CONFLICTING' ? 'Resolve conflicts to merge' : 'Merging is blocked'}
             </div>
           )
@@ -338,7 +339,7 @@ function OpenBox({ repo, pr, queryKey }: { repo: Repo; pr: PullRequest; queryKey
       </div>
       <div className="border-t border-line p-3">{action}</div>
       <div className="flex items-center gap-1.5 border-t border-line px-4 py-2 text-[11.5px] text-subtle">
-        <GitBranch className="size-3" />
+        <HugeiconsIcon icon={GitBranchIcon} className="size-3" />
         <span className="truncate font-mono">{pr.headRefName}</span>
         <span>→</span>
         <span className="truncate font-mono">{pr.baseRefName}</span>
@@ -362,8 +363,8 @@ function Row({ icon, title, detail, children }: { icon: ReactNode; title: string
 
 function ToneIcon({ tone }: { tone: Tone }) {
   const base = 'flex size-4 shrink-0 items-center justify-center rounded-full';
-  if (tone === 'ok') return <span className={cx(base, 'bg-success text-white')}><Check className="size-2.5" strokeWidth={3.5} /></span>;
-  if (tone === 'fail') return <span className={cx(base, 'bg-danger text-white')}><X className="size-2.5" strokeWidth={3.5} /></span>;
+  if (tone === 'ok') return <span className={cx(base, 'bg-success text-white')}><HugeiconsIcon icon={Tick02Icon} className="size-2.5" strokeWidth={3.5} /></span>;
+  if (tone === 'fail') return <span className={cx(base, 'bg-danger text-white')}><HugeiconsIcon icon={Cancel01Icon} className="size-2.5" strokeWidth={3.5} /></span>;
   if (tone === 'wait') return <span className={cx(base, 'border-2 border-warning border-t-transparent animate-spin')} />;
   return <span className={cx(base, 'border border-line-strong')} />;
 }

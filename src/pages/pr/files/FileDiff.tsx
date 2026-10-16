@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { QueryKey } from '@tanstack/react-query';
-import { Check, ChevronRight, Copy, FileText } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowRight01Icon, Copy01Icon, File02Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { copy } from '@/lib/clipboard';
 import { cx } from '@/lib/cx';
 import type { PullRequest, ReviewThread } from '../query';
@@ -59,7 +60,7 @@ export function FileDiff({ file, pr, queryKey, anchor, mode: preferredMode, wrap
         )}
       >
         <button type="button" onClick={onToggleOpen} aria-label={open ? 'Collapse file' : 'Expand file'} className="flex size-6 cursor-pointer items-center justify-center rounded-md text-subtle hover:bg-hover hover:text-fg">
-          <ChevronRight className={cx('size-3.5 transition-transform', open && 'rotate-90')} />
+          <HugeiconsIcon icon={ArrowRight01Icon} className={cx('size-3.5 transition-transform', open && 'rotate-90')} />
         </button>
         <button type="button" onClick={onToggleOpen} className="min-w-0 cursor-pointer truncate text-left font-mono text-[12.5px]" title={file.filename}>
           {file.previous_filename && <span className="text-subtle">{file.previous_filename} → </span>}
@@ -67,7 +68,7 @@ export function FileDiff({ file, pr, queryKey, anchor, mode: preferredMode, wrap
           <span className="font-medium text-fg">{file.filename.slice(slash + 1)}</span>
         </button>
         <button type="button" onClick={() => copy(file.filename, 'path')} title="Copy path" className="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-subtle hover:bg-hover hover:text-fg">
-          <Copy className="size-3" />
+          <HugeiconsIcon icon={Copy01Icon} className="size-3" />
         </button>
         {status && <span className={cx('rounded-full px-2 py-0.5 text-[11px] font-medium', status[1])}>{status[0]}</span>}
         <span className="ml-auto flex shrink-0 items-center gap-2 font-mono text-[11.5px] tabular-nums">
@@ -76,7 +77,7 @@ export function FileDiff({ file, pr, queryKey, anchor, mode: preferredMode, wrap
           <DiffStat file={file} />
         </span>
         <a href={file.blob_url} title="View file" className="flex size-7 shrink-0 items-center justify-center rounded-md text-subtle hover:bg-hover hover:text-fg">
-          <FileText className="size-3.5" />
+          <HugeiconsIcon icon={File02Icon} className="size-3.5" />
         </a>
         <button
           type="button"
@@ -87,7 +88,7 @@ export function FileDiff({ file, pr, queryKey, anchor, mode: preferredMode, wrap
           )}
         >
           <span className={cx('flex size-3.5 items-center justify-center rounded-[4px] border', viewed ? 'border-accent bg-accent text-white' : 'border-line-strong')}>
-            {viewed && <Check className="size-2.5" strokeWidth={3.5} />}
+            {viewed && <HugeiconsIcon icon={Tick02Icon} className="size-2.5" strokeWidth={3.5} />}
           </span>
           Viewed
         </button>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ChevronDown, Copy, FolderTree } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowDown01Icon, Copy01Icon, FolderTreeIcon } from '@hugeicons/core-free-icons';
 import type { Actor, CheckState } from '@/github/types';
 import { copy } from '@/lib/clipboard';
 import { cx } from '@/lib/cx';
@@ -97,7 +98,7 @@ function CommitRow({ commit, nameWithOwner, href }: { commit: CommitRowData; nam
                 aria-label="Show full message"
                 className="flex h-5 cursor-pointer items-center rounded px-1 text-subtle hover:bg-hover hover:text-fg"
               >
-                <ChevronDown className={cx('size-3.5 transition-transform', open && 'rotate-180')} />
+                <HugeiconsIcon icon={ArrowDown01Icon} className={cx('size-3.5 transition-transform', open && 'rotate-180')} />
               </button>
             )}
           </div>
@@ -135,14 +136,14 @@ function CommitRow({ commit, nameWithOwner, href }: { commit: CommitRowData; nam
           className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-line bg-elevated px-2 font-mono text-[11.5px] text-muted hover:border-line-strong hover:text-fg"
         >
           {commit.abbreviatedOid}
-          <Copy className="size-3" />
+          <HugeiconsIcon icon={Copy01Icon} className="size-3" />
         </button>
         <a
           href={`/${nameWithOwner}/tree/${commit.oid}`}
           title="Browse files at this commit"
           className="flex size-7 items-center justify-center rounded-md text-subtle hover:bg-hover hover:text-fg"
         >
-          <FolderTree className="size-3.5" />
+          <HugeiconsIcon icon={FolderTreeIcon} className="size-3.5" />
         </a>
       </div>
       {open && (

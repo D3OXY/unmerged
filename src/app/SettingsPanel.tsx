@@ -1,22 +1,23 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { ArrowUpRight, Bell, BookMarked, GitPullRequest, Home, KeyRound, ListTodo, Monitor, Moon, Sun, User } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowUpRight01Icon, Book02Icon, CheckListIcon, ComputerIcon, GitPullRequestIcon, Home01Icon, Key01Icon, Moon02Icon, Notification03Icon, Sun03Icon, UserIcon } from '@hugeicons/core-free-icons';
 import { AuthError, rest } from '@/github/client';
 import { cx } from '@/lib/cx';
 import { NEW_TOKEN_URL, surfacesItem, themeItem, tokenItem, useStorageItem, type Surface, type Theme } from '@/lib/settings';
 
 const SURFACES: Record<Surface, { label: string; path: string; icon: ReactNode }> = {
-  home: { label: 'Home', path: 'github.com', icon: <Home /> },
-  profile: { label: 'Profiles', path: 'github.com/<user>', icon: <User /> },
-  pr: { label: 'Pull requests', path: '…/pull/<number>', icon: <GitPullRequest /> },
-  repo: { label: 'Repositories', path: 'github.com/<owner>/<repo>, /issues, /pulls', icon: <BookMarked /> },
-  work: { label: 'Pull request & issue lists', path: 'github.com/pulls, /issues', icon: <ListTodo /> },
-  notifications: { label: 'Notifications', path: 'github.com/notifications', icon: <Bell /> },
+  home: { label: 'Home', path: 'github.com', icon: <HugeiconsIcon icon={Home01Icon} /> },
+  profile: { label: 'Profiles', path: 'github.com/<user>', icon: <HugeiconsIcon icon={UserIcon} /> },
+  pr: { label: 'Pull requests', path: '…/pull/<number>', icon: <HugeiconsIcon icon={GitPullRequestIcon} /> },
+  repo: { label: 'Repositories', path: 'github.com/<owner>/<repo>, /issues, /pulls', icon: <HugeiconsIcon icon={Book02Icon} /> },
+  work: { label: 'Pull request & issue lists', path: 'github.com/pulls, /issues', icon: <HugeiconsIcon icon={CheckListIcon} /> },
+  notifications: { label: 'Notifications', path: 'github.com/notifications', icon: <HugeiconsIcon icon={Notification03Icon} /> },
 };
 
 const THEMES: { value: Theme; label: string; icon: ReactNode }[] = [
-  { value: 'auto', label: 'Auto', icon: <Monitor /> },
-  { value: 'light', label: 'Light', icon: <Sun /> },
-  { value: 'dark', label: 'Dark', icon: <Moon /> },
+  { value: 'auto', label: 'Auto', icon: <HugeiconsIcon icon={ComputerIcon} /> },
+  { value: 'light', label: 'Light', icon: <HugeiconsIcon icon={Sun03Icon} /> },
+  { value: 'dark', label: 'Dark', icon: <HugeiconsIcon icon={Moon02Icon} /> },
 ];
 
 /**
@@ -174,7 +175,7 @@ function TokenForm({ problem, onCancel, onSaved }: { problem?: string; onCancel?
       </p>
       <div className="flex gap-2">
         <label className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-lg border border-line bg-bg px-2.5 transition-colors focus-within:border-accent/60">
-          <KeyRound className="size-3.5 shrink-0 text-subtle" />
+          <HugeiconsIcon icon={Key01Icon} className="size-3.5 shrink-0 text-subtle" />
           <input
             autoFocus
             type="password"
@@ -195,7 +196,7 @@ function TokenForm({ problem, onCancel, onSaved }: { problem?: string; onCancel?
       </div>
       <div className="mt-2 flex items-center justify-between text-[12px]">
         <a href={NEW_TOKEN_URL} target="_blank" rel="noreferrer" className="flex items-center gap-0.5 text-accent hover:underline">
-          Create a token <ArrowUpRight className="size-3" />
+          Create a token <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3" />
         </a>
         {onCancel && (
           <button type="button" onClick={onCancel} className="cursor-pointer text-subtle hover:text-fg">

@@ -1,4 +1,5 @@
-import { ArrowUpRight } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowUpRight01Icon } from '@hugeicons/core-free-icons';
 import { tokenItem, useStorageItem } from '@/lib/settings';
 import { leaveClassic } from '@/lib/classic';
 import type { ProfileTab } from '@/lib/routes';
@@ -66,7 +67,7 @@ function ClassicPill() {
     >
       <Logo size={22} />
       Open in Unmerged
-      <ArrowUpRight className="size-3.5 text-muted" />
+      <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5 text-muted" />
     </button>
   );
 }

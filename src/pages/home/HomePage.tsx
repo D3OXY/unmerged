@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowUpRight, Plus } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Add01Icon, ArrowUpRight01Icon } from '@hugeicons/core-free-icons';
 import { useViewer } from '@/github/viewer';
 import { Shell, PageHeader } from '@/app/Shell';
 import { timeAgo } from '@/lib/time';
@@ -34,7 +35,7 @@ export function HomePage() {
       <PageHeader
         crumbs={[{ label: 'Home' }]}
         actions={
-          <Button size="sm" icon={<Plus className="size-3.5" />} onClick={() => location.assign('/new')}>
+          <Button size="sm" icon={<HugeiconsIcon icon={Add01Icon} className="size-3.5" />} onClick={() => location.assign('/new')}>
             New repository
           </Button>
         }
@@ -129,7 +130,7 @@ function ListSection({ title, count, loading, more, children }: { title: string;
         count={count}
         action={
           <a href={more} className="flex items-center gap-1 text-[12px] text-subtle hover:text-fg">
-            View all <ArrowUpRight className="size-3" />
+            View all <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3" />
           </a>
         }
       />

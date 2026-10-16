@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Eye, GitFork, Link2, Scale, Star, Tag } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { GitForkIcon, JusticeScale01Icon, Link02Icon, StarIcon, Tag01Icon, ViewIcon } from '@hugeicons/core-free-icons';
 import { rest } from '@/github/client';
 import { formatCount, timeAgo } from '@/lib/time';
 import { Avatar, LanguageDot } from '@/ui/primitives';
@@ -27,7 +28,7 @@ export function RepoSidebar({ repo }: { repo: Repo }) {
         <p className="text-[13px] leading-relaxed text-fg/90">{repo.description ?? <span className="text-subtle italic">No description</span>}</p>
         {homepage && (
           <a href={homepage} target="_blank" rel="noreferrer" className="mt-2.5 flex items-center gap-1.5 truncate text-[12.5px] font-medium text-accent hover:underline">
-            <Link2 className="size-3.5 shrink-0" />
+            <HugeiconsIcon icon={Link02Icon} className="size-3.5 shrink-0" />
             {homepage.replace(/^https?:\/\//, '').replace(/\/$/, '')}
           </a>
         )}
@@ -42,15 +43,15 @@ export function RepoSidebar({ repo }: { repo: Repo }) {
         )}
         <div className="mt-4 flex flex-col gap-2 text-[12.5px] text-muted">
           {about?.licenseInfo && (
-            <Stat icon={<Scale />}>{about.licenseInfo.spdxId && about.licenseInfo.spdxId !== 'NOASSERTION' ? about.licenseInfo.spdxId : about.licenseInfo.name}</Stat>
+            <Stat icon={<HugeiconsIcon icon={JusticeScale01Icon} />}>{about.licenseInfo.spdxId && about.licenseInfo.spdxId !== 'NOASSERTION' ? about.licenseInfo.spdxId : about.licenseInfo.name}</Stat>
           )}
-          <Stat icon={<Star />} href={`/${repo.nameWithOwner}/stargazers`}>
+          <Stat icon={<HugeiconsIcon icon={StarIcon} />} href={`/${repo.nameWithOwner}/stargazers`}>
             <b className="font-medium text-fg">{formatCount(repo.stargazerCount)}</b> stars
           </Stat>
-          <Stat icon={<Eye />} href={`/${repo.nameWithOwner}/watchers`}>
+          <Stat icon={<HugeiconsIcon icon={ViewIcon} />} href={`/${repo.nameWithOwner}/watchers`}>
             <b className="font-medium text-fg">{formatCount(repo.watchers.totalCount)}</b> watching
           </Stat>
-          <Stat icon={<GitFork />} href={`/${repo.nameWithOwner}/forks`}>
+          <Stat icon={<HugeiconsIcon icon={GitForkIcon} />} href={`/${repo.nameWithOwner}/forks`}>
             <b className="font-medium text-fg">{formatCount(repo.forkCount)}</b> forks
           </Stat>
         </div>
@@ -60,7 +61,7 @@ export function RepoSidebar({ repo }: { repo: Repo }) {
         <Section title="Latest release" action={<a href={`/${repo.nameWithOwner}/releases`}>{about.releases.totalCount} total</a>}>
           <a href={about.latestRelease.url} className="flex items-center gap-3 rounded-xl border border-line bg-panel p-3 transition-colors hover:border-line-strong">
             <span className="flex size-8 items-center justify-center rounded-lg bg-success/12 text-success">
-              <Tag className="size-4" />
+              <HugeiconsIcon icon={Tag01Icon} className="size-4" />
             </span>
             <span className="min-w-0">
               <span className="block truncate text-[13px] font-medium">{about.latestRelease.name || about.latestRelease.tagName}</span>

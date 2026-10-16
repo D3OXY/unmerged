@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CircleDot, Copy, FileSearch, GitBranch, GitPullRequest, Pin, PinOff, Play, Tag } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CircleDotIcon, Copy01Icon, FileSearchIcon, GitBranchIcon, GitPullRequestIcon, PinIcon, PinOffIcon, PlayIcon, Tag01Icon } from '@hugeicons/core-free-icons';
 import { useRegisterCommands, type Command } from '@/app/commands';
 import { usePageHotkey } from '@/app/keyboard';
 import { copy } from '@/lib/clipboard';
@@ -99,16 +100,16 @@ function Toolbar({ repo, gitRef, path }: { repo: Repo; gitRef: string; path: str
   const pinned = useIsPinned(repo.nameWithOwner);
   const commands = useMemo<Command[]>(
     () => [
-      { id: 'repo:find', group: 'Repository', title: 'Go to file…', hint: 'T', icon: <FileSearch />, perform: openFinder },
+      { id: 'repo:find', group: 'Repository', title: 'Go to file…', hint: 'T', icon: <HugeiconsIcon icon={FileSearchIcon} />, perform: openFinder },
       pinned
-        ? { id: 'repo:unpin', group: 'Repository', title: 'Unpin from sidebar', icon: <PinOff />, perform: () => unpin(repo.nameWithOwner) }
-        : { id: 'repo:pin', group: 'Repository', title: 'Pin to sidebar', icon: <Pin />, perform: () => pin(repo.nameWithOwner) },
-      { id: 'repo:clone-https', group: 'Repository', title: 'Copy HTTPS clone URL', icon: <Copy />, perform: () => copy(`${repo.url}.git`, 'clone URL') },
-      { id: 'repo:clone-ssh', group: 'Repository', title: 'Copy SSH clone URL', icon: <Copy />, perform: () => copy(repo.sshUrl, 'clone URL') },
-      { id: 'repo:clone-gh', group: 'Repository', title: 'Copy gh repo clone', icon: <Copy />, perform: () => copy(`gh repo clone ${repo.nameWithOwner}`, 'clone command') },
-      { id: 'repo:issues', group: 'Repository', title: 'Issues', icon: <CircleDot />, perform: () => navigate(`/${repo.nameWithOwner}/issues`) },
-      { id: 'repo:pulls', group: 'Repository', title: 'Pull requests', icon: <GitPullRequest />, perform: () => navigate(`/${repo.nameWithOwner}/pulls`) },
-      { id: 'repo:actions', group: 'Repository', title: 'Actions', icon: <Play />, perform: () => navigate(`/${repo.nameWithOwner}/actions`) },
+        ? { id: 'repo:unpin', group: 'Repository', title: 'Unpin from sidebar', icon: <HugeiconsIcon icon={PinOffIcon} />, perform: () => unpin(repo.nameWithOwner) }
+        : { id: 'repo:pin', group: 'Repository', title: 'Pin to sidebar', icon: <HugeiconsIcon icon={PinIcon} />, perform: () => pin(repo.nameWithOwner) },
+      { id: 'repo:clone-https', group: 'Repository', title: 'Copy HTTPS clone URL', icon: <HugeiconsIcon icon={Copy01Icon} />, perform: () => copy(`${repo.url}.git`, 'clone URL') },
+      { id: 'repo:clone-ssh', group: 'Repository', title: 'Copy SSH clone URL', icon: <HugeiconsIcon icon={Copy01Icon} />, perform: () => copy(repo.sshUrl, 'clone URL') },
+      { id: 'repo:clone-gh', group: 'Repository', title: 'Copy gh repo clone', icon: <HugeiconsIcon icon={Copy01Icon} />, perform: () => copy(`gh repo clone ${repo.nameWithOwner}`, 'clone command') },
+      { id: 'repo:issues', group: 'Repository', title: 'Issues', icon: <HugeiconsIcon icon={CircleDotIcon} />, perform: () => navigate(`/${repo.nameWithOwner}/issues`) },
+      { id: 'repo:pulls', group: 'Repository', title: 'Pull requests', icon: <HugeiconsIcon icon={GitPullRequestIcon} />, perform: () => navigate(`/${repo.nameWithOwner}/pulls`) },
+      { id: 'repo:actions', group: 'Repository', title: 'Actions', icon: <HugeiconsIcon icon={PlayIcon} />, perform: () => navigate(`/${repo.nameWithOwner}/actions`) },
     ],
     [repo, openFinder, pinned],
   );
@@ -120,11 +121,11 @@ function Toolbar({ repo, gitRef, path }: { repo: Repo; gitRef: string; path: str
       {!path && (
         <span className="hidden items-center gap-3 px-2 text-[12.5px] text-muted sm:flex">
           <a href={`/${repo.nameWithOwner}/branches`} className="flex items-center gap-1.5 hover:text-fg">
-            <GitBranch className="size-3.5 text-subtle" />
+            <HugeiconsIcon icon={GitBranchIcon} className="size-3.5 text-subtle" />
             <b className="font-medium text-fg">{repo.branches.totalCount}</b> branches
           </a>
           <a href={`/${repo.nameWithOwner}/tags`} className="flex items-center gap-1.5 hover:text-fg">
-            <Tag className="size-3.5 text-subtle" />
+            <HugeiconsIcon icon={Tag01Icon} className="size-3.5 text-subtle" />
             <b className="font-medium text-fg">{repo.tags.totalCount}</b> tags
           </a>
         </span>
@@ -147,7 +148,7 @@ function Toolbar({ repo, gitRef, path }: { repo: Repo; gitRef: string; path: str
             </span>
           ))}
           <button type="button" onClick={() => copy(path, 'path')} title="Copy path" className="ml-1 flex size-6 cursor-pointer items-center justify-center rounded-md text-subtle hover:bg-hover hover:text-fg">
-            <Copy className="size-3" />
+            <HugeiconsIcon icon={Copy01Icon} className="size-3" />
           </button>
         </div>
       )}
@@ -157,7 +158,7 @@ function Toolbar({ repo, gitRef, path }: { repo: Repo; gitRef: string; path: str
           onClick={openFinder}
           className="flex h-8 w-52 cursor-pointer items-center gap-2 rounded-lg border border-line bg-panel px-2.5 text-[12.5px] text-subtle hover:border-line-strong hover:text-muted"
         >
-          <FileSearch className="size-3.5" />
+          <HugeiconsIcon icon={FileSearchIcon} className="size-3.5" />
           Go to file
           <Kbd className="ml-auto">T</Kbd>
         </button>

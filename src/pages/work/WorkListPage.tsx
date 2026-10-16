@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { CircleDot, GitPullRequest } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CircleDotIcon, GitPullRequestIcon } from '@hugeicons/core-free-icons';
 import { PageHeader, Shell } from '@/app/Shell';
 import type { WorkFilter } from '@/lib/routes';
 import { useTitle } from '@/lib/useTitle';
@@ -20,7 +21,7 @@ export function WorkListPage({ type, filter }: { type: WorkType; filter: WorkFil
       <div className="mx-auto max-w-[1180px] px-6 pb-8">
         <TabBar className="mt-2 mb-5">
           {TABS[type].map((tab, i) => (
-            <Tab key={tab.filter} href={tab.path} active={tab.filter === filter} icon={type === 'pr' ? <GitPullRequest /> : <CircleDot />} label={tab.label} count={tabCounts.data?.[i]} />
+            <Tab key={tab.filter} href={tab.path} active={tab.filter === filter} icon={type === 'pr' ? <HugeiconsIcon icon={GitPullRequestIcon} /> : <HugeiconsIcon icon={CircleDotIcon} />} label={tab.label} count={tabCounts.data?.[i]} />
           ))}
         </TabBar>
         <WorkList fallback={defaultQuery(type, filter)} />

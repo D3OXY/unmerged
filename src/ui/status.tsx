@@ -1,21 +1,22 @@
-import { CircleCheck, CircleDot, CircleSlash, GitMerge, GitPullRequest, GitPullRequestClosed, GitPullRequestDraft, Check, X, Circle } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Cancel01Icon, CheckmarkCircle02Icon, CircleDotIcon, CircleIcon, GitMergeIcon, GitPullRequestClosedIcon, GitPullRequestDraftIcon, GitPullRequestIcon, Tick02Icon, UnavailableIcon } from '@hugeicons/core-free-icons';
 import type { CheckState, IssueState, IssueStateReason, PrState, ReviewDecision } from '@/github/types';
 import { cx } from '@/lib/cx';
 
 export function PrStateIcon({ state, isDraft, className }: { state: PrState; isDraft?: boolean; className?: string }) {
   const c = cx('size-4 shrink-0', className);
-  if (state === 'MERGED') return <GitMerge className={cx(c, 'text-merged')} />;
-  if (state === 'CLOSED') return <GitPullRequestClosed className={cx(c, 'text-danger')} />;
-  if (isDraft) return <GitPullRequestDraft className={cx(c, 'text-subtle')} />;
-  return <GitPullRequest className={cx(c, 'text-success')} />;
+  if (state === 'MERGED') return <HugeiconsIcon icon={GitMergeIcon} className={cx(c, 'text-merged')} />;
+  if (state === 'CLOSED') return <HugeiconsIcon icon={GitPullRequestClosedIcon} className={cx(c, 'text-danger')} />;
+  if (isDraft) return <HugeiconsIcon icon={GitPullRequestDraftIcon} className={cx(c, 'text-subtle')} />;
+  return <HugeiconsIcon icon={GitPullRequestIcon} className={cx(c, 'text-success')} />;
 }
 
 /** Open, closed as completed (purple check) or closed as not planned (grey slash), like GitHub. */
 export function IssueIcon({ state = 'OPEN', stateReason, className }: { state?: IssueState; stateReason?: IssueStateReason | null; className?: string }) {
   const c = cx('size-4 shrink-0', className);
-  if (state === 'OPEN') return <CircleDot className={cx(c, 'text-success')} />;
-  if (stateReason === 'NOT_PLANNED' || stateReason === 'DUPLICATE') return <CircleSlash className={cx(c, 'text-subtle')} />;
-  return <CircleCheck className={cx(c, 'text-merged')} />;
+  if (state === 'OPEN') return <HugeiconsIcon icon={CircleDotIcon} className={cx(c, 'text-success')} />;
+  if (stateReason === 'NOT_PLANNED' || stateReason === 'DUPLICATE') return <HugeiconsIcon icon={UnavailableIcon} className={cx(c, 'text-subtle')} />;
+  return <HugeiconsIcon icon={CheckmarkCircle02Icon} className={cx(c, 'text-merged')} />;
 }
 
 export function PrStateBadge({ state, isDraft }: { state: PrState; isDraft: boolean }) {
@@ -47,11 +48,11 @@ const checkTone: Record<CheckState, string> = {
 export function CheckIcon({ state, className }: { state: CheckState | null | undefined; className?: string }) {
   if (!state) return null;
   const c = cx('size-3.5 shrink-0', checkTone[state], className);
-  if (state === 'SUCCESS') return <Check className={c} strokeWidth={2.5} />;
-  if (state === 'FAILURE' || state === 'ERROR') return <X className={c} strokeWidth={2.5} />;
+  if (state === 'SUCCESS') return <HugeiconsIcon icon={Tick02Icon} className={c} strokeWidth={2.5} />;
+  if (state === 'FAILURE' || state === 'ERROR') return <HugeiconsIcon icon={Cancel01Icon} className={c} strokeWidth={2.5} />;
   return (
     <span className={cx('relative inline-flex', c)}>
-      <Circle className="size-full" strokeWidth={2.5} />
+      <HugeiconsIcon icon={CircleIcon} className="size-full" strokeWidth={2.5} />
       <span className="absolute inset-[30%] animate-ping rounded-full bg-current opacity-60" />
     </span>
   );

@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
-import { Check, ChevronDown, Clock, MessageSquare, Minus, X } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowDown01Icon, Cancel01Icon, Clock01Icon, Comment01Icon, MinusSignIcon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { cx } from '@/lib/cx';
 import { navigate } from '@/lib/navigation';
 import { diffAnchor } from './files/anchor';
@@ -32,7 +33,7 @@ export function ChecksCard({ checks }: { checks: CheckContext[] }) {
               href={url ?? undefined}
               className="flex h-8 items-center gap-2.5 rounded-md px-2 text-[12.5px] hover:bg-hover"
             >
-              {outcome === 'NEUTRAL' ? <Minus className="size-3.5 text-subtle" /> : <CheckIcon state={outcome} />}
+              {outcome === 'NEUTRAL' ? <HugeiconsIcon icon={MinusSignIcon} className="size-3.5 text-subtle" /> : <CheckIcon state={outcome} />}
               <span className={cx('min-w-0 flex-1 truncate', outcome === 'FAILURE' ? 'font-medium text-fg' : 'text-fg/85')}>{checkName(check)}</span>
               {check.isRequired && <span className="text-[10.5px] font-medium tracking-wide text-subtle uppercase">Req</span>}
             </a>
@@ -40,7 +41,7 @@ export function ChecksCard({ checks }: { checks: CheckContext[] }) {
         })}
         {rest > 0 && (
           <button type="button" onClick={() => setExpanded(true)} className="flex h-8 cursor-pointer items-center gap-2.5 rounded-md px-2 text-[12.5px] text-muted hover:bg-hover">
-            {loud.length > visible.length ? <ChevronDown className="size-3.5" /> : <Check className="size-3.5 text-success" />}
+            {loud.length > visible.length ? <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5" /> : <HugeiconsIcon icon={Tick02Icon} className="size-3.5 text-success" />}
             {loud.length > visible.length ? `Show all ${sorted.length}` : `${rest} successful or skipped`}
           </button>
         )}
@@ -50,9 +51,9 @@ export function ChecksCard({ checks }: { checks: CheckContext[] }) {
 }
 
 const REVIEW_ICON: Partial<Record<ReviewState, ReactNode>> = {
-  APPROVED: <Check className="size-3.5 text-success" strokeWidth={2.5} />,
-  CHANGES_REQUESTED: <X className="size-3.5 text-danger" strokeWidth={2.5} />,
-  COMMENTED: <MessageSquare className="size-3.5 text-subtle" />,
+  APPROVED: <HugeiconsIcon icon={Tick02Icon} className="size-3.5 text-success" strokeWidth={2.5} />,
+  CHANGES_REQUESTED: <HugeiconsIcon icon={Cancel01Icon} className="size-3.5 text-danger" strokeWidth={2.5} />,
+  COMMENTED: <HugeiconsIcon icon={Comment01Icon} className="size-3.5 text-subtle" />,
 };
 
 export function PeopleCard({ pr }: { pr: PullRequest }) {
@@ -69,7 +70,7 @@ export function PeopleCard({ pr }: { pr: PullRequest }) {
           <Person key={r.author!.login} name={r.author!.login} avatarUrl={r.author!.avatarUrl} trailing={REVIEW_ICON[r.state]} />
         ))}
         {requested.map((r) => (
-          <Person key={r.name} name={r.name} avatarUrl={r.avatarUrl} trailing={<Clock className="size-3.5 text-warning" />} />
+          <Person key={r.name} name={r.name} avatarUrl={r.avatarUrl} trailing={<HugeiconsIcon icon={Clock01Icon} className="size-3.5 text-warning" />} />
         ))}
       </Field>
       <Field label="Assignees">

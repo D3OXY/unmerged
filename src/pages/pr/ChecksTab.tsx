@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, ArrowUpRight, Info, Minus, RotateCcw, XCircle } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Alert02Icon, ArrowUpRight01Icon, CancelCircleIcon, InformationCircleIcon, MinusSignIcon, UndoIcon } from '@hugeicons/core-free-icons';
 import { gql, rest } from '@/github/client';
 import type { CheckState } from '@/github/types';
 import { cx } from '@/lib/cx';
@@ -98,7 +99,7 @@ function duration(run: CheckRun) {
 }
 
 function OutcomeIcon({ outcome }: { outcome: CheckOutcome }) {
-  return outcome === 'NEUTRAL' ? <Minus className="size-3.5 shrink-0 text-subtle" /> : <CheckIcon state={outcome} />;
+  return outcome === 'NEUTRAL' ? <HugeiconsIcon icon={MinusSignIcon} className="size-3.5 shrink-0 text-subtle" /> : <CheckIcon state={outcome} />;
 }
 
 /** CI for the head commit: runs grouped by workflow on the left, the selected run's annotations on the right. */
@@ -194,7 +195,7 @@ function SuiteCard({
         <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">{run ? run.workflow.name : (suite.app?.name ?? 'Checks')}</span>
         {run && <span className="text-[11.5px] text-subtle">#{run.runNumber} · {run.event.replace(/_/g, ' ')}</span>}
         {run && failed && (
-          <Button size="sm" variant="ghost" loading={rerun.isPending} icon={<RotateCcw className="size-3" />} onClick={() => rerun.mutate()}>
+          <Button size="sm" variant="ghost" loading={rerun.isPending} icon={<HugeiconsIcon icon={UndoIcon} className="size-3" />} onClick={() => rerun.mutate()}>
             Re-run failed
           </Button>
         )}
@@ -221,9 +222,9 @@ function SuiteCard({
 }
 
 const LEVEL = {
-  FAILURE: { icon: <XCircle className="size-3.5 text-danger" />, tone: 'border-danger/30' },
-  WARNING: { icon: <AlertTriangle className="size-3.5 text-warning" />, tone: 'border-warning/30' },
-  NOTICE: { icon: <Info className="size-3.5 text-info" />, tone: 'border-info/30' },
+  FAILURE: { icon: <HugeiconsIcon icon={CancelCircleIcon} className="size-3.5 text-danger" />, tone: 'border-danger/30' },
+  WARNING: { icon: <HugeiconsIcon icon={Alert02Icon} className="size-3.5 text-warning" />, tone: 'border-warning/30' },
+  NOTICE: { icon: <HugeiconsIcon icon={InformationCircleIcon} className="size-3.5 text-info" />, tone: 'border-info/30' },
 };
 
 function RunDetail({ run, suite, repoUrl, oid }: { run: CheckRun; suite?: Suite; repoUrl: string; oid: string }) {
@@ -240,7 +241,7 @@ function RunDetail({ run, suite, repoUrl, oid }: { run: CheckRun; suite?: Suite;
           </div>
         </div>
         {run.detailsUrl && (
-          <Button size="sm" icon={<ArrowUpRight className="size-3.5" />} onClick={() => location.assign(run.detailsUrl!)}>
+          <Button size="sm" icon={<HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5" />} onClick={() => location.assign(run.detailsUrl!)}>
             Logs
           </Button>
         )}

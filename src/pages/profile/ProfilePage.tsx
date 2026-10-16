@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowUpRight, AtSign, Building2, CalendarDays, ChevronLeft, ChevronRight, GitFork, Heart, Link2, Lock, MapPin, Search, Star } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowLeft01Icon, ArrowRight01Icon, ArrowUpRight01Icon, AtIcon, Building03Icon, Calendar03Icon, FavouriteIcon, GitForkIcon, Link02Icon, Location01Icon, Search01Icon, SquareLock02Icon, StarIcon } from '@hugeicons/core-free-icons';
 import { achievementsQuery, type Achievement } from '@/github/achievements';
 import type { RepoCard } from '@/github/types';
 import { Shell, PageHeader } from '@/app/Shell';
@@ -68,7 +69,7 @@ export function ProfilePage({ login }: { login: string }) {
           user && (
             <>
               {user.hasSponsorsListing && !user.isViewer && (
-                <Button size="sm" icon={<Heart className="size-3.5 text-[#db61a2]" />} onClick={() => location.assign(`/sponsors/${user.login}`)}>
+                <Button size="sm" icon={<HugeiconsIcon icon={FavouriteIcon} className="size-3.5 text-[#db61a2]" />} onClick={() => location.assign(`/sponsors/${user.login}`)}>
                   Sponsor
                 </Button>
               )}
@@ -179,23 +180,23 @@ function ProfileHeader({ user }: { user: ProfileUser }) {
           {user.bio && <p className="mt-3 max-w-[640px] text-[14px] leading-relaxed text-fg/90">{user.bio}</p>}
 
           <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[12.5px] text-muted">
-            {user.company && <Meta icon={<Building2 />}>{user.company}</Meta>}
-            {user.location && <Meta icon={<MapPin />}>{user.location}</Meta>}
+            {user.company && <Meta icon={<HugeiconsIcon icon={Building03Icon} />}>{user.company}</Meta>}
+            {user.location && <Meta icon={<HugeiconsIcon icon={Location01Icon} />}>{user.location}</Meta>}
             {website && (
-              <Meta icon={<Link2 />}>
+              <Meta icon={<HugeiconsIcon icon={Link02Icon} />}>
                 <a href={website} target="_blank" rel="noreferrer" className="hover:text-fg">
                   {website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
                 </a>
               </Meta>
             )}
             {user.socialAccounts.nodes.map((account) => (
-              <Meta key={account.url} icon={account.provider === 'TWITTER' ? <span className="text-[11px] font-semibold">𝕏</span> : <AtSign />}>
+              <Meta key={account.url} icon={account.provider === 'TWITTER' ? <span className="text-[11px] font-semibold">𝕏</span> : <HugeiconsIcon icon={AtIcon} />}>
                 <a href={account.url} target="_blank" rel="noreferrer" title={account.provider.toLowerCase()} className="hover:text-fg">
                   {account.displayName}
                 </a>
               </Meta>
             ))}
-            <Meta icon={<CalendarDays />}>Joined {formatMonthYear(user.createdAt)}</Meta>
+            <Meta icon={<HugeiconsIcon icon={Calendar03Icon} />}>Joined {formatMonthYear(user.createdAt)}</Meta>
           </div>
         </div>
       </div>
@@ -240,8 +241,8 @@ function RepoTile({ repo }: { repo: RepoCard }) {
     >
       <div className="flex items-center gap-2">
         <span className="truncate text-[13.5px] font-semibold">{repo.name}</span>
-        {repo.isPrivate && <Lock className="size-3 shrink-0 text-subtle" />}
-        <ArrowUpRight className="ml-auto size-3.5 text-subtle opacity-0 transition-opacity group-hover:opacity-100" />
+        {repo.isPrivate && <HugeiconsIcon icon={SquareLock02Icon} className="size-3 shrink-0 text-subtle" />}
+        <HugeiconsIcon icon={ArrowUpRight01Icon} className="ml-auto size-3.5 text-subtle opacity-0 transition-opacity group-hover:opacity-100" />
       </div>
       <p className="mt-1.5 line-clamp-2 min-h-[2.6em] text-[12.5px] leading-snug text-muted">{repo.description ?? 'No description'}</p>
       <RepoMeta repo={repo} className="mt-3" />
@@ -260,13 +261,13 @@ function RepoMeta({ repo, className }: { repo: RepoCard; className?: string }) {
       )}
       {repo.stargazerCount > 0 && (
         <span className="flex items-center gap-1">
-          <Star className="size-3" />
+          <HugeiconsIcon icon={StarIcon} className="size-3" />
           {formatCount(repo.stargazerCount)}
         </span>
       )}
       {repo.forkCount > 0 && (
         <span className="flex items-center gap-1">
-          <GitFork className="size-3" />
+          <HugeiconsIcon icon={GitForkIcon} className="size-3" />
           {formatCount(repo.forkCount)}
         </span>
       )}
@@ -292,13 +293,13 @@ function RepoList({ login, repositories }: { login: string; repositories: Profil
         count={repositories.totalCount}
         action={
           <a href={`/${login}?tab=repositories`} className="flex items-center gap-1 text-[12px] text-subtle hover:text-fg">
-            View all <ArrowUpRight className="size-3" />
+            View all <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3" />
           </a>
         }
       />
       <Panel className="overflow-hidden">
         <label className="flex h-10 items-center gap-2 border-b border-line px-4">
-          <Search className="size-3.5 text-subtle" />
+          <HugeiconsIcon icon={Search01Icon} className="size-3.5 text-subtle" />
           <input
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
@@ -374,7 +375,7 @@ function Achievements({ login }: { login: string }) {
           Achievements {data && <span className="font-normal text-subtle tabular-nums">{data.length}</span>}
         </span>
         <a href={`/${login}?tab=achievements`} className="flex items-center gap-1 text-subtle hover:text-fg">
-          View all <ArrowUpRight className="size-3" />
+          View all <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3" />
         </a>
       </div>
       <ScrollRow>
@@ -448,7 +449,6 @@ function ScrollRow({ children }: { children: ReactNode }) {
 }
 
 function ScrollEdge({ side, shown, onClick }: { side: 'left' | 'right'; shown: boolean; onClick: () => void }) {
-  const Icon = side === 'left' ? ChevronLeft : ChevronRight;
   return (
     <div
       className={cx(
@@ -467,7 +467,7 @@ function ScrollEdge({ side, shown, onClick }: { side: 'left' | 'right'; shown: b
           shown && 'pointer-events-auto',
         )}
       >
-        <Icon className="size-3.5" />
+        <HugeiconsIcon icon={side === 'left' ? ArrowLeft01Icon : ArrowRight01Icon} className="size-3.5" />
       </button>
     </div>
   );
@@ -530,7 +530,7 @@ function ContributedTo({ repos }: { repos: ProfileActivity['repositoriesContribu
             <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">{repo.nameWithOwner}</span>
             {repo.stargazerCount > 0 && (
               <span className="flex shrink-0 items-center gap-1 text-[11.5px] text-subtle">
-                <Star className="size-3" />
+                <HugeiconsIcon icon={StarIcon} className="size-3" />
                 {formatCount(repo.stargazerCount)}
               </span>
             )}

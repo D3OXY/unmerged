@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Check, ChevronDown, GitBranch, Search, Tag } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowDown01Icon, GitBranchIcon, Search01Icon, Tag01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { gql } from '@/github/client';
 import { cx } from '@/lib/cx';
 import { navigate } from '@/lib/navigation';
@@ -31,14 +32,14 @@ export function BranchPicker({ owner, name, current, hrefFor }: { owner: string;
         onClick={() => setOpen((o) => !o)}
         className="flex h-8 max-w-[240px] cursor-pointer items-center gap-2 rounded-lg border border-line bg-panel px-2.5 text-[12.5px] font-medium hover:border-line-strong"
       >
-        <GitBranch className="size-3.5 shrink-0 text-subtle" />
+        <HugeiconsIcon icon={GitBranchIcon} className="size-3.5 shrink-0 text-subtle" />
         <span className="truncate font-mono text-[12px]">{current}</span>
-        <ChevronDown className="size-3.5 shrink-0 text-subtle" />
+        <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5 shrink-0 text-subtle" />
       </button>
       {open && (
         <div className="absolute top-full left-0 z-40 mt-1.5 w-72 animate-pop overflow-hidden rounded-xl border border-line-strong bg-elevated shadow-2xl shadow-black/30">
           <label className="flex h-10 items-center gap-2 border-b border-line px-3">
-            <Search className="size-3.5 text-subtle" />
+            <HugeiconsIcon icon={Search01Icon} className="size-3.5 text-subtle" />
             <input
               autoFocus
               value={q}
@@ -72,7 +73,7 @@ export function BranchPicker({ owner, name, current, hrefFor }: { owner: string;
                 }}
                 className="flex h-8 w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 text-left text-[12.5px] hover:bg-hover"
               >
-                {refName === current ? <Check className="size-3.5 shrink-0 text-accent" /> : kind === 'tags' ? <Tag className="size-3.5 shrink-0 text-subtle" /> : <GitBranch className="size-3.5 shrink-0 text-subtle" />}
+                {refName === current ? <HugeiconsIcon icon={Tick02Icon} className="size-3.5 shrink-0 text-accent" /> : kind === 'tags' ? <HugeiconsIcon icon={Tag01Icon} className="size-3.5 shrink-0 text-subtle" /> : <HugeiconsIcon icon={GitBranchIcon} className="size-3.5 shrink-0 text-subtle" />}
                 <span className="truncate font-mono text-[12px]">{refName}</span>
               </button>
             ))}

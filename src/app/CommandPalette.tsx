@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Bell, BookMarked, CircleDot, GitPullRequest, Home, Monitor, Moon, Search, Settings, Star, Sun, User } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Book02Icon, CircleDotIcon, ComputerIcon, GitPullRequestIcon, Home01Icon, Moon02Icon, Notification03Icon, Search01Icon, Settings02Icon, StarIcon, Sun03Icon, UserIcon } from '@hugeicons/core-free-icons';
 import { gql } from '@/github/client';
 import { navigate } from '@/lib/navigation';
 import { sessionLogin } from '@/lib/session';
@@ -41,18 +42,18 @@ function navigationCommands(): Command[] {
   const login = sessionLogin();
   const go = (href: string) => () => navigate(href);
   return [
-    { id: 'nav:home', group: 'Navigate', title: 'Home', icon: <Home />, hint: 'G H', perform: go('/') },
+    { id: 'nav:home', group: 'Navigate', title: 'Home', icon: <HugeiconsIcon icon={Home01Icon} />, hint: 'G H', perform: go('/') },
     ...(login
-      ? [{ id: 'nav:profile', group: 'Navigate', title: 'Your profile', icon: <User />, hint: 'G P', perform: go(`/${login}`) }]
+      ? [{ id: 'nav:profile', group: 'Navigate', title: 'Your profile', icon: <HugeiconsIcon icon={UserIcon} />, hint: 'G P', perform: go(`/${login}`) }]
       : []),
-    { id: 'nav:pulls', group: 'Navigate', title: 'Pull requests', icon: <GitPullRequest />, perform: go('/pulls') },
-    { id: 'nav:issues', group: 'Navigate', title: 'Issues', icon: <CircleDot />, perform: go('/issues') },
-    { id: 'nav:notifications', group: 'Navigate', title: 'Notifications', icon: <Bell />, perform: go('/notifications') },
-    { id: 'nav:stars', group: 'Navigate', title: 'Your stars', icon: <Star />, perform: go(login ? `/${login}?tab=stars` : '/stars') },
-    { id: 'settings', group: 'Appearance', title: 'Settings', keywords: 'preferences token pages reload', icon: <Settings />, perform: () => settingsOpen.set(true) },
-    { id: 'theme:light', group: 'Appearance', title: 'Light theme', keywords: 'mode', icon: <Sun />, perform: () => themeItem.setValue('light') },
-    { id: 'theme:dark', group: 'Appearance', title: 'Dark theme', keywords: 'mode', icon: <Moon />, perform: () => themeItem.setValue('dark') },
-    { id: 'theme:auto', group: 'Appearance', title: 'Auto theme (match GitHub)', keywords: 'mode system', icon: <Monitor />, perform: () => themeItem.setValue('auto') },
+    { id: 'nav:pulls', group: 'Navigate', title: 'Pull requests', icon: <HugeiconsIcon icon={GitPullRequestIcon} />, perform: go('/pulls') },
+    { id: 'nav:issues', group: 'Navigate', title: 'Issues', icon: <HugeiconsIcon icon={CircleDotIcon} />, perform: go('/issues') },
+    { id: 'nav:notifications', group: 'Navigate', title: 'Notifications', icon: <HugeiconsIcon icon={Notification03Icon} />, perform: go('/notifications') },
+    { id: 'nav:stars', group: 'Navigate', title: 'Your stars', icon: <HugeiconsIcon icon={StarIcon} />, perform: go(login ? `/${login}?tab=stars` : '/stars') },
+    { id: 'settings', group: 'Appearance', title: 'Settings', keywords: 'preferences token pages reload', icon: <HugeiconsIcon icon={Settings02Icon} />, perform: () => settingsOpen.set(true) },
+    { id: 'theme:light', group: 'Appearance', title: 'Light theme', keywords: 'mode', icon: <HugeiconsIcon icon={Sun03Icon} />, perform: () => themeItem.setValue('light') },
+    { id: 'theme:dark', group: 'Appearance', title: 'Dark theme', keywords: 'mode', icon: <HugeiconsIcon icon={Moon02Icon} />, perform: () => themeItem.setValue('dark') },
+    { id: 'theme:auto', group: 'Appearance', title: 'Auto theme (match GitHub)', keywords: 'mode system', icon: <HugeiconsIcon icon={ComputerIcon} />, perform: () => themeItem.setValue('auto') },
   ];
 }
 
@@ -61,12 +62,12 @@ function directJump(query: string): Command | null {
   const q = query.trim();
   const pr = q.match(/^([\w.-]+)\/([\w.-]+)(?:#|\/pull\/)(\d+)$/);
   if (pr) {
-    return { id: 'jump', group: 'Jump', title: `Open ${pr[1]}/${pr[2]}#${pr[3]}`, icon: <GitPullRequest />, perform: () => navigate(`/${pr[1]}/${pr[2]}/pull/${pr[3]}`) };
+    return { id: 'jump', group: 'Jump', title: `Open ${pr[1]}/${pr[2]}#${pr[3]}`, icon: <HugeiconsIcon icon={GitPullRequestIcon} />, perform: () => navigate(`/${pr[1]}/${pr[2]}/pull/${pr[3]}`) };
   }
   const repo = q.match(/^([\w.-]+)\/([\w.-]+)$/);
-  if (repo) return { id: 'jump', group: 'Jump', title: `Open ${q}`, icon: <BookMarked />, perform: () => navigate(`/${q}`) };
+  if (repo) return { id: 'jump', group: 'Jump', title: `Open ${q}`, icon: <HugeiconsIcon icon={Book02Icon} />, perform: () => navigate(`/${q}`) };
   const user = q.match(/^@([\w-]+)$/);
-  if (user) return { id: 'jump', group: 'Jump', title: `Open @${user[1]}`, icon: <User />, perform: () => navigate(`/${user[1]}`) };
+  if (user) return { id: 'jump', group: 'Jump', title: `Open @${user[1]}`, icon: <HugeiconsIcon icon={UserIcon} />, perform: () => navigate(`/${user[1]}`) };
   return null;
 }
 
@@ -149,7 +150,7 @@ function PaletteDialog() {
         onPointerDown={(e) => e.stopPropagation()}
       >
         <div className="flex h-12 items-center gap-3 border-b border-line px-4">
-          <Search className="size-4 text-subtle" />
+          <HugeiconsIcon icon={Search01Icon} className="size-4 text-subtle" />
           <input
             autoFocus
             value={query}

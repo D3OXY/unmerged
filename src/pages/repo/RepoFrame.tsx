@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Archive, BookOpen, CircleDot, Code2, Eye, EyeOff, GitFork, GitPullRequest, Lock, MessagesSquare, Pin, PinOff, Play, Settings, Star, TrendingUp } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Analytics01Icon, Archive02Icon, BookOpen01Icon, CircleDotIcon, CodeIcon, GitForkIcon, GitPullRequestIcon, MessageMultiple02Icon, PinIcon, PinOffIcon, PlayIcon, Settings02Icon, SquareLock02Icon, StarIcon, ViewIcon, ViewOffSlashIcon } from '@hugeicons/core-free-icons';
 import { gql } from '@/github/client';
 import { PageHeader, Shell } from '@/app/Shell';
 import { openClassic } from '@/lib/classic';
@@ -66,12 +67,12 @@ function RepoHeader({ repo }: { repo: Repo }) {
         {repo.name}
       </h1>
       <Pill>
-        {repo.isPrivate && <Lock className="size-3" />}
+        {repo.isPrivate && <HugeiconsIcon icon={SquareLock02Icon} className="size-3" />}
         {repo.isPrivate ? 'Private' : 'Public'}
       </Pill>
       {repo.isArchived && (
         <Pill className="border-warning/30 text-warning">
-          <Archive className="size-3" /> Archived
+          <HugeiconsIcon icon={Archive02Icon} className="size-3" /> Archived
         </Pill>
       )}
       {repo.isTemplate && <Pill>Template</Pill>}
@@ -93,14 +94,14 @@ function RepoHeader({ repo }: { repo: Repo }) {
  */
 function RepoTabs({ repo, nwo, view }: { repo?: Repo; nwo: string; view: RepoView }) {
   const tabs: { label: string; href: string; icon: ReactNode; views?: RepoView[]; count?: number; show?: boolean }[] = [
-    { label: 'Code', href: `/${nwo}`, icon: <Code2 />, views: ['code', 'commits'] },
-    { label: 'Issues', href: `/${nwo}/issues`, icon: <CircleDot />, views: ['issues'], count: repo?.issues.totalCount, show: !!repo?.hasIssuesEnabled },
-    { label: 'Pull requests', href: `/${nwo}/pulls`, icon: <GitPullRequest />, views: ['pulls'], count: repo?.pullRequests.totalCount },
-    { label: 'Discussions', href: `/${nwo}/discussions`, icon: <MessagesSquare />, show: !!repo?.hasDiscussionsEnabled },
-    { label: 'Actions', href: `/${nwo}/actions`, icon: <Play /> },
-    { label: 'Wiki', href: `/${nwo}/wiki`, icon: <BookOpen />, show: !!repo?.hasWikiEnabled },
-    { label: 'Insights', href: `/${nwo}/pulse`, icon: <TrendingUp /> },
-    { label: 'Settings', href: `/${nwo}/settings`, icon: <Settings />, show: !!repo?.viewerCanAdminister },
+    { label: 'Code', href: `/${nwo}`, icon: <HugeiconsIcon icon={CodeIcon} />, views: ['code', 'commits'] },
+    { label: 'Issues', href: `/${nwo}/issues`, icon: <HugeiconsIcon icon={CircleDotIcon} />, views: ['issues'], count: repo?.issues.totalCount, show: !!repo?.hasIssuesEnabled },
+    { label: 'Pull requests', href: `/${nwo}/pulls`, icon: <HugeiconsIcon icon={GitPullRequestIcon} />, views: ['pulls'], count: repo?.pullRequests.totalCount },
+    { label: 'Discussions', href: `/${nwo}/discussions`, icon: <HugeiconsIcon icon={MessageMultiple02Icon} />, show: !!repo?.hasDiscussionsEnabled },
+    { label: 'Actions', href: `/${nwo}/actions`, icon: <HugeiconsIcon icon={PlayIcon} /> },
+    { label: 'Wiki', href: `/${nwo}/wiki`, icon: <HugeiconsIcon icon={BookOpen01Icon} />, show: !!repo?.hasWikiEnabled },
+    { label: 'Insights', href: `/${nwo}/pulse`, icon: <HugeiconsIcon icon={Analytics01Icon} /> },
+    { label: 'Settings', href: `/${nwo}/settings`, icon: <HugeiconsIcon icon={Settings02Icon} />, show: !!repo?.viewerCanAdminister },
   ];
   return (
     <TabBar className="mt-5 mb-6">
@@ -142,7 +143,7 @@ function RepoActions({ repo, queryKey }: { repo: Repo; queryKey: unknown[] }) {
       <Button
         size="sm"
         variant={pinned ? 'secondary' : 'ghost'}
-        icon={pinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />}
+        icon={pinned ? <HugeiconsIcon icon={PinOffIcon} className="size-3.5" /> : <HugeiconsIcon icon={PinIcon} className="size-3.5" />}
         onClick={() => (pinned ? unpin(repo.nameWithOwner) : pin(repo.nameWithOwner))}
         title={pinned ? 'Unpin from sidebar' : 'Pin to sidebar'}
       >
@@ -157,20 +158,20 @@ function RepoActions({ repo, queryKey }: { repo: Repo; queryKey: unknown[] }) {
         ]}
         onChange={(state) => watch.mutate(state)}
         trigger={(open) => (
-          <Button size="sm" variant="ghost" icon={subscription === 'IGNORED' ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />} onClick={open}>
+          <Button size="sm" variant="ghost" icon={subscription === 'IGNORED' ? <HugeiconsIcon icon={ViewOffSlashIcon} className="size-3.5" /> : <HugeiconsIcon icon={ViewIcon} className="size-3.5" />} onClick={open}>
             {WATCH_LABEL[subscription]}
             <span className="text-subtle tabular-nums">{formatCount(repo.watchers.totalCount)}</span>
           </Button>
         )}
       />
-      <Button size="sm" variant="ghost" icon={<GitFork className="size-3.5" />} onClick={() => location.assign(`/${repo.nameWithOwner}/fork`)}>
+      <Button size="sm" variant="ghost" icon={<HugeiconsIcon icon={GitForkIcon} className="size-3.5" />} onClick={() => location.assign(`/${repo.nameWithOwner}/fork`)}>
         Fork
         <span className="text-subtle tabular-nums">{formatCount(repo.forkCount)}</span>
       </Button>
       <Button
         size="sm"
         variant={repo.viewerHasStarred ? 'secondary' : 'ghost'}
-        icon={<Star className={cx('size-3.5', repo.viewerHasStarred && 'fill-warning text-warning')} />}
+        icon={<HugeiconsIcon icon={StarIcon} className={cx('size-3.5', repo.viewerHasStarred && 'fill-warning text-warning')} />}
         onClick={() => star.mutate(repo.viewerHasStarred)}
       >
         {repo.viewerHasStarred ? 'Starred' : 'Star'}

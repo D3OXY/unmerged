@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { QueryKey } from '@tanstack/react-query';
-import { Check, CircleDot } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CircleDotIcon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { Button } from '@/ui/Button';
 import { Kbd } from '@/ui/primitives';
 import { MUTATIONS, type PullRequest } from './query';
@@ -60,10 +61,10 @@ export function Composer({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey
         <div className="ml-auto flex items-center gap-2">
           {canReview && (
             <>
-              <Button size="sm" variant="danger" disabled={!text} loading={review.isPending && review.variables?.variables.event === 'REQUEST_CHANGES'} icon={<CircleDot className="size-3.5" />} onClick={() => sendReview('REQUEST_CHANGES')}>
+              <Button size="sm" variant="danger" disabled={!text} loading={review.isPending && review.variables?.variables.event === 'REQUEST_CHANGES'} icon={<HugeiconsIcon icon={CircleDotIcon} className="size-3.5" />} onClick={() => sendReview('REQUEST_CHANGES')}>
                 Request changes
               </Button>
-              <Button size="sm" variant="success" loading={review.isPending && review.variables?.variables.event === 'APPROVE'} icon={<Check className="size-3.5" />} onClick={() => sendReview('APPROVE')}>
+              <Button size="sm" variant="success" loading={review.isPending && review.variables?.variables.event === 'APPROVE'} icon={<HugeiconsIcon icon={Tick02Icon} className="size-3.5" />} onClick={() => sendReview('APPROVE')}>
                 Approve
               </Button>
             </>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
-import { WrapText } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { TextWrapIcon } from '@hugeicons/core-free-icons';
 import { gql } from '@/github/client';
 import { cx } from '@/lib/cx';
 import { Skeleton } from '@/ui/primitives';
@@ -180,7 +181,7 @@ export function FilesTab({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey
               title={wrap ? 'Long lines wrap' : 'Long lines scroll'}
               className={cx('flex h-7 cursor-pointer items-center gap-1.5 rounded-lg border px-2 text-[12px]', wrap ? 'border-line-strong bg-elevated text-fg' : 'border-line text-muted hover:text-fg')}
             >
-              <WrapText className="size-3.5" />
+              <HugeiconsIcon icon={TextWrapIcon} className="size-3.5" />
               Wrap
             </button>
             <div className="flex rounded-lg border border-line bg-panel p-0.5">

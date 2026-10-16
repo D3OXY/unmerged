@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
-import { Check, Copy, FileDiff, GitCommitHorizontal, GitPullRequestDraft, Link2, ListChecks, MessageSquare, PanelsTopLeft, Terminal } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { BrowserIcon, Comment01Icon, ComputerTerminal01Icon, Copy01Icon, FileDiffIcon, GitCommitHorizontalIcon, GitPullRequestDraftIcon, Link02Icon, TaskDone01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { useRegisterCommands, type Command } from '@/app/commands';
 import { PageHeader, Shell } from '@/app/Shell';
 import { openClassic } from '@/lib/classic';
@@ -74,7 +75,7 @@ export function PrPage({ owner, repo, number, tab }: Props) {
         crumbs={crumbs}
         actions={
           pr && (
-            <Button size="sm" variant="ghost" icon={<Terminal className="size-3.5" />} onClick={() => copy(`gh pr checkout ${pr.number}`, 'checkout command')}>
+            <Button size="sm" variant="ghost" icon={<HugeiconsIcon icon={ComputerTerminal01Icon} className="size-3.5" />} onClick={() => copy(`gh pr checkout ${pr.number}`, 'checkout command')}>
               Checkout
             </Button>
           )
@@ -96,21 +97,21 @@ function PrView({ pr, repo, tab, queryKey }: { pr: PullRequest; repo: Repo; tab:
 
   const commands = useMemo<Command[]>(() => {
     const list: Command[] = [
-      { id: 'pr:conversation', group: 'Pull request', title: 'Conversation', icon: <MessageSquare />, perform: () => navigate(pr.url) },
-      { id: 'pr:files', group: 'Pull request', title: 'Files changed', icon: <FileDiff />, perform: () => navigate(`${pr.url}/files`) },
-      { id: 'pr:commits', group: 'Pull request', title: 'Commits', icon: <GitCommitHorizontal />, perform: () => navigate(`${pr.url}/commits`) },
-      { id: 'pr:checks', group: 'Pull request', title: 'Checks', icon: <ListChecks />, perform: () => navigate(`${pr.url}/checks`) },
-      { id: 'pr:copy-branch', group: 'Pull request', title: 'Copy branch name', icon: <Copy />, hint: pr.headRefName, perform: () => copy(pr.headRefName, 'branch name') },
-      { id: 'pr:copy-checkout', group: 'Pull request', title: 'Copy checkout command', icon: <Terminal />, perform: () => copy(`gh pr checkout ${pr.number}`, 'checkout command') },
-      { id: 'pr:copy-link', group: 'Pull request', title: 'Copy link', icon: <Link2 />, perform: () => copy(pr.url, 'link') },
-      { id: 'pr:classic', group: 'Pull request', title: 'Open in classic GitHub', icon: <PanelsTopLeft />, perform: openClassic },
+      { id: 'pr:conversation', group: 'Pull request', title: 'Conversation', icon: <HugeiconsIcon icon={Comment01Icon} />, perform: () => navigate(pr.url) },
+      { id: 'pr:files', group: 'Pull request', title: 'Files changed', icon: <HugeiconsIcon icon={FileDiffIcon} />, perform: () => navigate(`${pr.url}/files`) },
+      { id: 'pr:commits', group: 'Pull request', title: 'Commits', icon: <HugeiconsIcon icon={GitCommitHorizontalIcon} />, perform: () => navigate(`${pr.url}/commits`) },
+      { id: 'pr:checks', group: 'Pull request', title: 'Checks', icon: <HugeiconsIcon icon={TaskDone01Icon} />, perform: () => navigate(`${pr.url}/checks`) },
+      { id: 'pr:copy-branch', group: 'Pull request', title: 'Copy branch name', icon: <HugeiconsIcon icon={Copy01Icon} />, hint: pr.headRefName, perform: () => copy(pr.headRefName, 'branch name') },
+      { id: 'pr:copy-checkout', group: 'Pull request', title: 'Copy checkout command', icon: <HugeiconsIcon icon={ComputerTerminal01Icon} />, perform: () => copy(`gh pr checkout ${pr.number}`, 'checkout command') },
+      { id: 'pr:copy-link', group: 'Pull request', title: 'Copy link', icon: <HugeiconsIcon icon={Link02Icon} />, perform: () => copy(pr.url, 'link') },
+      { id: 'pr:classic', group: 'Pull request', title: 'Open in classic GitHub', icon: <HugeiconsIcon icon={BrowserIcon} />, perform: openClassic },
     ];
     if (pr.state === 'OPEN' && !pr.viewerDidAuthor) {
       list.unshift({
         id: 'pr:approve',
         group: 'Pull request',
         title: 'Approve',
-        icon: <Check />,
+        icon: <HugeiconsIcon icon={Tick02Icon} />,
         perform: () => approve.mutate({ query: MUTATIONS.addReview, variables: { id: pr.id, event: 'APPROVE' }, success: 'Approved' }),
       });
     }
@@ -119,7 +120,7 @@ function PrView({ pr, repo, tab, queryKey }: { pr: PullRequest; repo: Repo; tab:
         id: 'pr:draft',
         group: 'Pull request',
         title: 'Convert to draft',
-        icon: <GitPullRequestDraft />,
+        icon: <HugeiconsIcon icon={GitPullRequestDraftIcon} />,
         perform: () => draft.mutate({ query: MUTATIONS.convertToDraft, variables: { id: pr.id }, success: 'Converted to draft' }),
       });
     }
@@ -168,16 +169,16 @@ function PrView({ pr, repo, tab, queryKey }: { pr: PullRequest; repo: Repo; tab:
           </span>
         }
       >
-        <Tab href={pr.url} active={tab === 'conversation'} icon={<MessageSquare />} label="Conversation" />
-        <Tab href={`${pr.url}/commits`} active={tab === 'commits'} icon={<GitCommitHorizontal />} label="Commits" count={pr.commits.totalCount} />
+        <Tab href={pr.url} active={tab === 'conversation'} icon={<HugeiconsIcon icon={Comment01Icon} />} label="Conversation" />
+        <Tab href={`${pr.url}/commits`} active={tab === 'commits'} icon={<HugeiconsIcon icon={GitCommitHorizontalIcon} />} label="Commits" count={pr.commits.totalCount} />
         <Tab
           href={`${pr.url}/checks`}
           active={tab === 'checks'}
-          icon={rollup ? <CheckIcon state={rollup.state} /> : <ListChecks />}
+          icon={rollup ? <CheckIcon state={rollup.state} /> : <HugeiconsIcon icon={TaskDone01Icon} />}
           label="Checks"
           count={rollup?.contexts.nodes.length}
         />
-        <Tab href={`${pr.url}/files`} active={tab === 'files'} icon={<FileDiff />} label="Files changed" count={pr.changedFiles} />
+        <Tab href={`${pr.url}/files`} active={tab === 'files'} icon={<HugeiconsIcon icon={FileDiffIcon} />} label="Files changed" count={pr.changedFiles} />
       </TabBar>
 
       {tab === 'conversation' && <ConversationTab pr={pr} repo={repo} queryKey={queryKey} />}

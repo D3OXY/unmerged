@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, GitFork, Lock, Scale, Search, Star, X } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowDown01Icon, Cancel01Icon, GitForkIcon, JusticeScale01Icon, Search01Icon, SquareLock02Icon, StarIcon } from '@hugeicons/core-free-icons';
 import { gql } from '@/github/client';
 import { usePageHotkey } from '@/app/keyboard';
 import { REPO_MUTATIONS } from '@/pages/repo/query';
@@ -125,7 +126,7 @@ export function RepositoriesPage({ login }: { login: string }) {
     <ProfileFrame login={login} tab="repositories">
       <div className="mt-6 flex flex-wrap items-center gap-2">
         <label className="flex h-8 min-w-[220px] flex-1 items-center gap-2 rounded-lg border border-line bg-panel px-2.5 transition-colors focus-within:border-accent/60">
-          <Search className="size-3.5 shrink-0 text-subtle" />
+          <HugeiconsIcon icon={Search01Icon} className="size-3.5 shrink-0 text-subtle" />
           <input
             ref={searchRef}
             value={filters.q}
@@ -242,7 +243,7 @@ function Filter<T extends string>({
         <Button onClick={open}>
           <span className="font-normal text-muted">{label}</span>
           {display}
-          <ChevronDown className="size-3.5 text-subtle" />
+          <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5 text-subtle" />
         </Button>
       )}
     />
@@ -254,7 +255,7 @@ function Chip({ children, onRemove }: { children: ReactNode; onRemove: () => voi
     <span className="inline-flex h-6 items-center gap-1 rounded-full border border-line bg-panel pr-1 pl-2.5 text-[12px] text-fg">
       {children}
       <button type="button" onClick={onRemove} aria-label="Remove filter" className="flex size-4 cursor-pointer items-center justify-center rounded-full text-subtle hover:bg-hover hover:text-fg">
-        <X className="size-3" />
+        <HugeiconsIcon icon={Cancel01Icon} className="size-3" />
       </button>
     </span>
   );
@@ -285,7 +286,7 @@ function RepoRow({ repo, onChange }: { repo: Repo; onChange: (changes: Partial<R
           </a>
           {repo.isPrivate && (
             <Pill>
-              <Lock className="size-2.5" />
+              <HugeiconsIcon icon={SquareLock02Icon} className="size-2.5" />
               Private
             </Pill>
           )}
@@ -324,19 +325,19 @@ function RepoRow({ repo, onChange }: { repo: Repo; onChange: (changes: Partial<R
           )}
           {repo.stargazerCount > 0 && (
             <a href={`${repo.url}/stargazers`} className="flex items-center gap-1 hover:text-fg">
-              <Star />
+              <HugeiconsIcon icon={StarIcon} />
               {formatCount(repo.stargazerCount)}
             </a>
           )}
           {repo.forkCount > 0 && (
             <a href={`${repo.url}/forks`} className="flex items-center gap-1 hover:text-fg">
-              <GitFork />
+              <HugeiconsIcon icon={GitForkIcon} />
               {formatCount(repo.forkCount)}
             </a>
           )}
           {repo.licenseInfo && repo.licenseInfo.spdxId !== 'NOASSERTION' && (
             <span className="flex items-center gap-1" title={repo.licenseInfo.name}>
-              <Scale />
+              <HugeiconsIcon icon={JusticeScale01Icon} />
               {repo.licenseInfo.spdxId ?? repo.licenseInfo.name}
             </span>
           )}
@@ -347,7 +348,7 @@ function RepoRow({ repo, onChange }: { repo: Repo; onChange: (changes: Partial<R
         <Button
           size="sm"
           variant={repo.viewerHasStarred ? 'secondary' : 'ghost'}
-          icon={<Star className={cx('size-3.5', repo.viewerHasStarred && 'fill-warning text-warning')} />}
+          icon={<HugeiconsIcon icon={StarIcon} className={cx('size-3.5', repo.viewerHasStarred && 'fill-warning text-warning')} />}
           onClick={() => star.mutate(repo.viewerHasStarred)}
         >
           {repo.viewerHasStarred ? 'Starred' : 'Star'}
