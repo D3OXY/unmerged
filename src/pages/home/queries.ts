@@ -19,13 +19,28 @@ const search = <T,>(name: string, query: string, first: number, fragment: string
     persister: persisted,
   });
 
-const weekAgo = () => new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
+const MERGED_ROW_FIELDS = /* GraphQL */ `
+  fragment MergedRow on PullRequest { id title url mergedAt repository { nameWithOwner } }
+`;
+export type MergedRow = { id: string; title: string; url: string; mergedAt: string; repository: { nameWithOwner: string } };
+
+/** Local midnight a week ago, with its UTC offset, so "this week" follows your calendar rather than UTC's. */
+function weekAgo() {
+  const day = new Date();
+  day.setDate(day.getDate() - 7);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const offset = -day.getTimezoneOffset();
+  const zone = `${offset < 0 ? '-' : '+'}${pad(Math.floor(Math.abs(offset) / 60))}:${pad(Math.abs(offset) % 60)}`;
+  return `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}T00:00:00${zone}`;
+}
 
 export const homeQueries = {
   reviewRequested: () => search<PrRowData>('review-requested', 'is:open is:pr review-requested:@me archived:false sort:updated-desc', 15, 'PrRow', PR_ROW_FIELDS),
   authored: () => search<PrRowData>('authored', 'is:open is:pr author:@me archived:false sort:updated-desc', 15, 'PrRow', PR_ROW_FIELDS),
   assigned: () => search<IssueRowData>('assigned', 'is:open is:issue assignee:@me archived:false sort:updated-desc', 15, 'IssueRow', ISSUE_ROW_FIELDS),
-  merged: () => search<PrRowData>('merged', 'is:pr author:@me is:merged sort:updated-desc', 6, 'PrRow', PR_ROW_FIELDS),
+  // Search can't sort by merge time. Merging updates a PR, so recent merges are among the recently updated;
+  // the page orders these by `mergedAt`.
+  merged: () => search<MergedRow>('recently-merged', 'is:pr author:@me is:merged sort:updated-desc', 10, 'MergedRow', MERGED_ROW_FIELDS),
   mergedThisWeek: () =>
     queryOptions({
       queryKey: ['home', 'merged-this-week'],
