@@ -17,6 +17,8 @@
 | Profile | `github.com/<user>`, `?tab=repositories`, `?tab=achievements`, `?tab=followers`, `?tab=following` | Organizations, Stars and other `?tab=` views stay on GitHub |
 | Pull request | `github.com/<owner>/<repo>/pull/<n>` plus `/commits`, `/checks`, `/files` | Single-commit views stay on GitHub |
 | Repository | `github.com/<owner>/<repo>`, `/tree/…`, `/blob/…` | Issues, Actions, Settings, etc. stay on GitHub |
+| Pull requests & issues | `github.com/pulls`, `/pulls/assigned`, `/issues`, … (any `?q=` search) | |
+| Notifications | `github.com/notifications` (inbox, unread, participating) | |
 
 Every other page is untouched. Each page can be switched off from the toolbar popup, and **Classic** (sidebar
 or ⌘K) shows the stock page for the current URL with a pill to come back.

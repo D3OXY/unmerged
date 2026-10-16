@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 import { ChevronRight } from 'lucide-react';
-import { Sidebar } from './Sidebar';
+import { Sidebar, type NavSection } from './Sidebar';
 
 /** Linear-style frame shared by every Unmerged page: sticky sidebar + scrolling content. */
-export function Shell({ children, active }: { children: ReactNode; active?: 'home' | 'profile' }) {
+export function Shell({ children, active }: { children: ReactNode; active?: NavSection }) {
   return (
     <div className="flex min-h-screen">
       <Sidebar active={active} />

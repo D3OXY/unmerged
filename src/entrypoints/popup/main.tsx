@@ -1,7 +1,7 @@
 import './style.css';
 import { useEffect, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ArrowUpRight, BookMarked, GitPullRequest, Home, KeyRound, Monitor, Moon, RotateCw, Sun, User } from 'lucide-react';
+import { ArrowUpRight, Bell, BookMarked, GitPullRequest, Home, KeyRound, ListTodo, Monitor, Moon, RotateCw, Sun, User } from 'lucide-react';
 import { browser } from 'wxt/browser';
 import { AuthError, rest } from '@/github/client';
 import { cx } from '@/lib/cx';
@@ -14,6 +14,8 @@ const SURFACES: Record<Surface, { label: string; path: string; icon: ReactNode }
   profile: { label: 'Profiles', path: 'github.com/<user>', icon: <User /> },
   pr: { label: 'Pull requests', path: '…/pull/<number>', icon: <GitPullRequest /> },
   repo: { label: 'Repositories', path: 'github.com/<owner>/<repo>', icon: <BookMarked /> },
+  work: { label: 'Pull request & issue lists', path: 'github.com/pulls, /issues', icon: <ListTodo /> },
+  notifications: { label: 'Notifications', path: 'github.com/notifications', icon: <Bell /> },
 };
 
 const THEMES: { value: Theme; label: string; icon: ReactNode }[] = [

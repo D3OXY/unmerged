@@ -8,6 +8,10 @@ export type ReviewDecision = 'APPROVED' | 'CHANGES_REQUESTED' | 'REVIEW_REQUIRED
 
 export type PrState = 'OPEN' | 'CLOSED' | 'MERGED';
 
+export type IssueState = 'OPEN' | 'CLOSED';
+
+export type IssueStateReason = 'COMPLETED' | 'NOT_PLANNED' | 'REOPENED' | 'DUPLICATE';
+
 export type Label = { name: string; color: string };
 
 export type Language = { name: string; color: string | null } | null;

@@ -15,8 +15,10 @@ const RECENT_SHOWN = 8;
 // Set when dragging a pinned repo, so a drop inside Pinned reorders instead of re-adding.
 const PIN_TYPE = 'application/x-unmerged-pin';
 
+export type NavSection = 'home' | 'pulls' | 'issues' | 'notifications' | 'profile';
+
 /** Persistent left rail: navigation, pinned repos, recent repos, organizations. */
-export function Sidebar({ active }: { active?: 'home' | 'profile' }) {
+export function Sidebar({ active }: { active?: NavSection }) {
   const { data: viewer } = useViewer();
   const pins = useStorageItem(pinsItem);
   const recent = useRecentRepos(viewer?.login);
@@ -47,13 +49,13 @@ export function Sidebar({ active }: { active?: 'home' | 'profile' }) {
         <NavItem href="/" icon={<Home />} active={active === 'home'}>
           Home
         </NavItem>
-        <NavItem href="/pulls" icon={<GitPullRequest />}>
+        <NavItem href="/pulls" icon={<GitPullRequest />} active={active === 'pulls'}>
           Pull requests
         </NavItem>
-        <NavItem href="/issues" icon={<CircleDot />}>
+        <NavItem href="/issues" icon={<CircleDot />} active={active === 'issues'}>
           Issues
         </NavItem>
-        <NavItem href="/notifications" icon={<Bell />}>
+        <NavItem href="/notifications" icon={<Bell />} active={active === 'notifications'}>
           Notifications
         </NavItem>
         {viewer && (

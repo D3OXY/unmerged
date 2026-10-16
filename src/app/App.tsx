@@ -3,12 +3,14 @@ import { tokenItem, useStorageItem } from '@/lib/settings';
 import { leaveClassic } from '@/lib/classic';
 import type { ProfileTab } from '@/lib/routes';
 import { HomePage } from '@/pages/home/HomePage';
+import { NotificationsPage } from '@/pages/notifications/NotificationsPage';
 import { AchievementsPage } from '@/pages/profile/AchievementsPage';
 import { FollowsPage } from '@/pages/profile/FollowsPage';
 import { ProfilePage } from '@/pages/profile/ProfilePage';
 import { RepositoriesPage } from '@/pages/profile/RepositoriesPage';
 import { PrPage } from '@/pages/pr/PrPage';
 import { RepoPage } from '@/pages/repo/RepoPage';
+import { WorkListPage } from '@/pages/work/WorkListPage';
 import { Toaster } from '@/ui/toast';
 import { CommandPalette } from './CommandPalette';
 import { Logo } from './Logo';
@@ -28,6 +30,8 @@ export function App() {
   return (
     <>
       {route.kind === 'home' && <HomePage />}
+      {route.kind === 'work' && <WorkListPage key={`${route.type}/${route.filter}`} type={route.type} filter={route.filter} />}
+      {route.kind === 'notifications' && <NotificationsPage />}
       {route.kind === 'profile' && <ProfileRoute key={route.login} login={route.login} tab={route.tab} />}
       {route.kind === 'pr' && <PrPage key={`${route.owner}/${route.repo}#${route.number}`} {...route} />}
       {route.kind === 'repo' && <RepoPage key={`${route.owner}/${route.repo}`.toLowerCase()} {...route} />}

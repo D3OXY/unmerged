@@ -33,7 +33,7 @@ export async function gql<T>(query: string, variables: Record<string, unknown> =
 }
 
 /** REST call returning JSON. GitHub's error message is surfaced as the thrown error. */
-export async function rest<T>(path: string, init: { method?: 'GET' | 'POST'; body?: unknown } = {}): Promise<T> {
+export async function rest<T>(path: string, init: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown } = {}): Promise<T> {
   const res = await fetch(`https://api.github.com${path}`, {
     method: init.method ?? 'GET',
     headers: { ...(await authHeaders()), Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
@@ -44,7 +44,7 @@ export async function rest<T>(path: string, init: { method?: 'GET' | 'POST'; bod
     const error = (await res.json().catch(() => null)) as { message?: string } | null;
     throw new Error(error?.message ?? `GitHub API ${res.status}`);
   }
-  const text = await res.text(); // Some endpoints (re-runs) answer with an empty body.
+  const text = await res.text(); // Some endpoints (re-runs, notification updates) answer with an empty body.
   return (text ? JSON.parse(text) : undefined) as T;
 }
 

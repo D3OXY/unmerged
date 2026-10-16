@@ -1,5 +1,5 @@
-import { CircleDot, GitMerge, GitPullRequest, GitPullRequestClosed, GitPullRequestDraft, Check, X, Circle } from 'lucide-react';
-import type { CheckState, PrState, ReviewDecision } from '@/github/types';
+import { CircleCheck, CircleDot, CircleSlash, GitMerge, GitPullRequest, GitPullRequestClosed, GitPullRequestDraft, Check, X, Circle } from 'lucide-react';
+import type { CheckState, IssueState, IssueStateReason, PrState, ReviewDecision } from '@/github/types';
 import { cx } from '@/lib/cx';
 
 export function PrStateIcon({ state, isDraft, className }: { state: PrState; isDraft?: boolean; className?: string }) {
@@ -10,8 +10,12 @@ export function PrStateIcon({ state, isDraft, className }: { state: PrState; isD
   return <GitPullRequest className={cx(c, 'text-success')} />;
 }
 
-export function IssueIcon({ className }: { className?: string }) {
-  return <CircleDot className={cx('size-4 shrink-0 text-success', className)} />;
+/** Open, closed as completed (purple check) or closed as not planned (grey slash), like GitHub. */
+export function IssueIcon({ state = 'OPEN', stateReason, className }: { state?: IssueState; stateReason?: IssueStateReason | null; className?: string }) {
+  const c = cx('size-4 shrink-0', className);
+  if (state === 'OPEN') return <CircleDot className={cx(c, 'text-success')} />;
+  if (stateReason === 'NOT_PLANNED' || stateReason === 'DUPLICATE') return <CircleSlash className={cx(c, 'text-subtle')} />;
+  return <CircleCheck className={cx(c, 'text-merged')} />;
 }
 
 export function PrStateBadge({ state, isDraft }: { state: PrState; isDraft: boolean }) {

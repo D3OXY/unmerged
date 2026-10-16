@@ -8,8 +8,13 @@ export type ProfileTab = 'overview' | 'repositories' | 'achievements' | 'followe
 const PROFILE_TABS: readonly string[] = ['overview', 'repositories', 'achievements', 'followers', 'following'] satisfies ProfileTab[];
 const isProfileTab = (tab: string): tab is ProfileTab => PROFILE_TABS.includes(tab);
 
+/** Which of your pull requests or issues a list shows; GitHub's own path segments (`/pulls/assigned`). */
+export type WorkFilter = 'created' | 'assigned' | 'mentioned' | 'review-requested';
+
 export type Route =
   | { kind: 'home' }
+  | { kind: 'work'; type: 'pr' | 'issue'; filter: WorkFilter }
+  | { kind: 'notifications' }
   | { kind: 'profile'; login: string; tab: ProfileTab }
   | { kind: 'pr'; owner: string; repo: string; number: number; tab: PrTab }
   /**
@@ -19,6 +24,10 @@ export type Route =
   | { kind: 'repo'; owner: string; repo: string; rest: string[] };
 
 const PR_TABS: Record<string, PrTab> = { commits: 'commits', checks: 'checks', files: 'files', changes: 'files' };
+
+// `/pulls` and `/issues` alone list what you created.
+const PULL_FILTERS: Record<string, WorkFilter> = { '': 'created', assigned: 'assigned', mentioned: 'mentioned', 'review-requested': 'review-requested' };
+const ISSUE_FILTERS: Record<string, WorkFilter> = { '': 'created', created: 'created', assigned: 'assigned', mentioned: 'mentioned' };
 
 // First path segments that are GitHub features, not users or organizations.
 const RESERVED = new Set([
@@ -38,6 +47,11 @@ export function matchRoute(url: URL): Route | null {
   if (parts.length === 0) return { kind: 'home' };
 
   const [first, second, third, fourth, fifth] = parts;
+  if (first === 'notifications' && parts.length === 1) return { kind: 'notifications' };
+  if ((first === 'pulls' || first === 'issues') && parts.length <= 2) {
+    const filter = (first === 'pulls' ? PULL_FILTERS : ISSUE_FILTERS)[second ?? ''];
+    return filter ? { kind: 'work', type: first === 'pulls' ? 'pr' : 'issue', filter } : null;
+  }
   if (parts.length === 1 && first && !RESERVED.has(first.toLowerCase()) && !isKnownOrg(first)) {
     const tab = url.searchParams.get('tab') || 'overview';
     return isProfileTab(tab) ? { kind: 'profile', login: first, tab } : null;

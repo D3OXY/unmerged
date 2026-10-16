@@ -1,5 +1,5 @@
 import { MessageSquare } from 'lucide-react';
-import type { Actor, CheckState, Label, PrState, ReviewDecision } from '@/github/types';
+import type { Actor, CheckState, IssueState, IssueStateReason, Label, PrState, ReviewDecision } from '@/github/types';
 import { timeAgo } from '@/lib/time';
 import { Avatar, Pill } from './primitives';
 import { CheckIcon, IssueIcon, PrStateIcon, ReviewBadge } from './status';
@@ -17,7 +17,7 @@ export const PR_ROW_FIELDS = /* GraphQL */ `
 
 export const ISSUE_ROW_FIELDS = /* GraphQL */ `
   fragment IssueRow on Issue {
-    id number title url updatedAt
+    id number title url updatedAt state stateReason
     repository { nameWithOwner }
     author { login avatarUrl }
     comments { totalCount }
@@ -44,11 +44,12 @@ export type PrRowData = RowBase & {
   commits: { nodes: { commit: { statusCheckRollup: { state: CheckState } | null } }[] };
 };
 
-export type IssueRowData = RowBase;
+export type IssueRowData = RowBase & { state: IssueState; stateReason: IssueStateReason | null };
 
 /** One dense, keyboard-focusable line for a PR or issue (Linear's list row). */
-export function WorkRow({ item, kind }: { item: PrRowData | IssueRowData; kind: 'pr' | 'issue' }) {
-  const pr = kind === 'pr' ? (item as PrRowData) : null;
+export function WorkRow(row: { kind: 'pr'; item: PrRowData } | { kind: 'issue'; item: IssueRowData }) {
+  const { item } = row;
+  const pr = row.kind === 'pr' ? row.item : null;
   const checks = pr?.commits.nodes[0]?.commit.statusCheckRollup?.state;
   return (
     <a
@@ -56,7 +57,7 @@ export function WorkRow({ item, kind }: { item: PrRowData | IssueRowData; kind: 
       data-row
       className="group flex h-10 items-center gap-3 border-b border-line px-4 transition-colors last:border-b-0 hover:bg-hover focus:bg-hover focus:outline-none"
     >
-      {pr ? <PrStateIcon state={pr.state} isDraft={pr.isDraft} /> : <IssueIcon />}
+      {row.kind === 'pr' ? <PrStateIcon state={row.item.state} isDraft={row.item.isDraft} /> : <IssueIcon state={row.item.state} stateReason={row.item.stateReason} />}
       <span className="w-[150px] shrink-0 truncate text-[12px] text-subtle tabular-nums">
         {item.repository.nameWithOwner.split('/')[1]} #{item.number}
       </span>

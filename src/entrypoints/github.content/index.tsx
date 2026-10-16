@@ -11,7 +11,7 @@ import { emitNavigate, isModifiedClick, navigate, onNavigate, setOwns } from '@/
 import { matchRoute, type Route } from '@/lib/routes';
 import { sessionLogin } from '@/lib/session';
 import { localCache } from '@/lib/localCache';
-import { isDark, surfacesItem, themeItem, type Surfaces, type Theme } from '@/lib/settings';
+import { DEFAULT_SURFACES, isDark, surfacesItem, themeItem, type Surfaces, type Theme } from '@/lib/settings';
 
 const OWNING = 'unmerged-owning';
 
@@ -54,7 +54,7 @@ export default defineContentScript({
     themeItem.watch(setTheme);
     ctx.addEventListener(matchMedia('(prefers-color-scheme: dark)'), 'change', applyTheme);
 
-    let surfaces: Surfaces = { home: true, profile: true, pr: true, repo: true };
+    let surfaces: Surfaces = DEFAULT_SURFACES;
     let mounted = false;
 
     /** Decides, for a URL, whether Unmerged owns the page, shows the classic pill, or stays out of the way. */
