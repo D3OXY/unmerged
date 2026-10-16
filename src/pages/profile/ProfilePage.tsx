@@ -1,6 +1,6 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowUpRight, AtSign, Building2, CalendarDays, GitFork, Heart, Link2, Lock, MapPin, Search, Star } from 'lucide-react';
+import { ArrowUpRight, AtSign, Building2, CalendarDays, ChevronLeft, ChevronRight, GitFork, Heart, Link2, Lock, MapPin, Search, Star } from 'lucide-react';
 import { achievementsQuery, type Achievement } from '@/github/achievements';
 import type { RepoCard } from '@/github/types';
 import { Shell, PageHeader } from '@/app/Shell';
@@ -377,11 +377,11 @@ function Achievements({ login }: { login: string }) {
           View all <ArrowUpRight className="size-3" />
         </a>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <ScrollRow>
         {data
           ? data.map((achievement) => <AchievementBadge key={achievement.slug} login={login} achievement={achievement} />)
-          : Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="size-12 rounded-full" />)}
-      </div>
+          : Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="size-12 shrink-0 rounded-full" />)}
+      </ScrollRow>
     </div>
   );
 }
@@ -391,11 +391,85 @@ function AchievementBadge({ login, achievement: { slug, name, image, tier } }: {
     <a
       href={`/${login}?achievement=${slug}&tab=achievements`}
       title={tier ? `${name} ${tier.label}` : name}
-      className="relative transition-transform hover:scale-105"
+      className="relative shrink-0 transition-transform hover:scale-105"
     >
       <img src={image} alt={name} className="size-12" />
       {tier && <TierLabel tier={tier} className="absolute -right-1 -bottom-0.5 px-1 text-[9.5px] leading-[14px]" />}
     </a>
+  );
+}
+
+/**
+ * One row that scrolls sideways, bleeding to the card's edges. Each side fades out with an arrow while
+ * there's more to see that way. The vertical padding leaves room for hover scaling and tier labels.
+ */
+function ScrollRow({ children }: { children: ReactNode }) {
+  const rowRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [moreLeft, setMoreLeft] = useState(false);
+  const [moreRight, setMoreRight] = useState(false);
+
+  useEffect(() => {
+    const row = rowRef.current;
+    const content = contentRef.current;
+    if (!row || !content) return;
+    const update = () => {
+      setMoreLeft(row.scrollLeft > 1);
+      setMoreRight(row.scrollLeft + row.clientWidth < row.scrollWidth - 1);
+    };
+    update();
+    // The row resizes with the window; the content grows when placeholders give way to badges.
+    const observer = new ResizeObserver(update);
+    observer.observe(row);
+    observer.observe(content);
+    row.addEventListener('scroll', update, { passive: true });
+    return () => {
+      observer.disconnect();
+      row.removeEventListener('scroll', update);
+    };
+  }, []);
+
+  const scroll = (direction: -1 | 1) => {
+    const row = rowRef.current;
+    row?.scrollBy({ left: direction * row.clientWidth * 0.75, behavior: 'smooth' });
+  };
+
+  return (
+    <div className="relative -mx-3.5 -my-1">
+      <div ref={rowRef} className="overflow-x-auto px-3.5 py-1 [scrollbar-width:none]">
+        <div ref={contentRef} className="flex w-max gap-2">
+          {children}
+        </div>
+      </div>
+      <ScrollEdge side="left" shown={moreLeft} onClick={() => scroll(-1)} />
+      <ScrollEdge side="right" shown={moreRight} onClick={() => scroll(1)} />
+    </div>
+  );
+}
+
+function ScrollEdge({ side, shown, onClick }: { side: 'left' | 'right'; shown: boolean; onClick: () => void }) {
+  const Icon = side === 'left' ? ChevronLeft : ChevronRight;
+  return (
+    <div
+      className={cx(
+        'pointer-events-none absolute inset-y-0 flex w-16 items-center from-panel from-35% to-transparent transition-opacity duration-150',
+        side === 'left' ? 'left-0 justify-start bg-linear-to-r pl-2' : 'right-0 justify-end bg-linear-to-l pr-2',
+        !shown && 'opacity-0',
+      )}
+    >
+      <button
+        type="button"
+        aria-label={`Scroll ${side}`}
+        tabIndex={shown ? 0 : -1}
+        onClick={onClick}
+        className={cx(
+          'flex size-6 items-center justify-center rounded-full border border-line-strong bg-elevated text-muted shadow-md transition-colors hover:text-fg',
+          shown && 'pointer-events-auto',
+        )}
+      >
+        <Icon className="size-3.5" />
+      </button>
+    </div>
   );
 }
 
