@@ -4,7 +4,8 @@ import { Eye, GitFork, Link2, Scale, Star, Tag } from 'lucide-react';
 import { rest } from '@/github/client';
 import { formatCount, timeAgo } from '@/lib/time';
 import { Avatar, LanguageDot } from '@/ui/primitives';
-import type { Repo } from './query';
+import { repoAboutQuery, type Repo } from './query';
+import { persisted } from '@/lib/persist';
 
 type Contributor = { login: string; avatar_url: string; contributions: number };
 
@@ -14,7 +15,10 @@ export function RepoSidebar({ repo }: { repo: Repo }) {
     queryKey: ['repo-contributors', repo.nameWithOwner],
     queryFn: () => rest<Contributor[] | undefined>(`/repos/${repo.nameWithOwner}/contributors?per_page=14`),
     staleTime: 10 * 60_000,
+    persister: persisted,
   });
+  const [owner, name] = repo.nameWithOwner.split('/') as [string, string];
+  const { data: about } = useQuery(repoAboutQuery(owner, name));
   const homepage = repo.homepageUrl && (repo.homepageUrl.startsWith('http') ? repo.homepageUrl : `https://${repo.homepageUrl}`);
 
   return (
@@ -27,9 +31,9 @@ export function RepoSidebar({ repo }: { repo: Repo }) {
             {homepage.replace(/^https?:\/\//, '').replace(/\/$/, '')}
           </a>
         )}
-        {repo.repositoryTopics.nodes.length > 0 && (
+        {!!about?.repositoryTopics.nodes.length && (
           <div className="mt-3 flex flex-wrap gap-1.5">
-            {repo.repositoryTopics.nodes.map(({ topic }) => (
+            {about.repositoryTopics.nodes.map(({ topic }) => (
               <a key={topic.name} href={`/topics/${topic.name}`} className="rounded-full bg-accent/10 px-2.5 py-0.5 text-[11.5px] font-medium text-accent hover:bg-accent/20">
                 {topic.name}
               </a>
@@ -37,7 +41,9 @@ export function RepoSidebar({ repo }: { repo: Repo }) {
           </div>
         )}
         <div className="mt-4 flex flex-col gap-2 text-[12.5px] text-muted">
-          {repo.licenseInfo && <Stat icon={<Scale />}>{repo.licenseInfo.spdxId && repo.licenseInfo.spdxId !== 'NOASSERTION' ? repo.licenseInfo.spdxId : repo.licenseInfo.name}</Stat>}
+          {about?.licenseInfo && (
+            <Stat icon={<Scale />}>{about.licenseInfo.spdxId && about.licenseInfo.spdxId !== 'NOASSERTION' ? about.licenseInfo.spdxId : about.licenseInfo.name}</Stat>
+          )}
           <Stat icon={<Star />} href={`/${repo.nameWithOwner}/stargazers`}>
             <b className="font-medium text-fg">{formatCount(repo.stargazerCount)}</b> stars
           </Stat>
@@ -50,36 +56,36 @@ export function RepoSidebar({ repo }: { repo: Repo }) {
         </div>
       </Section>
 
-      {repo.latestRelease && (
-        <Section title="Latest release" action={<a href={`/${repo.nameWithOwner}/releases`}>{repo.releases.totalCount} total</a>}>
-          <a href={repo.latestRelease.url} className="flex items-center gap-3 rounded-xl border border-line bg-panel p-3 transition-colors hover:border-line-strong">
+      {about?.latestRelease && (
+        <Section title="Latest release" action={<a href={`/${repo.nameWithOwner}/releases`}>{about.releases.totalCount} total</a>}>
+          <a href={about.latestRelease.url} className="flex items-center gap-3 rounded-xl border border-line bg-panel p-3 transition-colors hover:border-line-strong">
             <span className="flex size-8 items-center justify-center rounded-lg bg-success/12 text-success">
               <Tag className="size-4" />
             </span>
             <span className="min-w-0">
-              <span className="block truncate text-[13px] font-medium">{repo.latestRelease.name || repo.latestRelease.tagName}</span>
+              <span className="block truncate text-[13px] font-medium">{about.latestRelease.name || about.latestRelease.tagName}</span>
               <span className="block text-[11.5px] text-subtle">
-                {repo.latestRelease.tagName}
-                {repo.latestRelease.publishedAt && ` · ${timeAgo(repo.latestRelease.publishedAt)}`}
+                {about.latestRelease.tagName}
+                {about.latestRelease.publishedAt && ` · ${timeAgo(about.latestRelease.publishedAt)}`}
               </span>
             </span>
           </a>
         </Section>
       )}
 
-      {repo.languages.edges.length > 0 && (
+      {!!about?.languages.edges.length && (
         <Section title="Languages">
           <div className="flex h-2 overflow-hidden rounded-full bg-elevated">
-            {repo.languages.edges.map(({ size, node }) => (
-              <span key={node.name} title={node.name} style={{ width: `${(size / repo.languages.totalSize) * 100}%`, background: node.color ?? 'var(--u-subtle)' }} />
+            {about.languages.edges.map(({ size, node }) => (
+              <span key={node.name} title={node.name} style={{ width: `${(size / about.languages.totalSize) * 100}%`, background: node.color ?? 'var(--u-subtle)' }} />
             ))}
           </div>
           <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5">
-            {repo.languages.edges.map(({ size, node }) => (
+            {about.languages.edges.map(({ size, node }) => (
               <span key={node.name} className="flex items-center gap-2 text-[12px]">
                 <LanguageDot color={node.color} />
                 <span className="truncate">{node.name}</span>
-                <span className="ml-auto text-subtle tabular-nums">{((size / repo.languages.totalSize) * 100).toFixed(1)}%</span>
+                <span className="ml-auto text-subtle tabular-nums">{((size / about.languages.totalSize) * 100).toFixed(1)}%</span>
               </span>
             ))}
           </div>

@@ -1,52 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { WrapText } from 'lucide-react';
-import { gql, rest } from '@/github/client';
+import { gql } from '@/github/client';
 import { cx } from '@/lib/cx';
 import { Skeleton } from '@/ui/primitives';
 import { toast } from '@/ui/toast';
-import { MUTATIONS, repoPath, type PullRequest, type ReviewThread } from '../query';
+import { MUTATIONS, prFilesQuery, prViewedQuery, repoPath, type PullRequest, type ReviewThread, type ViewedState } from '../query';
 import { diffAnchor } from './anchor';
 import { FileDiff, type DiffMode, type PrFile } from './FileDiff';
 import { FileTree } from './FileTree';
-
-const VIEWED_QUERY = /* GraphQL */ `
-  query PrViewed($id: ID!, $after: String) {
-    node(id: $id) {
-      ... on PullRequest {
-        files(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { path viewerViewedState } }
-      }
-    }
-  }
-`;
-
-type ViewedState = 'VIEWED' | 'UNVIEWED' | 'DISMISSED';
-type ViewedPage = {
-  node: { files: { pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: { path: string; viewerViewedState: ViewedState }[] } };
-};
-
-/** Every changed file with its patch. GitHub serves at most 3000 files, 100 per page. */
-async function fetchFiles(pr: PullRequest) {
-  const files: PrFile[] = [];
-  for (let page = 1; page <= 30; page++) {
-    const batch = await rest<PrFile[]>(`/repos/${repoPath(pr)}/pulls/${pr.number}/files?per_page=100&page=${page}`);
-    files.push(...batch);
-    if (batch.length < 100) break;
-  }
-  return files;
-}
-
-/** The viewer's "Viewed" marks, shared with GitHub. */
-async function fetchViewed(id: string) {
-  const viewed: Record<string, ViewedState> = {};
-  let after: string | null = null;
-  do {
-    const page: ViewedPage = await gql<ViewedPage>(VIEWED_QUERY, { id, after });
-    for (const file of page.node.files.nodes) viewed[file.path] = file.viewerViewedState;
-    after = page.node.files.pageInfo.hasNextPage ? page.node.files.pageInfo.endCursor : null;
-  } while (after);
-  return viewed;
-}
 
 /**
  * Scrolls a file card under the sticky headers and keeps it there for a moment: viewed files collapse and
@@ -76,9 +38,11 @@ const BIG_FILE = 600; // changed lines above which a file starts collapsed
 /** Files changed: file tree on the left, diffs on the right, "Viewed" synced with GitHub. */
 export function FilesTab({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey }) {
   const queryClient = useQueryClient();
-  const files = useQuery({ queryKey: ['pr-files', pr.id, pr.headRefOid], queryFn: () => fetchFiles(pr), staleTime: 5 * 60_000 });
-  const viewedKey = ['pr-viewed', pr.id];
-  const viewed = useQuery({ queryKey: viewedKey, queryFn: () => fetchViewed(pr.id) });
+  const [owner, repo] = repoPath(pr).split('/') as [string, string];
+  const files = useQuery(prFilesQuery(owner, repo, pr.number));
+  const viewedQuery = prViewedQuery(owner, repo, pr.number);
+  const viewedKey = viewedQuery.queryKey;
+  const viewed = useQuery(viewedQuery);
   const [mode, setMode] = useState<DiffMode>(() => (localStorage.getItem(MODE_KEY) === 'split' ? 'split' : 'unified'));
   const [wrap, setWrap] = useState(() => localStorage.getItem(WRAP_KEY) !== 'false');
   const [openOverride, setOpenOverride] = useState<Record<string, boolean>>({});
@@ -93,7 +57,8 @@ export function FilesTab({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey
     mutationFn: ({ path, wasViewed }: { path: string; wasViewed: boolean }) =>
       gql(wasViewed ? MUTATIONS.unmarkViewed : MUTATIONS.markViewed, { id: pr.id, path }),
     onMutate: ({ path, wasViewed }) => {
-      queryClient.setQueryData<Record<string, ViewedState>>(viewedKey, (map) => ({ ...map, [path]: wasViewed ? 'UNVIEWED' : 'VIEWED' }));
+      const next: ViewedState = wasViewed ? 'UNVIEWED' : 'VIEWED';
+      queryClient.setQueryData(viewedKey, (map) => ({ ...map, [path]: next }));
       setOpenOverride((o) => ({ ...o, [path]: wasViewed }));
     },
     onError: (error) => {

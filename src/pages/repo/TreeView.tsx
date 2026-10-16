@@ -1,37 +1,29 @@
 import { useQuery } from '@tanstack/react-query';
 import { BookOpen, CornerLeftUp, FileText, Folder, FolderGit2, History } from 'lucide-react';
-import { restHtml } from '@/github/client';
-import { absolutizeReadme } from '@/github/readme';
 import { timeAgo, fullDate } from '@/lib/time';
 import { Avatar, Markdown, Panel, Skeleton } from '@/ui/primitives';
 import { CheckIcon } from '@/ui/status';
-import { fetchEntryCommits, type LastCommit, type TreeEntry } from './query';
-import { blobUrl, commitsUrl, rawUrl, treeUrl } from './urls';
+import { fetchEntryCommits, repoReadmeQuery, type LastCommit, type TreeEntry } from './query';
+import { persisted } from '@/lib/persist';
+import { blobUrl, commitsUrl, treeUrl } from './urls';
 
-type Props = { nameWithOwner: string; gitRef: string; path: string; entries: TreeEntry[]; lastCommit?: LastCommit; commitCount?: number };
+/** `gitRef` is what links use (a branch name); `revision` is what data is read at (HEAD at a repo's root). */
+type Props = { nameWithOwner: string; gitRef: string; revision: string; path: string; entries: TreeEntry[]; lastCommit?: LastCommit; commitCount?: number };
 
 /** A folder: latest commit, entries with their last commit, then the folder's README. */
-export function TreeView({ nameWithOwner, gitRef, path, entries, lastCommit, commitCount }: Props) {
+export function TreeView({ nameWithOwner, gitRef, revision, path, entries, lastCommit, commitCount }: Props) {
   const [owner, name] = nameWithOwner.split('/') as [string, string];
   const sorted = [...entries].sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === 'tree' ? -1 : 1));
 
   const commits = useQuery({
-    queryKey: ['repo-entry-commits', nameWithOwner, gitRef, path],
-    queryFn: () => fetchEntryCommits(owner, name, gitRef, sorted.map((e) => e.path)),
+    queryKey: ['repo-entry-commits', nameWithOwner, revision, path],
+    queryFn: () => fetchEntryCommits(owner, name, revision, sorted.map((e) => e.path)),
     staleTime: 5 * 60_000,
+    persister: persisted,
   });
 
   const readmeEntry = sorted.find((e) => e.type === 'blob' && /^readme(\.(md|markdown|mdx|rst|txt))?$/i.test(e.name));
-  const readme = useQuery({
-    queryKey: ['repo-readme', nameWithOwner, gitRef, path],
-    enabled: !!readmeEntry,
-    queryFn: async () => {
-      const html = await restHtml(`/repos/${nameWithOwner}/readme/${path}?ref=${encodeURIComponent(gitRef)}`);
-      const dir = path ? `${path}/` : '';
-      return html && absolutizeReadme(html, `${rawUrl(nameWithOwner, gitRef, dir)}`, `https://github.com${blobUrl(nameWithOwner, gitRef, dir)}`);
-    },
-    staleTime: 5 * 60_000,
-  });
+  const readme = useQuery({ ...repoReadmeQuery(nameWithOwner, revision, path), enabled: !!readmeEntry });
 
   const parent = path.split('/').slice(0, -1).join('/');
 

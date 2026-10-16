@@ -1,4 +1,10 @@
+import { queryOptions, type QueryClient } from '@tanstack/react-query';
+import { gql, rest } from '@/github/client';
 import type { Actor, CheckState, Label, PrState, ReviewDecision } from '@/github/types';
+import { persisted } from '@/lib/persist';
+import type { PrTab } from '@/lib/routes';
+import { summarizeChecks } from './checks';
+import type { PrFile } from './files/FileDiff';
 
 export const PR_QUERY = /* GraphQL */ `
   query PullRequest($owner: String!, $repo: String!, $number: Int!) {
@@ -272,3 +278,80 @@ export const MUTATIONS = {
   unmarkViewed: m('UnmarkFileAsViewed', '{ pullRequestId: $id, path: $path }', '$id: ID!, $path: String!'),
   replyToThread: m('AddPullRequestReviewThreadReply', '{ pullRequestReviewThreadId: $id, body: $body }', '$id: ID!, $body: String!'),
 };
+
+const prKey = (owner: string, repo: string, number: number) => [owner.toLowerCase(), repo.toLowerCase(), number] as const;
+
+export const prQuery = (owner: string, repo: string, number: number) =>
+  queryOptions({
+    queryKey: ['pr', ...prKey(owner, repo, number)],
+    queryFn: () => gql<PrData>(PR_QUERY, { owner, repo, number }, true),
+    // Poll while GitHub is still deciding something (checks, mergeability, queue).
+    refetchInterval: (query) => {
+      const pr = query.state.data?.repository?.pullRequest;
+      if (!pr || pr.state !== 'OPEN') return false;
+      const pending = summarizeChecks(pr.commits.nodes[0]?.commit.statusCheckRollup?.contexts.nodes ?? []).PENDING > 0;
+      return pending || pr.mergeable === 'UNKNOWN' || pr.isInMergeQueue ? 10_000 : false;
+    },
+    persister: persisted,
+  });
+
+/** Every changed file with its patch. GitHub serves at most 3000 files, 100 per page. */
+export const prFilesQuery = (owner: string, repo: string, number: number) =>
+  queryOptions({
+    queryKey: ['pr-files', ...prKey(owner, repo, number)],
+    queryFn: async () => {
+      const files: PrFile[] = [];
+      for (let page = 1; page <= 30; page++) {
+        const batch = await rest<PrFile[]>(`/repos/${owner}/${repo}/pulls/${number}/files?per_page=100&page=${page}`);
+        files.push(...batch);
+        if (batch.length < 100) break;
+      }
+      return files;
+    },
+    staleTime: 60_000,
+    persister: persisted,
+  });
+
+const VIEWED_QUERY = /* GraphQL */ `
+  query PrViewed($owner: String!, $repo: String!, $number: Int!, $after: String) {
+    repository(owner: $owner, name: $repo) {
+      pullRequest(number: $number) {
+        files(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { path viewerViewedState } }
+      }
+    }
+  }
+`;
+
+export type ViewedState = 'VIEWED' | 'UNVIEWED' | 'DISMISSED';
+type ViewedPage = {
+  repository: {
+    pullRequest: { files: { pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: { path: string; viewerViewedState: ViewedState }[] } } | null;
+  } | null;
+};
+
+/** The viewer's "Viewed" marks, shared with GitHub. */
+export const prViewedQuery = (owner: string, repo: string, number: number) =>
+  queryOptions({
+    queryKey: ['pr-viewed', ...prKey(owner, repo, number)],
+    queryFn: async () => {
+      const viewed: Record<string, ViewedState> = {};
+      let after: string | null = null;
+      do {
+        const page: ViewedPage = await gql<ViewedPage>(VIEWED_QUERY, { owner, repo, number, after });
+        const files = page.repository?.pullRequest?.files;
+        for (const file of files?.nodes ?? []) viewed[file.path] = file.viewerViewedState;
+        after = files?.pageInfo.hasNextPage ? files.pageInfo.endCursor : null;
+      } while (after);
+      return viewed;
+    },
+    persister: persisted,
+  });
+
+/** What a pull request URL will show, started early (page load, link hover) by src/app/prefetch.ts. */
+export function prefetchPr(client: QueryClient, owner: string, repo: string, number: number, tab: PrTab) {
+  client.prefetchQuery(prQuery(owner, repo, number));
+  if (tab === 'files') {
+    client.prefetchQuery(prFilesQuery(owner, repo, number));
+    client.prefetchQuery(prViewedQuery(owner, repo, number));
+  }
+}

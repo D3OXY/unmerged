@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowUpRight, Plus } from 'lucide-react';
-import { gql } from '@/github/client';
 import { useViewer } from '@/github/viewer';
 import { Shell, PageHeader } from '@/app/Shell';
 import { timeAgo } from '@/lib/time';
@@ -9,38 +8,8 @@ import { useTitle } from '@/lib/useTitle';
 import { Button } from '@/ui/Button';
 import { Empty, Kbd, Panel, SectionHeader, Skeleton } from '@/ui/primitives';
 import { PrStateIcon } from '@/ui/status';
-import { ISSUE_ROW_FIELDS, PR_ROW_FIELDS, WorkRow, type IssueRowData, type PrRowData } from '@/ui/WorkRow';
-
-const weekAgo = () => new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
-
-const HOME_QUERY = /* GraphQL */ `
-  query Home($mergedSince: String!) {
-    reviewRequested: search(type: ISSUE, first: 15, query: "is:open is:pr review-requested:@me archived:false sort:updated-desc") {
-      issueCount nodes { ...PrRow }
-    }
-    authored: search(type: ISSUE, first: 15, query: "is:open is:pr author:@me archived:false sort:updated-desc") {
-      issueCount nodes { ...PrRow }
-    }
-    assigned: search(type: ISSUE, first: 15, query: "is:open is:issue assignee:@me archived:false sort:updated-desc") {
-      issueCount nodes { ...IssueRow }
-    }
-    merged: search(type: ISSUE, first: 6, query: "is:pr author:@me is:merged sort:updated-desc") {
-      nodes { ...PrRow }
-    }
-    mergedThisWeek: search(type: ISSUE, first: 0, query: $mergedSince) { issueCount }
-  }
-  ${PR_ROW_FIELDS}
-  ${ISSUE_ROW_FIELDS}
-`;
-
-type Search<T> = { issueCount: number; nodes: T[] };
-type HomeData = {
-  reviewRequested: Search<PrRowData>;
-  authored: Search<PrRowData>;
-  assigned: Search<IssueRowData>;
-  merged: { nodes: PrRowData[] };
-  mergedThisWeek: { issueCount: number };
-};
+import { WorkRow } from '@/ui/WorkRow';
+import { homeQueries } from './queries';
 
 function greeting() {
   const hour = new Date().getHours();
@@ -50,11 +19,12 @@ function greeting() {
 /** The dashboard: what needs you, what you're waiting on, and what shipped. */
 export function HomePage() {
   const { data: viewer } = useViewer();
-  const { data, isPending, error } = useQuery({
-    queryKey: ['home'],
-    queryFn: () => gql<HomeData>(HOME_QUERY, { mergedSince: `is:pr author:@me is:merged merged:>=${weekAgo()}` }),
-    staleTime: 30_000,
-  });
+  const review = useQuery(homeQueries.reviewRequested());
+  const authored = useQuery(homeQueries.authored());
+  const assigned = useQuery(homeQueries.assigned());
+  const merged = useQuery(homeQueries.merged());
+  const { data: mergedThisWeek } = useQuery(homeQueries.mergedThisWeek());
+  const error = review.error ?? authored.error ?? assigned.error ?? merged.error;
 
   const firstName = viewer?.name?.split(' ')[0] ?? viewer?.login;
   useTitle('GitHub');
@@ -79,27 +49,27 @@ export function HomePage() {
         </p>
 
         <div className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Stat label="Needs your review" value={data?.reviewRequested.issueCount} tone="text-warning" />
-          <Stat label="Your open PRs" value={data?.authored.issueCount} tone="text-success" />
-          <Stat label="Assigned issues" value={data?.assigned.issueCount} tone="text-info" />
-          <Stat label="Merged this week" value={data?.mergedThisWeek.issueCount} tone="text-merged" />
+          <Stat label="Needs your review" value={review.data?.issueCount} tone="text-warning" />
+          <Stat label="Your open PRs" value={authored.data?.issueCount} tone="text-success" />
+          <Stat label="Assigned issues" value={assigned.data?.issueCount} tone="text-info" />
+          <Stat label="Merged this week" value={mergedThisWeek} tone="text-merged" />
         </div>
 
         {error && <p className="mt-6 text-[13px] text-danger">{error.message}</p>}
 
         <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1fr)_300px]">
           <div className="flex min-w-0 flex-col gap-7">
-            <ListSection title="Needs your review" count={data?.reviewRequested.issueCount} loading={isPending} more="/pulls/review-requested">
-              {data?.reviewRequested.nodes.map((pr) => <WorkRow key={pr.id} item={pr} kind="pr" />)}
-              {data && !data.reviewRequested.nodes.length && <Empty>Inbox zero. Nobody is waiting on you.</Empty>}
+            <ListSection title="Needs your review" count={review.data?.issueCount} loading={review.isPending} more="/pulls/review-requested">
+              {review.data?.nodes.map((pr) => <WorkRow key={pr.id} item={pr} kind="pr" />)}
+              {review.data && !review.data.nodes.length && <Empty>Inbox zero. Nobody is waiting on you.</Empty>}
             </ListSection>
-            <ListSection title="Your pull requests" count={data?.authored.issueCount} loading={isPending} more="/pulls">
-              {data?.authored.nodes.map((pr) => <WorkRow key={pr.id} item={pr} kind="pr" />)}
-              {data && !data.authored.nodes.length && <Empty>No open pull requests.</Empty>}
+            <ListSection title="Your pull requests" count={authored.data?.issueCount} loading={authored.isPending} more="/pulls">
+              {authored.data?.nodes.map((pr) => <WorkRow key={pr.id} item={pr} kind="pr" />)}
+              {authored.data && !authored.data.nodes.length && <Empty>No open pull requests.</Empty>}
             </ListSection>
-            <ListSection title="Assigned issues" count={data?.assigned.issueCount} loading={isPending} more="/issues/assigned">
-              {data?.assigned.nodes.map((issue) => <WorkRow key={issue.id} item={issue} kind="issue" />)}
-              {data && !data.assigned.nodes.length && <Empty>Nothing assigned to you.</Empty>}
+            <ListSection title="Assigned issues" count={assigned.data?.issueCount} loading={assigned.isPending} more="/issues/assigned">
+              {assigned.data?.nodes.map((issue) => <WorkRow key={issue.id} item={issue} kind="issue" />)}
+              {assigned.data && !assigned.data.nodes.length && <Empty>Nothing assigned to you.</Empty>}
             </ListSection>
           </div>
 
@@ -107,8 +77,8 @@ export function HomePage() {
             <div>
               <SectionHeader title="Recently merged" />
               <Panel className="p-1.5">
-                {isPending && <RowsSkeleton rows={4} />}
-                {data?.merged.nodes.map((pr) => (
+                {merged.isPending && <RowsSkeleton rows={4} />}
+                {merged.data?.nodes.map((pr) => (
                   <a key={pr.id} href={pr.url} data-row className="flex items-start gap-2.5 rounded-lg px-2.5 py-2 hover:bg-hover focus:bg-hover focus:outline-none">
                     <PrStateIcon state="MERGED" className="mt-0.5 size-3.5" />
                     <span className="min-w-0">
@@ -119,7 +89,7 @@ export function HomePage() {
                     </span>
                   </a>
                 ))}
-                {data && !data.merged.nodes.length && <Empty>Nothing merged yet.</Empty>}
+                {merged.data && !merged.data.nodes.length && <Empty>Nothing merged yet.</Empty>}
               </Panel>
             </div>
             <div>

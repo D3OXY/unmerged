@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
-import { useAchievementDetail, useAchievements, type Achievement } from '@/github/achievements';
+import { useQuery } from '@tanstack/react-query';
+import { achievementDetailQuery, achievementsQuery, type Achievement } from '@/github/achievements';
 import { formatDate } from '@/lib/time';
 import { Modal } from '@/ui/Modal';
 import { Empty, Skeleton } from '@/ui/primitives';
@@ -9,7 +10,7 @@ import { TierLabel } from './TierLabel';
 
 /** Earned achievements as a grid; one opens into its story (what it's for, when, and what earned it). */
 export function AchievementsPage({ login }: { login: string }) {
-  const { data, isPending, error } = useAchievements(login);
+  const { data, isPending, error } = useQuery(achievementsQuery(login));
   // `?achievement=<slug>` is GitHub's own URL for an open achievement, so links and reloads land on it.
   const [open, setOpen] = useState(() => new URL(location.href).searchParams.get('achievement'));
 
@@ -56,7 +57,7 @@ function AchievementCard({ achievement: { name, image, tier }, onOpen }: { achie
 }
 
 function AchievementDialog({ login, achievement: { slug, name, image, tier }, onClose }: { login: string; achievement: Achievement; onClose: () => void }) {
-  const { data: detail, isPending, error } = useAchievementDetail(login, slug);
+  const { data: detail, isPending, error } = useQuery(achievementDetailQuery(login, slug));
 
   return (
     <Modal label={name} onClose={onClose} className="w-[460px]">

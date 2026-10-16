@@ -5,8 +5,12 @@ export class AuthError extends Error {}
 
 type GraphQLResponse<T> = { data?: T; errors?: { message: string; type?: string }[] };
 
+// Read once and kept current, rather than a storage round trip for every request.
+let currentToken = tokenItem.getValue();
+tokenItem.watch((token) => (currentToken = Promise.resolve(token)));
+
 async function authHeaders(): Promise<HeadersInit> {
-  const token = await tokenItem.getValue();
+  const token = await currentToken;
   if (!token) throw new AuthError('No GitHub token configured');
   return { Authorization: `Bearer ${token}` };
 }

@@ -1,66 +1,18 @@
-import { useInfiniteQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, MapPin, Users } from 'lucide-react';
-import { gql } from '@/github/client';
 import { sessionLogin } from '@/lib/session';
 import { formatCount } from '@/lib/time';
 import { Button } from '@/ui/Button';
 import { Avatar, Empty, Panel, Pill, Skeleton } from '@/ui/primitives';
 import { FollowButton } from './FollowButton';
 import { ProfileFrame } from './ProfileFrame';
-
-const PAGE = /* GraphQL */ `{
-  pageInfo { hasNextPage endCursor }
-  nodes {
-    id login name avatarUrl bio company location
-    isViewer viewerIsFollowing viewerCanFollow isFollowingViewer
-    followers { totalCount }
-  }
-}`;
-
-// Followers and following are different connection types, so each gets its own (mutually exclusive) field.
-const FOLLOWS_QUERY = /* GraphQL */ `
-  query Follows($login: String!, $followers: Boolean!, $after: String) {
-    user(login: $login) {
-      followerList: followers(first: 50, after: $after) @include(if: $followers) ${PAGE}
-      followingList: following(first: 50, after: $after) @skip(if: $followers) ${PAGE}
-    }
-  }
-`;
-
-type Person = {
-  id: string;
-  login: string;
-  name: string | null;
-  avatarUrl: string;
-  bio: string | null;
-  company: string | null;
-  location: string | null;
-  isViewer: boolean;
-  viewerIsFollowing: boolean;
-  viewerCanFollow: boolean;
-  isFollowingViewer: boolean;
-  followers: { totalCount: number };
-};
-
-type PeoplePage = { pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: Person[] };
-
-type Follows = { followerList?: PeoplePage; followingList?: PeoplePage };
+import { followsQuery, type Person } from './queries';
 
 /** A user's followers or the people they follow, 50 at a time. */
 export function FollowsPage({ login, tab }: { login: string; tab: 'followers' | 'following' }) {
   const queryClient = useQueryClient();
-  const queryKey = ['follows', login.toLowerCase(), tab];
-  const query = useInfiniteQuery({
-    queryKey,
-    queryFn: async ({ pageParam }) => {
-      // Null for organizations; ProfileFrame hands those back to GitHub.
-      const { user } = await gql<{ user: Follows | null }>(FOLLOWS_QUERY, { login, followers: tab === 'followers', after: pageParam }, true);
-      // The query asks for exactly one of the two.
-      return user && { people: (user.followerList ?? user.followingList)! };
-    },
-    initialPageParam: null as string | null,
-    getNextPageParam: (last) => (last?.people.pageInfo.hasNextPage ? last.people.pageInfo.endCursor : null),
-  });
+  const options = followsQuery(login, tab);
+  const query = useInfiniteQuery(options);
 
   const people = query.data?.pages.flatMap((page) => page?.people.nodes ?? []) ?? [];
   // On your own followers list, everyone follows you.
@@ -68,7 +20,7 @@ export function FollowsPage({ login, tab }: { login: string; tab: 'followers' | 
 
   // Patch the toggled person in place rather than refetching every loaded page.
   const setFollowing = (id: string, following: boolean) =>
-    queryClient.setQueryData<InfiniteData<{ people: PeoplePage } | null>>(queryKey, (data) =>
+    queryClient.setQueryData(options.queryKey, (data) =>
       data && {
         ...data,
         pages: data.pages.map(

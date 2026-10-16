@@ -117,19 +117,3 @@
   & .pl-md { color: var(--u-red); }
   & .pl-mi { color: var(--u-green); }
 }
-
-/* highlight.js tokens inside diffs. */
-.u-diff {
-  & .hljs-comment, & .hljs-quote { color: var(--u-subtle); font-style: italic; }
-  & .hljs-keyword, & .hljs-selector-tag, & .hljs-doctag, & .hljs-meta .hljs-keyword { color: #e5609b; }
-  & .hljs-string, & .hljs-regexp, & .hljs-addition, & .hljs-meta .hljs-string { color: var(--u-green); }
-  & .hljs-title, & .hljs-title.function_, & .hljs-section, & .hljs-selector-id { color: var(--u-purple); }
-  & .hljs-number, & .hljs-literal, & .hljs-symbol, & .hljs-bullet, & .hljs-built_in { color: var(--u-blue); }
-  & .hljs-type, & .hljs-title.class_, & .hljs-variable.language_ { color: #e0823d; }
-  & .hljs-attr, & .hljs-attribute, & .hljs-property, & .hljs-selector-class, & .hljs-name, & .hljs-tag { color: var(--u-blue); }
-  & .hljs-params, & .hljs-variable, & .hljs-template-variable, & .hljs-subst { color: var(--u-fg); }
-  & .hljs-meta { color: var(--u-muted); }
-  & .hljs-deletion { color: var(--u-red); }
-  & .hljs-emphasis { font-style: italic; }
-  & .hljs-strong { font-weight: 600; }
-}

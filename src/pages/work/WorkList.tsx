@@ -1,34 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { ArrowDownUp, CircleCheck, CircleDot, Search } from 'lucide-react';
-import { gql } from '@/github/client';
 import { usePageHotkey } from '@/app/keyboard';
 import { cx } from '@/lib/cx';
 import { Button } from '@/ui/Button';
 import { Menu } from '@/ui/Menu';
 import { Empty, Kbd, Panel, Skeleton } from '@/ui/primitives';
-import { ISSUE_ROW_FIELDS, PR_ROW_FIELDS, WorkRow, type IssueRowData, type PrRowData } from '@/ui/WorkRow';
-
-const LIST_QUERY = /* GraphQL */ `
-  query WorkList($q: String!, $open: String!, $closed: String!, $after: String, $counts: Boolean!) {
-    results: search(type: ISSUE, query: $q, first: 50, after: $after) {
-      issueCount
-      pageInfo { hasNextPage endCursor }
-      nodes { __typename ...PrRow ...IssueRow }
-    }
-    open: search(type: ISSUE, query: $open, first: 0) @include(if: $counts) { issueCount }
-    closed: search(type: ISSUE, query: $closed, first: 0) @include(if: $counts) { issueCount }
-  }
-  ${PR_ROW_FIELDS}
-  ${ISSUE_ROW_FIELDS}
-`;
-
-type Item = ({ __typename: 'PullRequest' } & PrRowData) | ({ __typename: 'Issue' } & IssueRowData);
-type ListPage = {
-  results: { issueCount: number; pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: Item[] };
-  open?: { issueCount: number };
-  closed?: { issueCount: number };
-};
+import { WorkRow } from '@/ui/WorkRow';
+import { squash, withState, workListQuery } from './queries';
 
 const SORTS = {
   'updated-desc': 'Recently updated',
@@ -38,13 +17,7 @@ const SORTS = {
 } as const;
 type Sort = keyof typeof SORTS;
 
-// GitHub's newer pages write `state:open`; both mean the same.
-const STATE = /(^|\s)(?:is|state):(open|closed|merged)(?=\s|$)/g;
 const SORT = /(^|\s)sort:\S+/g;
-const squash = (q: string) => q.replace(/\s+/g, ' ').trim();
-
-/** The query with its state qualifier set: first, where GitHub puts it. */
-const withState = (q: string, state: 'open' | 'closed') => squash(`is:${state} ${q.replace(STATE, ' ')}`);
 const withSort = (q: string, sort: Sort) => squash(`${q.replace(SORT, ' ')} sort:${sort}`);
 const isSort = (value: string | undefined): value is Sort => value !== undefined && Object.hasOwn(SORTS, value);
 // Search without a sort qualifier returns newest first.
@@ -73,21 +46,7 @@ export function WorkList({ fallback, repo }: { fallback: string; repo?: string }
     history.replaceState(history.state, '', url);
   }, [q, fallback]);
 
-  const scoped = (query: string) => (repo ? `${query} repo:${repo}` : query);
-  const list = useInfiniteQuery({
-    queryKey: ['work', repo?.toLowerCase(), q],
-    queryFn: ({ pageParam }) =>
-      gql<ListPage>(LIST_QUERY, {
-        q: scoped(q),
-        open: scoped(withState(q, 'open')),
-        closed: scoped(withState(q, 'closed')),
-        after: pageParam,
-        counts: pageParam === null,
-      }),
-    initialPageParam: null as string | null,
-    getNextPageParam: (last) => (last.results.pageInfo.hasNextPage ? last.results.pageInfo.endCursor : null),
-    staleTime: 30_000,
-  });
+  const list = useInfiniteQuery(workListQuery(q, repo));
 
   const first = list.data?.pages[0];
   const items = list.data?.pages.flatMap((page) => page.results.nodes) ?? [];
