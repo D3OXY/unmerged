@@ -9,6 +9,10 @@ export type Surfaces = Record<Surface, boolean>;
 /** GitHub token used for API calls. Stored only in extension local storage. */
 export const tokenItem = storage.defineItem<string>('local:token', { fallback: '' });
 
+/** GitHub's "new token" page, prefilled with the scopes Unmerged uses. */
+export const NEW_TOKEN_URL =
+  'https://github.com/settings/tokens/new?description=Unmerged&scopes=repo,read:org,read:user,user:follow,notifications';
+
 export const surfacesItem = storage.defineItem<Surfaces>('local:surfaces', {
   fallback: { home: true, profile: true, pr: true, repo: true },
 });
