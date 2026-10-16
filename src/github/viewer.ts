@@ -22,14 +22,16 @@ export type Viewer = {
 // The viewer drives the sidebar on every page, so it's cached across page loads for an instant shell.
 const cache = cachedQuery<Viewer>('unmerged:viewer');
 
+async function fetchViewer() {
+  const { viewer } = await gql<{ viewer: Viewer }>(VIEWER_QUERY);
+  rememberOrgs(viewer.organizations.nodes.map((org) => org.login));
+  return viewer;
+}
+
 export function useViewer() {
   return useQuery({
     queryKey: ['viewer'],
-    queryFn: async () => {
-      const { viewer } = await gql<{ viewer: Viewer }>(VIEWER_QUERY);
-      rememberOrgs(viewer.organizations.nodes.map((org) => org.login));
-      return cache.save(viewer);
-    },
+    queryFn: () => cache.save(fetchViewer()),
     initialData: cache.initialData,
     initialDataUpdatedAt: cache.initialDataUpdatedAt,
     staleTime: 5 * 60_000,

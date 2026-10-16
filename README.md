@@ -34,13 +34,43 @@ pnpm build            # → .output/chrome-mv3
 ```
 
 Chrome → `chrome://extensions` → Developer mode → **Load unpacked** → `.output/chrome-mv3`.
-Open github.com and paste a token when asked
-([create one](https://github.com/settings/tokens/new?description=Unmerged&scopes=repo,read:org,read:user,user:follow,notifications)).
+Click Unmerged's toolbar icon (or **Open Unmerged settings** on github.com) and paste a token (see below).
+The token is only ever typed into the extension's own page, never into github.com.
 
 `pnpm dev` runs WXT with hot reload in a separate browser profile. `pnpm build:firefox` builds for Firefox.
 
 `pnpm check` runs everything CI runs except the Firefox build: `pnpm typecheck`, `pnpm test` (Vitest),
 `pnpm lint` (ESLint) and `pnpm build`.
+
+## Token
+
+The token is kept in the extension's storage (`chrome.storage.local`) and sent only to `api.github.com`.
+Changing it or pressing **Disconnect** (popup → Change token) also deletes everything cached for the previous one.
+
+**Classic token** (simplest, everything works):
+[create one](https://github.com/settings/tokens/new?description=Unmerged&scopes=repo,read:org,read:user,user:follow,notifications)
+with `repo`, `read:org`, `read:user`, `user:follow` and `notifications`. Classic tokens have no read-only scope
+for private repos, so `repo` means full write access to them; if you only browse public code, `public_repo` in
+its place is enough.
+
+**Fine-grained token** (least privilege):
+[create one](https://github.com/settings/personal-access-tokens/new) for the account or organization whose repos
+you want, and pick only the repos and permissions for the features you use:
+
+| Feature | Permission |
+|---|---|
+| Browsing repos, PRs, lists, home (always needed) | Repository → Metadata: read, Contents: read, Pull requests: read, Issues: read |
+| Checks tab | Repository → Checks: read, Commit statuses: read, Actions: read |
+| Comment, review, resolve threads, mark files viewed, close/reopen, draft/ready | Repository → Pull requests: read and write |
+| Merge, auto-merge, merge queue, update branch, delete branch | Repository → Contents: read and write, Pull requests: read and write |
+| Re-run failed checks | Repository → Actions: read and write |
+| Star / unstar | Account → Starring: read and write |
+| Watch | Account → Watching: read and write |
+| Follow | Account → Followers: read and write |
+
+Limits of fine-grained tokens: each covers one owner (your account or one organization; an organization may
+need to approve it), so repos outside it don't show up; and the **Notifications** page doesn't work with them
+(GitHub's notifications API only accepts classic tokens). Switch Notifications off in the popup if you use one.
 
 ## How it works
 
@@ -48,7 +78,7 @@ Open github.com and paste a token when asked
   React app in a shadow root on `<html>` (so Turbo's body swaps can't remove it). Once GitHub's `<head>` has
   arrived (it says who's signed in), the rest of its page is stopped: none of its HTML body (~1 MB on a repo
   page) or scripts load underneath ours.
-- Data comes from GitHub's GraphQL API with your token (stored in `chrome.storage.local` only).
+- Data comes from GitHub's GraphQL and REST APIs with your token.
 - Links between owned pages swap in place (`pushState`), and so do GitHub links that point at them.
   Everything else is a normal page load. Back/forward onto owned pages is claimed before GitHub's router
   sees it.
@@ -57,7 +87,8 @@ Open github.com and paste a token when asked
   hovered, focused or pressed, so most in-app navigations find their data already there. Slow GitHub queries
   are split into parallel requests (GitHub resolves one query's fields one after another).
 - Results are cached in extension storage, per account, and shown at once on the next visit while the same
-  request refreshes them.
+  request refreshes them. A result that comes back unchanged isn't written again, and a small index keeps the
+  cache under 50 MB and a week old without reading the cache itself.
 - Code is drawn by [`@pierre/diffs`](https://diffs.com) with Shiki (diffs and the file view). It lives in a
   separate script that pull request and repo pages load while idle, and each language's grammar loads on
   first use, so every other page pays nothing for it.

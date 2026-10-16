@@ -127,7 +127,11 @@ const WATCH_LABEL: Record<Subscription, string> = { UNSUBSCRIBED: 'Watch', SUBSC
 /** Pin / Watch / Fork / Star, with optimistic counts. */
 function RepoActions({ repo, queryKey }: { repo: Repo; queryKey: unknown[] }) {
   const queryClient = useQueryClient();
-  const patch = (changes: Partial<Repo>) => queryClient.setQueryData<{ repository: Repo }>(queryKey, (d) => d && { repository: { ...d.repository, ...changes } });
+  // A refetch already in flight would land after the patch and flip it back, so it's cancelled first.
+  const patch = async (changes: Partial<Repo>) => {
+    await queryClient.cancelQueries({ queryKey });
+    queryClient.setQueryData<{ repository: Repo }>(queryKey, (d) => d && { repository: { ...d.repository, ...changes } });
+  };
   const rollback = (error: Error) => {
     toast.error(error);
     return queryClient.invalidateQueries({ queryKey });

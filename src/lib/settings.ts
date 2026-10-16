@@ -6,12 +6,23 @@ export type Surface = 'home' | 'profile' | 'pr' | 'issue' | 'repo' | 'work' | 'n
 
 export type Surfaces = Record<Surface, boolean>;
 
-/** GitHub token used for API calls. Stored only in extension local storage. */
+/** GitHub token used for API calls. Kept in extension local storage and sent only to api.github.com. */
 export const tokenItem = storage.defineItem<string>('local:token', { fallback: '' });
+
+/**
+ * Random id saved alongside the token and renewed whenever the token changes (see `saveToken` in persist.ts).
+ * Cached data is filed under it, so another account's never shows. '' before the first change.
+ */
+export const accountItem = storage.defineItem<string>('local:account', { fallback: '' });
 
 /** GitHub's "new token" page, prefilled with the scopes Unmerged uses. */
 export const NEW_TOKEN_URL =
   'https://github.com/settings/tokens/new?description=Unmerged&scopes=repo,read:org,read:user,user:follow,notifications';
+
+/** From github.com: opens Unmerged's settings page in a tab, where the token is entered (see background.ts). */
+export function openSettingsPage() {
+  browser.runtime.sendMessage('open-settings');
+}
 
 export const DEFAULT_SURFACES: Surfaces = { home: true, profile: true, pr: true, issue: true, repo: true, work: true, notifications: true };
 
