@@ -29,6 +29,15 @@
   }
 }
 
+/*
+ * The row j/k (or Tab) lands on. Rows opt out of the focus outline with `focus:outline-none`; this sits
+ * outside any layer so it beats those utilities, and an inset ring can't be clipped by overflow-hidden cards.
+ */
+.u-root [data-row]:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--u-accent) 70%, transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .u-root *, .u-root *::before, .u-root *::after {
     animation-duration: 1ms !important;

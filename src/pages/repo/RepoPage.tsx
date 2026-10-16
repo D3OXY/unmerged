@@ -95,7 +95,7 @@ function Toolbar({ repo, gitRef, path }: { repo: Repo; gitRef: string; path: str
   const [finding, setFinding] = useState(false);
   const segments = path ? path.split('/') : [];
   const openFinder = useCallback(() => setFinding(true), []);
-  usePageHotkey('t', openFinder);
+  usePageHotkey('t', openFinder, 'Go to file');
 
   const pinned = useIsPinned(repo.nameWithOwner);
   const commands = useMemo<Command[]>(

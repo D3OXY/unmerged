@@ -37,7 +37,7 @@ export function WorkList({ fallback, repo }: { fallback: string; repo?: string }
   const [draft, setDraft] = useState(q);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  usePageHotkey('/', useCallback(() => searchRef.current?.focus(), []));
+  usePageHotkey('/', useCallback(() => searchRef.current?.focus(), []), 'Search');
 
   useEffect(() => {
     setDraft(q);

@@ -17,6 +17,7 @@ import { WorkListPage } from '@/pages/work/WorkListPage';
 import { Toaster } from '@/ui/toast';
 import { CommandPalette } from './CommandPalette';
 import { SettingsDialog } from './SettingsDialog';
+import { ShortcutsDialog } from './ShortcutsDialog';
 import { Logo } from './Logo';
 import { appState, authRejected, githubBlock } from './state';
 import { TokenGate } from './TokenGate';
@@ -46,6 +47,7 @@ export function App() {
         ))}
       <CommandPalette />
       <SettingsDialog />
+      <ShortcutsDialog />
       <Toaster />
       <GitHubBanner />
     </>

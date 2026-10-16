@@ -63,5 +63,6 @@ Open github.com and paste a token when asked
 
 ## Shortcuts
 
-`⌘K` palette (commands, repo/people search, `owner/repo#123` jumps) · `j`/`k` move between rows ·
-`g h` home · `g p` your profile · `t` go to file (repo pages) · `⌘↵` send comment
+`⌘K` palette (commands, repo/people search, your PRs and issues by title, `owner/repo#123` jumps, or
+just `#123` inside a repo) · `j`/`k` move between rows · `g h` home · `g p` your profile · `t` go to file
+(repo pages) · `⌘↵` send comment · `?` every shortcut on the current page

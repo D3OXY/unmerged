@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Tick02Icon } from '@hugeicons/core-free-icons';
@@ -15,6 +15,9 @@ const GAP = 6;
  * Small popover select. The panel is portaled to the app root with fixed positioning, so clipping
  * parents (overflow-hidden cards, scrolling sidebars, blurred headers) can't cut it off. It sits under
  * its trigger, flips above when there's no room, and follows the trigger while anything scrolls.
+ *
+ * Opening moves focus to the checked option; ↑/↓, Home and End move between options. Choosing one, Escape
+ * or Tab closes the menu and puts focus back on the trigger.
  */
 export function Menu<T extends string>({
   value,
@@ -35,6 +38,26 @@ export function Menu<T extends string>({
   const panelRef = useRef<HTMLDivElement>(null);
 
   useDismiss([triggerRef, panelRef], open, useCallback(() => setOpen(false), []));
+
+  const close = () => {
+    setOpen(false);
+    triggerRef.current?.querySelector<HTMLElement>('button, a[href], [tabindex]')?.focus();
+  };
+
+  // The panel moves into a portal once placed, so focus it then (once, not on every scroll).
+  const placed = placement !== null;
+  useEffect(() => {
+    if (placed) panelRef.current?.querySelector<HTMLElement>('[aria-checked="true"], [role="menuitemradio"]')?.focus();
+  }, [placed]);
+
+  const onKeyDown = (e: KeyboardEvent) => {
+    const items = [...(panelRef.current?.querySelectorAll<HTMLElement>('[role="menuitemradio"]') ?? [])];
+    const index = items.findIndex((item) => item === e.target);
+    const moves: Record<string, HTMLElement | undefined> = { ArrowDown: items[(index + 1) % items.length], ArrowUp: items.at(index - 1), Home: items[0], End: items.at(-1) };
+    const target = moves[e.key];
+    if (target) (e.preventDefault(), target.focus());
+    else if (e.key === 'Escape' || e.key === 'Tab') (e.preventDefault(), close());
+  };
 
   useLayoutEffect(() => {
     if (!open) return setPlacement(null);
@@ -69,6 +92,7 @@ export function Menu<T extends string>({
     <div
       ref={panelRef}
       role="menu"
+      onKeyDown={onKeyDown}
       style={placement ? { top: placement.top, left: placement.left, right: placement.right } : { visibility: 'hidden' }}
       className="fixed z-[60] max-h-80 w-64 animate-pop overflow-y-auto rounded-xl border border-line-strong bg-elevated p-1 shadow-2xl shadow-black/30"
     >
@@ -78,9 +102,10 @@ export function Menu<T extends string>({
           type="button"
           role="menuitemradio"
           aria-checked={option.value === value}
+          tabIndex={-1}
           onClick={() => {
             onChange(option.value);
-            setOpen(false);
+            close();
           }}
           className="flex w-full cursor-pointer items-start gap-2 rounded-lg px-2.5 py-2 text-left hover:bg-hover"
         >

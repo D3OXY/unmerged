@@ -40,6 +40,7 @@
   50% { opacity: 0.45; }
 }
 
+/* Text colors keep at least 4.5:1 (WCAG AA) against bg, panel and elevated in both themes; subtle is the floor. */
 .u-root {
   --u-bg: #fcfcfd;
   --u-panel: #ffffff;
@@ -49,7 +50,7 @@
   --u-border-strong: rgb(0 0 0 / 0.14);
   --u-fg: #1b1c1f;
   --u-muted: #62666d;
-  --u-subtle: #9a9ea6;
+  --u-subtle: #6b6f76;
   --u-accent: #5e6ad2;
   --u-accent-fg: #ffffff;
   --u-green: #2f9e6b;
@@ -69,7 +70,7 @@
   --u-border-strong: rgb(255 255 255 / 0.13);
   --u-fg: #f7f8f8;
   --u-muted: #8a8f98;
-  --u-subtle: #5d6168;
+  --u-subtle: #7e828a;
   --u-accent: #7170ff;
   --u-accent-fg: #ffffff;
   --u-green: #4cb782;
