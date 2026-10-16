@@ -4,6 +4,7 @@ import { tokenItem, useStorageItem } from '@/lib/settings';
 import { leaveClassic } from '@/lib/classic';
 import type { ProfileTab } from '@/lib/routes';
 import { formatTime } from '@/lib/time';
+import { CommitPage } from '@/pages/commit/CommitPage';
 import { HomePage } from '@/pages/home/HomePage';
 import { NotificationsPage } from '@/pages/notifications/NotificationsPage';
 import { AchievementsPage } from '@/pages/profile/AchievementsPage';
@@ -41,6 +42,7 @@ export function App() {
       {route.kind === 'profile' && <ProfileRoute key={route.login} login={route.login} tab={route.tab} />}
       {route.kind === 'pr' && <PrPage key={`${route.owner}/${route.repo}#${route.number}`} {...route} />}
       {route.kind === 'issue' && <IssuePage key={`${route.owner}/${route.repo}#${route.number}`} {...route} />}
+      {route.kind === 'commit' && <CommitPage key={`${route.owner}/${route.repo}@${route.sha}`.toLowerCase()} {...route} />}
       {route.kind === 'repo' &&
         (route.view === 'issues' || route.view === 'pulls' ? (
           <RepoListPage key={`${route.owner}/${route.repo}/${route.view}`.toLowerCase()} owner={route.owner} repo={route.repo} tab={route.view} />
