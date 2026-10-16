@@ -1,16 +1,18 @@
 import type { ReactNode } from 'react';
+import type { QueryKey } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Cancel01Icon, CircleDotIcon, Comment01Icon, Delete02Icon, GitCommitHorizontalIcon, GitMergeIcon, GitPullRequestDraftIcon, PencilEdit02Icon, Tag01Icon, Tick02Icon, UndoIcon, Upload01Icon, ViewIcon } from '@hugeicons/core-free-icons';
+import { Cancel01Icon, CircleDotIcon, Comment01Icon, Delete02Icon, FlashIcon, FlashOffIcon, GitCommitHorizontalIcon, GitMergeIcon, GitPullRequestDraftIcon, Link02Icon, PencilEdit02Icon, Tag01Icon, Tick02Icon, UndoIcon, Unlink02Icon, Upload01Icon, UserAdd01Icon, UserRemove01Icon, ViewIcon, ViewOffIcon } from '@hugeicons/core-free-icons';
 import type { Actor } from '@/github/types';
 import { openClassic } from '@/lib/classic';
 import { cx } from '@/lib/cx';
 import { fullDate, timeAgo } from '@/lib/time';
 import { Avatar, Markdown, Pill } from '@/ui/primitives';
-import { CheckIcon } from '@/ui/status';
-import type { ReviewState, TimelineItem } from './query';
+import { CheckIcon, IssueIcon, PrStateIcon } from '@/ui/status';
+import { CommentBody, type Editable } from './CommentBody';
+import type { Reference, ReviewState, TimelineItem } from './query';
 
 /** Activity feed: comments as cards, everything else as quiet one-liners on a rail. */
-export function Timeline({ items, hiddenCount }: { items: TimelineItem[]; hiddenCount: number }) {
+export function Timeline({ items, hiddenCount, queryKey }: { items: TimelineItem[]; hiddenCount: number; queryKey: QueryKey }) {
   return (
     <div className="relative">
       <div className="absolute top-2 bottom-2 left-[15px] w-px bg-line" />
@@ -23,16 +25,16 @@ export function Timeline({ items, hiddenCount }: { items: TimelineItem[]; hidden
         </EventLine>
       )}
       {items.map((item) => (
-        <TimelineEntry key={item.id} item={item} />
+        <TimelineEntry key={item.id} item={item} queryKey={queryKey} />
       ))}
     </div>
   );
 }
 
-function TimelineEntry({ item }: { item: TimelineItem }) {
+function TimelineEntry({ item, queryKey }: { item: TimelineItem; queryKey: QueryKey }) {
   switch (item.__typename) {
     case 'IssueComment':
-      return <CommentCard author={item.author} createdAt={item.createdAt} html={item.bodyHTML} />;
+      return <CommentCard author={item.author} createdAt={item.createdAt} html={item.bodyHTML} editable={{ kind: 'comment', node: item, queryKey }} />;
     case 'PullRequestReview':
       return <Review item={item} />;
     case 'PullRequestCommit': {
@@ -90,7 +92,81 @@ function TimelineEntry({ item }: { item: TimelineItem }) {
         </EventLine>
       );
     }
+    case 'CrossReferencedEvent':
+      return (
+        <EventLine icon={<HugeiconsIcon icon={Link02Icon} />} actor={item.actor} at={item.createdAt}>
+          mentioned this in <RefLink subject={item.source} />
+        </EventLine>
+      );
+    case 'ConnectedEvent':
+      return (
+        <EventLine icon={<HugeiconsIcon icon={Link02Icon} />} actor={item.actor} at={item.createdAt}>
+          linked <RefLink subject={item.subject} />
+        </EventLine>
+      );
+    case 'DisconnectedEvent':
+      return (
+        <EventLine icon={<HugeiconsIcon icon={Unlink02Icon} />} actor={item.actor} at={item.createdAt}>
+          unlinked <RefLink subject={item.subject} />
+        </EventLine>
+      );
+    case 'AssignedEvent':
+    case 'UnassignedEvent': {
+      const assigned = item.__typename === 'AssignedEvent';
+      const who = item.assignee?.login;
+      return (
+        <EventLine icon={<HugeiconsIcon icon={assigned ? UserAdd01Icon : UserRemove01Icon} />} actor={item.actor} at={item.createdAt}>
+          {who === item.actor?.login ? (
+            assigned ? 'self-assigned this' : 'removed their assignment'
+          ) : (
+            <>
+              {assigned ? 'assigned' : 'unassigned'} <span className="font-medium text-fg/90">{who}</span>
+            </>
+          )}
+        </EventLine>
+      );
+    }
+    case 'UnlabeledEvent':
+      return (
+        <EventLine icon={<HugeiconsIcon icon={Tag01Icon} />} actor={item.actor} at={item.createdAt}>
+          removed <Pill color={item.label.color}>{item.label.name}</Pill>
+        </EventLine>
+      );
+    case 'ReviewDismissedEvent': {
+      const reviewer = item.review?.author?.login;
+      return (
+        <EventLine icon={<HugeiconsIcon icon={ViewOffIcon} />} actor={item.actor} at={item.createdAt}>
+          <span className="shrink-0">
+            dismissed {reviewer ? <><span className="font-medium text-fg/90">{reviewer}</span>'s</> : 'a'} review
+          </span>
+          {item.dismissalMessage && <span className="min-w-0 truncate text-subtle" title={item.dismissalMessage}>: {item.dismissalMessage}</span>}
+        </EventLine>
+      );
+    }
+    case 'AutoMergeEnabledEvent':
+      return <EventLine icon={<HugeiconsIcon icon={FlashIcon} />} actor={item.actor} at={item.createdAt}>enabled auto-merge</EventLine>;
+    case 'AutoMergeDisabledEvent':
+      return <EventLine icon={<HugeiconsIcon icon={FlashOffIcon} />} actor={item.actor} at={item.createdAt}>disabled auto-merge</EventLine>;
+    case 'BaseRefForcePushedEvent':
+      return (
+        <EventLine icon={<HugeiconsIcon icon={Upload01Icon} />} actor={item.actor} at={item.createdAt}>
+          force-pushed the base branch{item.ref && <code className="font-mono text-fg/90">{item.ref.name}</code>}
+        </EventLine>
+      );
   }
+}
+
+/** An issue or pull request named in an event, with its state icon. */
+function RefLink({ subject }: { subject: Reference }) {
+  return (
+    <a href={subject.url} className="flex min-w-0 items-center gap-1 text-fg/90 hover:underline">
+      {subject.__typename === 'Issue' ? <IssueIcon state={subject.state} stateReason={subject.stateReason} className="size-3.5" /> : <PrStateIcon state={subject.state} className="size-3.5" />}
+      <span className="truncate">{subject.title}</span>
+      <span className="shrink-0 text-subtle">
+        {subject.repository.nameWithOwner}#{subject.number}
+      </span>
+    </a>
+  );
 }
 
 const REVIEW_COPY: Record<ReviewState, { verb: string; icon: ReactNode; tone?: 'success' | 'danger' }> = {
@@ -114,7 +190,20 @@ function Review({ item }: { item: Extract<TimelineItem, { __typename: 'PullReque
   );
 }
 
-export function CommentCard({ author, createdAt, html, nested }: { author: Actor; createdAt: string; html: string; nested?: boolean }) {
+/** Says how many of something were cut off by our query's page size, with a way to see them. */
+export function MoreOnGitHub({ count, noun, className }: { count: number; noun: string; className?: string }) {
+  return (
+    <p className={cx('text-[12px] text-subtle', className)}>
+      {count} more {noun} on GitHub ·{' '}
+      <button type="button" onClick={openClassic} className="cursor-pointer text-accent hover:underline">
+        View in classic
+      </button>
+    </p>
+  );
+}
+
+/** A comment in a card. `editable` adds reactions and, where allowed, edit and delete. */
+export function CommentCard({ author, createdAt, html, nested, editable }: { author: Actor; createdAt: string; html: string; nested?: boolean; editable?: Editable }) {
   return (
     <div className={cx('relative py-2.5', nested ? 'pl-10' : 'pl-0')}>
       <div className="flex gap-3">
@@ -130,7 +219,9 @@ export function CommentCard({ author, createdAt, html, nested }: { author: Actor
               {timeAgo(createdAt)}
             </span>
           </div>
-          <div className="px-4 py-3">{html ? <Markdown html={html} /> : <span className="text-subtle italic">No description provided.</span>}</div>
+          <div className="px-4 py-3">
+            {editable ? <CommentBody html={html} {...editable} /> : html ? <Markdown html={html} /> : <span className="text-subtle italic">No description provided.</span>}
+          </div>
         </div>
       </div>
     </div>

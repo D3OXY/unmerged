@@ -7,8 +7,10 @@ import { useDraft } from '@/lib/drafts';
 import { timeAgo } from '@/lib/time';
 import { Button } from '@/ui/Button';
 import { CommentBox } from '@/ui/CommentBox';
-import { Avatar, Markdown, Pill, SectionHeader } from '@/ui/primitives';
+import { Avatar, Pill, SectionHeader } from '@/ui/primitives';
+import { CommentBody } from './CommentBody';
 import { MUTATIONS, type ReviewThread } from './query';
+import { MoreOnGitHub } from './Timeline';
 import { usePrMutation } from './usePrMutation';
 
 /** Inline review threads pulled up into the conversation, unresolved first. */
@@ -70,7 +72,7 @@ export function Thread({ thread, queryKey, inline }: { thread: ReviewThread; que
           )}
         </button>
         {thread.isOutdated && <Pill>Outdated</Pill>}
-        <span className="ml-auto text-[12px] text-subtle">{thread.comments.nodes.length} comments</span>
+        <span className="ml-auto text-[12px] text-subtle">{thread.comments.totalCount} comments</span>
         {(thread.isResolved ? thread.viewerCanUnresolve : thread.viewerCanResolve) && (
           <Button
             size="sm"
@@ -110,11 +112,14 @@ export function Thread({ thread, queryKey, inline }: { thread: ReviewThread; que
                     <span className="font-semibold">{comment.author?.login}</span> <span className="text-subtle">{timeAgo(comment.createdAt)}</span>
                     {comment.state === 'PENDING' && <Pill className="ml-1.5 h-[18px] border-warning/40 text-warning">Pending</Pill>}
                   </div>
-                  <Markdown html={comment.bodyHTML} className="text-[13px]" />
+                  <CommentBody html={comment.bodyHTML} className="text-[13px]" kind="reviewComment" node={comment} queryKey={queryKey} />
                 </div>
               </div>
             ))}
           </div>
+          {thread.comments.totalCount > thread.comments.nodes.length && (
+            <MoreOnGitHub count={thread.comments.totalCount - thread.comments.nodes.length} noun="replies" className="border-t border-line px-4 py-2" />
+          )}
           {thread.viewerCanReply && <ThreadReply thread={thread} queryKey={queryKey} />}
         </>
       )}

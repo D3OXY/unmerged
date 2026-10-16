@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { BrowserIcon, Comment01Icon, ComputerTerminal01Icon, Copy01Icon, FileDiffIcon, GitCommitHorizontalIcon, GitPullRequestDraftIcon, Link02Icon, TaskDone01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
+import { BrowserIcon, Comment01Icon, ComputerTerminal01Icon, Copy01Icon, FileDiffIcon, GitCommitHorizontalIcon, GitPullRequestDraftIcon, Link02Icon, PencilEdit02Icon, TaskDone01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { useRegisterCommands, type Command } from '@/app/commands';
 import { PageHeader, Shell } from '@/app/Shell';
 import { openClassic } from '@/lib/classic';
@@ -21,7 +21,7 @@ import { ChecksTab } from './ChecksTab';
 import { CommitsTab } from './CommitsTab';
 import { ConversationTab } from './ConversationTab';
 import { FilesTab } from './files/FilesTab';
-import { isSettling, MUTATIONS, prFilesQuery, prQuery, prStatusQuery, prViewedQuery, type PullRequest, type Repo } from './query';
+import { EDIT_MUTATIONS, isSettling, MUTATIONS, prFilesQuery, prQuery, prStatusQuery, prViewedQuery, type PullRequest, type Repo } from './query';
 import { usePrMutation } from './usePrMutation';
 
 type Props = { owner: string; repo: string; number: number; tab: PrTab };
@@ -177,9 +177,7 @@ function PrView({ pr, repo, tab, queryKey, poll }: { pr: PullRequest; repo: Repo
   return (
     <div className={cx('mx-auto animate-enter px-6 pt-8 pb-8', tab === 'files' ? 'max-w-[1600px]' : 'max-w-[1240px]')}>
       <div className="max-w-[860px]">
-        <h1 className="text-[24px] leading-tight font-semibold tracking-tight">
-          {pr.title} <span className="font-normal text-subtle">#{pr.number}</span>
-        </h1>
+        <PrTitle pr={pr} queryKey={queryKey} />
         <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-2 text-[13px] text-muted">
           <PrStateBadge state={pr.state} isDraft={pr.isDraft} />
           {pr.author && (
@@ -229,6 +227,58 @@ function PrView({ pr, repo, tab, queryKey, poll }: { pr: PullRequest; repo: Repo
       {tab === 'checks' && <ChecksTab pr={pr} watching={poll.watching} onRerun={poll.watch} />}
       {tab === 'files' && <FilesTab pr={pr} queryKey={queryKey} />}
     </div>
+  );
+}
+
+/** The title, edited in place by whoever can update the PR. Enter saves, Esc cancels. */
+function PrTitle({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const save = usePrMutation(queryKey);
+
+  if (draft === null) {
+    return (
+      <h1 className="group/title text-[24px] leading-tight font-semibold tracking-tight">
+        {pr.title} <span className="font-normal text-subtle">#{pr.number}</span>
+        {pr.viewerCanUpdate && (
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label="Edit title"
+            title="Edit title"
+            icon={<HugeiconsIcon icon={PencilEdit02Icon} className="size-4" />}
+            onClick={() => setDraft(pr.title)}
+            className="ml-1 align-middle opacity-0 group-hover/title:opacity-100 focus-visible:opacity-100"
+          />
+        )}
+      </h1>
+    );
+  }
+
+  const title = draft.trim();
+  return (
+    <form
+      className="flex items-center gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (title === pr.title) return setDraft(null);
+        save.mutate({ query: EDIT_MUTATIONS.updateTitle, variables: { id: pr.id, title } }, { onSuccess: () => setDraft(null) });
+      }}
+    >
+      <input
+        autoFocus
+        aria-label="Title"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => e.key === 'Escape' && setDraft(null)}
+        className="h-10 min-w-0 flex-1 rounded-lg border border-line bg-bg px-3 text-[20px] font-semibold tracking-tight outline-none focus:border-accent/60"
+      />
+      <Button type="submit" variant="primary" disabled={!title} loading={save.isPending}>
+        Save
+      </Button>
+      <Button variant="ghost" onClick={() => setDraft(null)}>
+        Cancel
+      </Button>
+    </form>
   );
 }
 
