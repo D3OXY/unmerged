@@ -10,6 +10,7 @@ import { AchievementsPage } from '@/pages/profile/AchievementsPage';
 import { FollowsPage } from '@/pages/profile/FollowsPage';
 import { ProfilePage } from '@/pages/profile/ProfilePage';
 import { RepositoriesPage } from '@/pages/profile/RepositoriesPage';
+import { IssuePage } from '@/pages/issue/IssuePage';
 import { PrPage } from '@/pages/pr/PrPage';
 import { RepoListPage } from '@/pages/repo/RepoListPage';
 import { RepoPage } from '@/pages/repo/RepoPage';
@@ -39,6 +40,7 @@ export function App() {
       {route.kind === 'notifications' && <NotificationsPage />}
       {route.kind === 'profile' && <ProfileRoute key={route.login} login={route.login} tab={route.tab} />}
       {route.kind === 'pr' && <PrPage key={`${route.owner}/${route.repo}#${route.number}`} {...route} />}
+      {route.kind === 'issue' && <IssuePage key={`${route.owner}/${route.repo}#${route.number}`} {...route} />}
       {route.kind === 'repo' &&
         (route.view === 'issues' || route.view === 'pulls' ? (
           <RepoListPage key={`${route.owner}/${route.repo}/${route.view}`.toLowerCase()} owner={route.owner} repo={route.repo} tab={route.view} />

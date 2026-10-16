@@ -20,6 +20,7 @@ export type Route =
   | { kind: 'notifications' }
   | { kind: 'profile'; login: string; tab: ProfileTab }
   | { kind: 'pr'; owner: string; repo: string; number: number; tab: PrTab }
+  | { kind: 'issue'; owner: string; repo: string; number: number }
   /**
    * A repo: code browser for /owner/repo, /tree/… and /blob/…, history for /commits/…, and the /issues and
    * /pulls lists. `rest` is "<ref>/<path…>" split on "/" (empty for the lists); branch names can contain
@@ -71,6 +72,7 @@ export function matchRoute(url: URL): Route | null {
     if ((third === 'tree' || third === 'blob') && parts.length > 3) return { kind: 'repo', owner: first, repo: second, view: 'code', rest: parts.slice(3) };
     if (third === 'commits') return { kind: 'repo', owner: first, repo: second, view: 'commits', rest: parts.slice(3) };
     if ((third === 'issues' || third === 'pulls') && parts.length === 3) return { kind: 'repo', owner: first, repo: second, view: third, rest: [] };
+    if (third === 'issues' && fourth && /^\d+$/.test(fourth) && parts.length === 4) return { kind: 'issue', owner: first, repo: second, number: Number(fourth) };
   }
 
   if (first && second && third === 'pull' && fourth && /^\d+$/.test(fourth)) {
