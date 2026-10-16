@@ -6,11 +6,19 @@ TypeScript 7, pnpm. README.md explains the user-facing behaviour; this file cove
 ## Commands
 
 - `pnpm install` first: it runs `wxt prepare`, which generates `.wxt/tsconfig.json` (our tsconfig extends it).
-- `pnpm check` before a PR: typecheck, tests, lint, Chrome build. CI runs it plus `pnpm build:firefox`.
+- `pnpm check` before a PR: typecheck, tests, lint, Chrome build, site build. CI runs it plus `pnpm build:firefox`.
 - `pnpm test` (Vitest with WXT's plugin and happy-dom; tests sit next to the code as `*.test.ts`), `pnpm lint`
   (ESLint: Hooks rules and typescript-eslint's recommended set; no formatter), `pnpm typecheck`.
 - `typescript` in package.json is an alias for the TypeScript 6 API package, which typescript-eslint needs;
   `tsc` itself is TypeScript 7 (`@typescript/native`). Don't "fix" the alias.
+
+## Website (`site/`)
+
+- unmerged.deoxy.dev: a TanStack Start app, its own package in the pnpm workspace (`pnpm site` for dev).
+  Everything is prerendered; `site/dist/client` is the deployable output.
+- It reuses the extension's `src/ui/tokens.css`, fonts and logo by relative path, so changing those changes
+  the site too. Its copy makes claims about the extension (pages, speed numbers, privacy): keep them true.
+- The root tsconfig excludes `site/`; the site has its own tsconfig. ESLint covers both.
 
 ## Content-script lifecycle (`src/entrypoints/github.content/index.tsx`)
 

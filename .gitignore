@@ -4,3 +4,5 @@ node_modules
 .e2e
 *.log
 .DS_Store
+dist
+.tanstack

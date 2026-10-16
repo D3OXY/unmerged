@@ -1,0 +1,48 @@
+@import 'tailwindcss';
+/* The extension's own tokens and fonts, so the site and the product can't drift apart. */
+@import '../../src/ui/tokens.css';
+
+@font-face {
+  font-family: 'Geist';
+  src: url('../../public/fonts/geist.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('../../public/fonts/geist-mono.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@layer base {
+  html {
+    background: var(--u-bg);
+    scroll-behavior: smooth;
+  }
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv11', 'ss01';
+    -webkit-font-smoothing: antialiased;
+    background: var(--u-bg);
+    color: var(--u-fg);
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--u-accent) 35%, transparent);
+  }
+  :focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--u-accent) 70%, transparent);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}

@@ -4,7 +4,7 @@ import tseslint from 'typescript-eslint';
 
 // Correctness only: Hooks rules plus typescript-eslint's recommended set. Formatting is left alone.
 export default defineConfig(
-  { ignores: ['.output', '.wxt'] },
+  { ignores: ['.output', '.wxt', 'site/dist', 'site/.tanstack', 'site/src/routeTree.gen.ts'] },
   tseslint.configs.recommended,
   {
     plugins: { 'react-hooks': reactHooks },

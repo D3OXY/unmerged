@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "lint": "eslint .",
-    "check": "pnpm typecheck && pnpm test && pnpm lint && pnpm build",
+    "check": "pnpm typecheck && pnpm test && pnpm lint && pnpm build && pnpm --filter site check",
+    "site": "pnpm --filter site dev",
     "postinstall": "wxt prepare"
   },
   "dependencies": {
