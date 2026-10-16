@@ -202,7 +202,6 @@ export function ProfilePage({ login }: { login: string }) {
             </div>
 
             <aside className="flex flex-col gap-8">
-              <Achievements login={user.login} />
               <Languages repos={user.repositories.nodes} />
               <section>
                 <SectionHeader title="Recent pull requests" />
@@ -234,60 +233,66 @@ export function ProfilePage({ login }: { login: string }) {
   );
 }
 
+/** Identity on the left; counts and achievements in a card lined up with the right-hand column below. */
 function ProfileHeader({ user }: { user: Profile }) {
   const website = user.websiteUrl && (user.websiteUrl.startsWith('http') ? user.websiteUrl : `https://${user.websiteUrl}`);
   return (
-    <div className="flex flex-col gap-6 md:flex-row md:items-start">
-      <Avatar src={user.avatarUrl} size={96} className="ring-4 ring-bg outline outline-line" />
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h1 className="text-[26px] font-semibold tracking-tight">{user.name ?? user.login}</h1>
-          {user.status?.message && (
-            <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-line bg-panel px-2.5 text-[12px] text-muted">
-              {user.status.emojiHTML && <span className="text-[12px]" dangerouslySetInnerHTML={{ __html: user.status.emojiHTML }} />}
-              {user.status.message}
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+      <div className="flex min-w-0 flex-col gap-6 sm:flex-row sm:items-start">
+        <Avatar src={user.avatarUrl} size={96} className="ring-4 ring-bg outline outline-line" />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h1 className="text-[26px] font-semibold tracking-tight">{user.name ?? user.login}</h1>
+            {user.status?.message && (
+              <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-line bg-panel px-2.5 text-[12px] text-muted">
+                {user.status.emojiHTML && <span className="text-[12px]" dangerouslySetInnerHTML={{ __html: user.status.emojiHTML }} />}
+                {user.status.message}
+              </span>
+            )}
+          </div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] text-muted">
+            <span>
+              @{user.login}
+              {user.pronouns && <span className="text-subtle"> · {user.pronouns}</span>}
             </span>
-          )}
-        </div>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] text-muted">
-          <span>
-            @{user.login}
-            {user.pronouns && <span className="text-subtle"> · {user.pronouns}</span>}
-          </span>
-          {user.isFollowingViewer && <Pill>Follows you</Pill>}
-          {BADGES.filter(([flag]) => user[flag]).map(([flag, label]) => (
-            <Pill key={flag}>{label}</Pill>
-          ))}
-        </div>
-        {user.bio && <p className="mt-3 max-w-[640px] text-[14px] leading-relaxed text-fg/90">{user.bio}</p>}
+            {user.isFollowingViewer && <Pill>Follows you</Pill>}
+            {BADGES.filter(([flag]) => user[flag]).map(([flag, label]) => (
+              <Pill key={flag}>{label}</Pill>
+            ))}
+          </div>
+          {user.bio && <p className="mt-3 max-w-[640px] text-[14px] leading-relaxed text-fg/90">{user.bio}</p>}
 
-        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[12.5px] text-muted">
-          {user.company && <Meta icon={<Building2 />}>{user.company}</Meta>}
-          {user.location && <Meta icon={<MapPin />}>{user.location}</Meta>}
-          {website && (
-            <Meta icon={<Link2 />}>
-              <a href={website} target="_blank" rel="noreferrer" className="hover:text-fg">
-                {website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-              </a>
-            </Meta>
-          )}
-          {user.socialAccounts.nodes.map((account) => (
-            <Meta key={account.url} icon={account.provider === 'TWITTER' ? <span className="text-[11px] font-semibold">𝕏</span> : <AtSign />}>
-              <a href={account.url} target="_blank" rel="noreferrer" title={account.provider.toLowerCase()} className="hover:text-fg">
-                {account.displayName}
-              </a>
-            </Meta>
-          ))}
-          <Meta icon={<CalendarDays />}>Joined {formatMonthYear(user.createdAt)}</Meta>
+          <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[12.5px] text-muted">
+            {user.company && <Meta icon={<Building2 />}>{user.company}</Meta>}
+            {user.location && <Meta icon={<MapPin />}>{user.location}</Meta>}
+            {website && (
+              <Meta icon={<Link2 />}>
+                <a href={website} target="_blank" rel="noreferrer" className="hover:text-fg">
+                  {website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                </a>
+              </Meta>
+            )}
+            {user.socialAccounts.nodes.map((account) => (
+              <Meta key={account.url} icon={account.provider === 'TWITTER' ? <span className="text-[11px] font-semibold">𝕏</span> : <AtSign />}>
+                <a href={account.url} target="_blank" rel="noreferrer" title={account.provider.toLowerCase()} className="hover:text-fg">
+                  {account.displayName}
+                </a>
+              </Meta>
+            ))}
+            <Meta icon={<CalendarDays />}>Joined {formatMonthYear(user.createdAt)}</Meta>
+          </div>
         </div>
       </div>
 
-      <div className="flex gap-2 md:pt-1">
-        <Count href={`/${user.login}?tab=followers`} value={user.followers.totalCount} label="Followers" />
-        <Count href={`/${user.login}?tab=following`} value={user.following.totalCount} label="Following" />
-        <Count href={`/${user.login}?tab=stars`} value={user.starredRepositories.totalCount} label="Stars" />
-        {user.hasSponsorsListing && <Count href={`/sponsors/${user.login}`} value={user.sponsors.totalCount} label="Sponsors" />}
-      </div>
+      <Panel className="overflow-hidden">
+        <div className="grid auto-cols-fr grid-flow-col divide-x divide-line">
+          <Count href={`/${user.login}?tab=followers`} value={user.followers.totalCount} label="Followers" />
+          <Count href={`/${user.login}?tab=following`} value={user.following.totalCount} label="Following" />
+          <Count href={`/${user.login}?tab=stars`} value={user.starredRepositories.totalCount} label="Stars" />
+          {user.hasSponsorsListing && <Count href={`/sponsors/${user.login}`} value={user.sponsors.totalCount} label="Sponsors" />}
+        </div>
+        <Achievements login={user.login} />
+      </Panel>
     </div>
   );
 }
@@ -303,8 +308,8 @@ function Meta({ icon, children }: { icon: ReactNode; children: ReactNode }) {
 
 function Count({ href, value, label }: { href: string; value: number; label: string }) {
   return (
-    <a href={href} className="min-w-[84px] rounded-xl border border-line bg-panel px-3.5 py-2.5 transition-colors hover:border-line-strong">
-      <div className="text-[18px] font-semibold tracking-tight tabular-nums">{formatCount(value)}</div>
+    <a href={href} className="min-w-0 px-3.5 py-3 transition-colors hover:bg-hover">
+      <div className="text-[17px] font-semibold tracking-tight tabular-nums">{formatCount(value)}</div>
       <div className="text-[11.5px] text-muted">{label}</div>
     </a>
   );
@@ -444,30 +449,30 @@ function Contributions({ user }: { user: Profile }) {
 
 const METALS: Record<string, string> = { bronze: '#c38b5f', silver: '#a5b1bd', gold: '#e3b341' };
 
+/** The header card's lower half. Placeholders while loading; gone entirely when there are none. */
 function Achievements({ login }: { login: string }) {
-  const { data } = useQuery({
+  const { data, isPending } = useQuery({
     queryKey: ['achievements', login.toLowerCase()],
     queryFn: () => fetchAchievements(login),
     staleTime: 60 * 60_000,
   });
-  if (!data?.length) return null;
+  if (!isPending && !data?.length) return null;
   return (
-    <section>
-      <SectionHeader
-        title="Achievements"
-        count={data.length}
-        action={
-          <a href={`/${login}?tab=achievements`} className="flex items-center gap-1 text-[12px] text-subtle hover:text-fg">
-            View all <ArrowUpRight className="size-3" />
-          </a>
-        }
-      />
-      <div className="flex flex-wrap gap-2">
-        {data.map((achievement) => (
-          <AchievementBadge key={achievement.slug} login={login} achievement={achievement} />
-        ))}
+    <div className="border-t border-line px-3.5 pt-3 pb-3.5">
+      <div className="mb-2.5 flex items-center justify-between text-[12px]">
+        <span className="font-medium text-muted">
+          Achievements {data && <span className="font-normal text-subtle tabular-nums">{data.length}</span>}
+        </span>
+        <a href={`/${login}?tab=achievements`} className="flex items-center gap-1 text-subtle hover:text-fg">
+          View all <ArrowUpRight className="size-3" />
+        </a>
       </div>
-    </section>
+      <div className="flex flex-wrap gap-2">
+        {data
+          ? data.map((achievement) => <AchievementBadge key={achievement.slug} login={login} achievement={achievement} />)
+          : Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="size-12 rounded-full" />)}
+      </div>
+    </div>
   );
 }
 
@@ -479,10 +484,10 @@ function AchievementBadge({ login, achievement: { slug, name, image, tier } }: {
       title={tier ? `${name} ${tier.label}` : name}
       className="relative transition-transform hover:scale-105"
     >
-      <img src={image} alt={name} className="size-16" />
+      <img src={image} alt={name} className="size-12" />
       {tier && (
         <span
-          className="absolute right-0 bottom-0 rounded-full border border-line-strong bg-elevated px-1.5 text-[10.5px] leading-4 font-semibold"
+          className="absolute -right-1 -bottom-0.5 rounded-full border border-line-strong bg-elevated px-1 text-[9.5px] leading-[14px] font-semibold"
           style={metal ? { color: metal, borderColor: `color-mix(in srgb, ${metal} 45%, transparent)` } : undefined}
         >
           {tier.label}
