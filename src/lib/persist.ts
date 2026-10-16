@@ -1,5 +1,6 @@
 import type { Query } from '@tanstack/react-query';
 import { storage, type StorageItemKey } from '#imports';
+import { clearDrafts } from './drafts';
 import { accountItem, tokenItem } from './settings';
 
 /** Stored results older than this aren't shown, and the next trim drops them. */
@@ -51,13 +52,18 @@ export function trimPersisted() {
   return enqueue(async () => writeTrimmed(await indexItem.getValue()));
 }
 
-/** Saves the token ('' disconnects) under a new account id, and drops every other account's stored results. */
+/**
+ * Saves the token ('' disconnects) under a new account id, and drops every other account's stored results and
+ * comment drafts.
+ */
 export async function saveToken(token: string) {
   await storage.setItems([
     { item: tokenItem, value: token },
     { item: accountItem, value: crypto.randomUUID().slice(0, 8) },
   ]);
   await trimPersisted();
+  // After the trim, so listing the keys doesn't load the old account's results.
+  await clearDrafts();
 }
 
 /**

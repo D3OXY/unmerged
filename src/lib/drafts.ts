@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { storage } from '#imports';
+import { browser, storage } from '#imports';
 
 type DraftKey = `local:draft:${string}`;
 
@@ -50,4 +50,10 @@ function save(id: DraftKey, text: string) {
       else storage.removeItem(id);
     }, 500),
   );
+}
+
+/** Drops every saved draft: they quote the account's (possibly private) repos. Run when the account changes. */
+export async function clearDrafts() {
+  const drafts = Object.keys(await browser.storage.local.get(null)).filter((key) => key.startsWith('draft:'));
+  if (drafts.length) await browser.storage.local.remove(drafts);
 }
