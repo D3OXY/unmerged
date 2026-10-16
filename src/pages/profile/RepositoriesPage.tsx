@@ -82,7 +82,7 @@ export function RepositoriesPage({ login }: { login: string }) {
   useEffect(() => writeFilters(filters), [filters]);
 
   const searchRef = useRef<HTMLInputElement>(null);
-  usePageHotkey('/', useCallback(() => searchRef.current?.focus(), []));
+  usePageHotkey('/', useCallback(() => searchRef.current?.focus(), []), 'Find a repository');
 
   const repos = useMemo(() => query.data?.pages.flatMap((page) => page?.nodes ?? []) ?? [], [query.data]);
   const total = query.data?.pages[0]?.totalCount ?? 0;

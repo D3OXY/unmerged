@@ -144,6 +144,7 @@ export function NotificationsPage() {
       rows[rows.indexOf(row) + 1]?.focus();
       markDone.mutate(id);
     }, [markDone]),
+    'Done with the focused notification',
   );
 
   const open = (n: Notification) => {
