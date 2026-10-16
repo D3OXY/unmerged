@@ -2,6 +2,7 @@ import './style.css';
 import { createRoot, type Root } from 'react-dom/client';
 import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from '@/app/App';
+import { prefetchRoute } from '@/app/prefetch';
 import { installKeyboard } from '@/app/keyboard';
 import { appState, authRejected, type AppState } from '@/app/state';
 import { AuthError } from '@/github/client';
@@ -11,6 +12,7 @@ import { emitNavigate, isModifiedClick, navigate, onNavigate, setOwns } from '@/
 import { matchRoute, type Route } from '@/lib/routes';
 import { sessionLogin } from '@/lib/session';
 import { localCache } from '@/lib/localCache';
+import { trimPersisted } from '@/lib/persist';
 import { DEFAULT_SURFACES, isDark, surfacesItem, themeItem, type Surfaces, type Theme } from '@/lib/settings';
 
 const OWNING = 'unmerged-owning';
@@ -23,8 +25,10 @@ const DOCUMENT_CSS = `
   unmerged-app { display: block; }
 `;
 
-// Mirror of the theme setting in github.com's localStorage, read synchronously so first paint can't flash.
+// Mirrors of settings in github.com's localStorage, read synchronously before extension storage answers.
 const themeCache = localCache<Theme>('unmerged:theme');
+const surfacesCache = localCache<Surfaces>('unmerged:surfaces');
+const TRIMMED_KEY = 'unmerged:trimmed-at';
 
 export default defineContentScript({
   matches: ['https://github.com/*'],
@@ -54,7 +58,8 @@ export default defineContentScript({
     themeItem.watch(setTheme);
     ctx.addEventListener(matchMedia('(prefers-color-scheme: dark)'), 'change', applyTheme);
 
-    let surfaces: Surfaces = DEFAULT_SURFACES;
+    // Mirrored like the theme: the first decision below has to be right before extension storage answers.
+    let surfaces: Surfaces = surfacesCache.get() ?? DEFAULT_SURFACES;
     let mounted = false;
 
     /** Decides, for a URL, whether Unmerged owns the page, shows the classic pill, or stays out of the way. */
@@ -69,7 +74,41 @@ export default defineContentScript({
     setOwns((url) => !!resolve(url)?.owning);
 
     // Hide GitHub's page synchronously; mounting our UI is async (CSS load) and must not flash.
-    html.classList.toggle(OWNING, !!resolve(new URL(location.href))?.owning);
+    const initial = resolve(new URL(location.href));
+    html.classList.toggle(OWNING, !!initial?.owning);
+
+    // GitHub's page under ours is never shown, yet it would download (~1 MB of HTML on a repo page) and run
+    // its scripts, competing with ours. Its <head> has what we need (who's signed in, title, icon), so once
+    // the body starts, stop the rest. `window.stop()` also cancels requests already in flight, ours included,
+    // so on a page we own nothing of ours starts before it; the head arrives right after the response
+    // starts, about when this script runs anyway. Leaving our pages for one of GitHub's reloads (see sync).
+    let stopped = false;
+    const headParsed = new Promise<void>((done) => {
+      if (document.body) return done();
+      const observer = new MutationObserver(() => {
+        if (!document.body) return;
+        observer.disconnect();
+        done();
+      });
+      observer.observe(html, { childList: true });
+    });
+    if (initial?.owning) {
+      await headParsed;
+      if (resolve(new URL(location.href))?.owning) {
+        window.stop();
+        stopped = true;
+      }
+    }
+
+    // Made before the UI so the page's requests start now, not after React and our styles are ready.
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { staleTime: 30_000, refetchOnWindowFocus: true, retry: (n, err) => !(err instanceof AuthError) && n < 2 },
+      },
+      queryCache: new QueryCache({ onError: (err) => err instanceof AuthError && authRejected.set(true) }),
+    });
+    const start = resolve(new URL(location.href));
+    if (start?.owning) prefetchRoute(queryClient, start.route, new URL(location.href));
 
     const ui = await createShadowRootUi(ctx, {
       name: 'unmerged-app',
@@ -81,10 +120,6 @@ export default defineContentScript({
         container = element;
         container.classList.add('u-root');
         applyTheme();
-        const queryClient = new QueryClient({
-          defaultOptions: { queries: { refetchOnWindowFocus: true, retry: (n, err) => !(err instanceof AuthError) && n < 2 } },
-          queryCache: new QueryCache({ onError: (err) => err instanceof AuthError && authRejected.set(true) }),
-        });
         const root = createRoot(container);
         root.render(
           <QueryClientProvider client={queryClient}>
@@ -99,6 +134,8 @@ export default defineContentScript({
     const sync = (url: URL) => {
       clearClassicUnless(url.pathname);
       const result = resolve(url);
+      // GitHub's own page was never loaded; get it now.
+      if (stopped && !result?.owning) return location.reload();
       html.classList.toggle(OWNING, !!result?.owning);
       if (!result) {
         if (mounted) ui.remove();
@@ -116,19 +153,16 @@ export default defineContentScript({
     loadFonts();
     installKeyboard(ui.shadowHost, () => html.classList.contains(OWNING));
 
-    surfacesItem.getValue().then((value) => {
+    const setSurfaces = (value: Surfaces) => {
       surfaces = value;
+      surfacesCache.set(value);
       sync(new URL(location.href));
-    });
-    surfacesItem.watch((value) => {
-      surfaces = value;
-      sync(new URL(location.href));
-    });
+    };
+    surfacesItem.getValue().then(setSurfaces);
+    surfacesItem.watch(setSurfaces);
 
     // Once <head> is parsed we know whether the user is signed in (matters for the homepage).
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => sync(new URL(location.href)), { once: true });
-    }
+    headParsed.then(() => sync(new URL(location.href)));
 
     // Our own pushState navigations, back/forward, and GitHub's soft navigations.
     onNavigate(sync);
@@ -159,6 +193,34 @@ export default defineContentScript({
       ctx.setInterval(() => {
         if (location.href !== last) sync(new URL((last = location.href)));
       }, 250);
+    }
+
+    // Prefetch what a link to one of our pages will show: on a short hover (not on every pass of the mouse),
+    // on keyboard focus (j/k), and on press, ~100 ms before the click itself.
+    // (The link is looked up while the event dispatches: `composedPath()` is empty afterwards.)
+    const linkTarget = (event: Event) => {
+      const anchor = event.composedPath().find((el) => el instanceof HTMLAnchorElement);
+      if (!anchor?.href) return;
+      const url = new URL(anchor.href);
+      const target = url.origin === location.origin && url.href !== location.href ? resolve(url) : null;
+      return target?.owning ? () => prefetchRoute(queryClient, target.route, url) : undefined;
+    };
+    let hover: ReturnType<typeof setTimeout> | undefined;
+    ctx.addEventListener(document, 'pointerover', (event) => {
+      clearTimeout(hover);
+      const prefetch = linkTarget(event);
+      if (prefetch) hover = setTimeout(prefetch, 60);
+    });
+    ctx.addEventListener(document, 'pointerout', () => clearTimeout(hover));
+    ctx.addEventListener(document, 'pointerdown', (event) => linkTarget(event)?.(), { capture: true });
+    ctx.addEventListener(document, 'focusin', (event) => linkTarget(event)?.());
+
+    // Once a day, while idle, drop old cached query results.
+    if (Date.now() - Number(localStorage.getItem(TRIMMED_KEY)) > 86_400_000) {
+      requestIdleCallback(() => {
+        localStorage.setItem(TRIMMED_KEY, String(Date.now()));
+        trimPersisted();
+      });
     }
 
     // Link clicks. Ours are always handled here so GitHub's Turbo never soft-navigates (and unhides) the

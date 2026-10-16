@@ -1,4 +1,5 @@
 import { useTitle } from '@/lib/useTitle';
+import { repoListQuery } from '@/pages/work/queries';
 import { WorkList } from '@/pages/work/WorkList';
 import { RepoFrame } from './RepoFrame';
 
@@ -7,7 +8,7 @@ export function RepoListPage({ owner, repo, tab }: { owner: string; repo: string
   useTitle(`${tab === 'issues' ? 'Issues' : 'Pull requests'} · ${owner}/${repo}`);
   return (
     <RepoFrame owner={owner} name={repo} view={tab}>
-      <WorkList repo={`${owner}/${repo}`} fallback={tab === 'issues' ? 'is:open is:issue' : 'is:open is:pr'} />
+      <WorkList repo={`${owner}/${repo}`} fallback={repoListQuery(tab)} />
     </RepoFrame>
   );
 }

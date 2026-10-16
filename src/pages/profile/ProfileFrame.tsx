@@ -1,37 +1,13 @@
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Award, BookMarked, BookOpen, Star, UserRound, Users } from 'lucide-react';
-import { useAchievements } from '@/github/achievements';
-import { gql } from '@/github/client';
+import { achievementsQuery } from '@/github/achievements';
 import { Shell, PageHeader } from '@/app/Shell';
-import { rememberOrgs } from '@/lib/orgs';
 import type { ProfileTab } from '@/lib/routes';
 import { useTitle } from '@/lib/useTitle';
 import { Avatar, Skeleton } from '@/ui/primitives';
 import { Tab, TabBar } from '@/ui/Tabs';
-
-const HEAD_QUERY = /* GraphQL */ `
-  query ProfileHead($login: String!) {
-    user(login: $login) {
-      login name avatarUrl isViewer
-      repositories(ownerAffiliations: OWNER) { totalCount }
-      followers { totalCount }
-      following { totalCount }
-      starredRepositories { totalCount }
-    }
-  }
-`;
-
-type Head = {
-  login: string;
-  name: string | null;
-  avatarUrl: string;
-  isViewer: boolean;
-  repositories: { totalCount: number };
-  followers: { totalCount: number };
-  following: { totalCount: number };
-  starredRepositories: { totalCount: number };
-};
+import { profileHeadQuery } from './queries';
 
 const TAB_TITLES: Record<Exclude<ProfileTab, 'overview'>, string> = {
   repositories: 'Repositories',
@@ -42,19 +18,8 @@ const TAB_TITLES: Record<Exclude<ProfileTab, 'overview'>, string> = {
 
 /** Frame for a profile's sub-pages (everything but the overview): who it is, and tabs between views. */
 export function ProfileFrame({ login, tab, children }: { login: string; tab: keyof typeof TAB_TITLES; children: ReactNode }) {
-  const { data: user } = useQuery({
-    queryKey: ['profile-head', login.toLowerCase()],
-    queryFn: async () => {
-      const { user } = await gql<{ user: Head | null }>(HEAD_QUERY, { login }, true);
-      if (!user) {
-        // An organization: GitHub's page has these tabs for orgs too, so hand the URL back for good.
-        rememberOrgs([login]);
-        location.reload();
-      }
-      return user;
-    },
-  });
-  const achievements = useAchievements(login);
+  const { data: user } = useQuery(profileHeadQuery(login));
+  const achievements = useQuery(achievementsQuery(login));
   const title = TAB_TITLES[tab];
   const base = `/${user?.login ?? login}`;
 

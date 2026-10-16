@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useInfiniteQuery, useMutation, useQueryClient, type InfiniteData } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bell, Check, CheckCheck, CircleCheck, CircleDot, GitCommitHorizontal, GitPullRequest, Inbox, MessagesSquare, Tag, X } from 'lucide-react';
 import { rest } from '@/github/client';
 import { usePageHotkey } from '@/app/keyboard';
@@ -12,24 +12,13 @@ import { Button } from '@/ui/Button';
 import { Avatar, Empty, Kbd, Panel, Skeleton } from '@/ui/primitives';
 import { Tab, TabBar } from '@/ui/Tabs';
 import { toast } from '@/ui/toast';
-
-/** One thread from GET /notifications. */
-type Notification = {
-  id: string;
-  unread: boolean;
-  reason: string;
-  updated_at: string;
-  subject: { title: string; url: string | null; type: string };
-  repository: { full_name: string; html_url: string; owner: { avatar_url: string } };
-};
-
-type View = 'inbox' | 'unread' | 'participating';
+import { notificationsQuery, viewOf, type Notification, type View } from './queries';
 
 // GitHub's own `?query=` values for these views, so links in and out keep meaning the same thing.
-const VIEWS: Record<View, { label: string; query: string | null; params: string; icon: ReactNode }> = {
-  inbox: { label: 'Inbox', query: null, params: 'all=true', icon: <Inbox /> },
-  unread: { label: 'Unread', query: 'is:unread', params: 'all=false', icon: <Bell /> },
-  participating: { label: 'Participating', query: 'reason:participating', params: 'all=true&participating=true', icon: <MessagesSquare /> },
+const VIEWS: Record<View, { label: string; query: string | null; icon: ReactNode }> = {
+  inbox: { label: 'Inbox', query: null, icon: <Inbox /> },
+  unread: { label: 'Unread', query: 'is:unread', icon: <Bell /> },
+  participating: { label: 'Participating', query: 'reason:participating', icon: <MessagesSquare /> },
 };
 
 const REASONS: Record<string, string> = {
@@ -61,7 +50,6 @@ const ICONS: Record<string, ReactNode> = {
   CheckSuite: <CircleCheck />,
 };
 
-const PAGE_SIZE = 50;
 const API_PATH: Record<string, string> = { pulls: 'pull', issues: 'issues', commits: 'commit' };
 const REPO_PAGE: Record<string, string> = { Release: '/releases', Discussion: '/discussions', CheckSuite: '/actions' };
 
@@ -73,11 +61,6 @@ function pageUrl({ subject, repository }: Notification) {
   return `${repository.html_url}${REPO_PAGE[subject.type] ?? ''}`;
 }
 
-function viewFromUrl(): View {
-  const query = new URL(location.href).searchParams.get('query') ?? '';
-  return query.includes('is:unread') ? 'unread' : query.includes('reason:participating') ? 'participating' : 'inbox';
-}
-
 const dayFormat = new Intl.DateTimeFormat('en', { month: 'long', day: 'numeric' });
 function dayLabel(iso: string) {
   const days = Math.floor((new Date().setHours(24, 0, 0, 0) - new Date(iso).getTime()) / 86_400_000);
@@ -87,10 +70,11 @@ function dayLabel(iso: string) {
 /** Your GitHub notifications: inbox, unread or participating, grouped by day, filterable by repository. */
 export function NotificationsPage() {
   const queryClient = useQueryClient();
-  const [view, setView] = useState(viewFromUrl);
+  const [view, setView] = useState(() => viewOf(new URL(location.href)));
   const [repo, setRepo] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const queryKey = ['notifications', view];
+  const options = notificationsQuery(view);
+  const { queryKey } = options;
 
   useTitle('Notifications');
 
@@ -98,19 +82,13 @@ export function NotificationsPage() {
   useEffect(
     () =>
       onNavigate(() => {
-        setView(viewFromUrl());
+        setView(viewOf(new URL(location.href)));
         setRepo(null);
       }),
     [],
   );
 
-  const list = useInfiniteQuery({
-    queryKey,
-    queryFn: ({ pageParam }) => rest<Notification[]>(`/notifications?${VIEWS[view].params}&per_page=${PAGE_SIZE}&page=${pageParam}`),
-    initialPageParam: 1,
-    getNextPageParam: (last, pages) => (last.length === PAGE_SIZE ? pages.length + 1 : null),
-    refetchInterval: 60_000,
-  });
+  const list = useInfiniteQuery(options);
 
   const all = useMemo(() => list.data?.pages.flat() ?? [], [list.data]);
   const shown = repo ? all.filter((n) => n.repository.full_name === repo) : all;
@@ -128,7 +106,7 @@ export function NotificationsPage() {
 
   /** Applies a change to every loaded page of this view's cache. */
   const patch = (change: (items: Notification[]) => Notification[]) =>
-    queryClient.setQueryData<InfiniteData<Notification[]>>(queryKey, (data) => data && { ...data, pages: data.pages.map(change) });
+    queryClient.setQueryData(queryKey, (data) => data && { ...data, pages: data.pages.map(change) });
 
   const markRead = useMutation({
     mutationFn: (id: string) => rest(`/notifications/threads/${id}`, { method: 'PATCH' }),

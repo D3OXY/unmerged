@@ -41,15 +41,22 @@ Open github.com and paste a token when asked
 ## How it works
 
 - A `document_start` content script hides GitHub's `<body>` for owned URLs before first paint and mounts a
-  React app in a shadow root on `<html>` (so Turbo's body swaps can't remove it).
+  React app in a shadow root on `<html>` (so Turbo's body swaps can't remove it). Once GitHub's `<head>` has
+  arrived (it says who's signed in), the rest of its page is stopped: none of its HTML body (~1 MB on a repo
+  page) or scripts load underneath ours.
 - Data comes from GitHub's GraphQL API with your token (stored in `chrome.storage.local` only).
 - Links between owned pages swap in place (`pushState`), and so do GitHub links that point at them.
   Everything else is a normal page load. Back/forward onto owned pages is claimed before GitHub's router
   sees it.
 - Keys aimed at GitHub's hidden page are swallowed so its hotkeys don't fire.
-- Diffs are drawn by [`@pierre/diffs`](https://diffs.com) with Shiki. It lives in a separate script that pull
-  request pages load in the background, and each language's grammar loads on first use, so every other page
-  pays nothing for it.
+- A page's requests start as the script starts, before React or styles, and again when a link to it is
+  hovered, focused or pressed, so most in-app navigations find their data already there. Slow GitHub queries
+  are split into parallel requests (GitHub resolves one query's fields one after another).
+- Results are cached in extension storage, per account, and shown at once on the next visit while the same
+  request refreshes them.
+- Code is drawn by [`@pierre/diffs`](https://diffs.com) with Shiki (diffs and the file view). It lives in a
+  separate script that pull request and repo pages load while idle, and each language's grammar loads on
+  first use, so every other page pays nothing for it.
 
 ## Shortcuts
 

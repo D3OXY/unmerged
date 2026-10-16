@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { queryOptions } from '@tanstack/react-query';
+import { persisted } from '@/lib/persist';
 
 // The API doesn't expose achievements, so they're read from github.com's own pages. Same origin, so they
 // render with the user's session, as GitHub would show them.
@@ -20,21 +21,21 @@ export type AchievementDetail = {
   history: HistoryPart[][];
 };
 
-export function useAchievements(login: string) {
-  return useQuery({
+export const achievementsQuery = (login: string) =>
+  queryOptions({
     queryKey: ['achievements', login.toLowerCase()],
     queryFn: () => fetchAchievements(login),
     staleTime: 60 * 60_000,
+    persister: persisted,
   });
-}
 
-export function useAchievementDetail(login: string, slug: string) {
-  return useQuery({
+export const achievementDetailQuery = (login: string, slug: string) =>
+  queryOptions({
     queryKey: ['achievement', login.toLowerCase(), slug],
     queryFn: () => fetchAchievementDetail(login, slug),
     staleTime: 60 * 60_000,
+    persister: persisted,
   });
-}
 
 async function fetchAchievements(login: string): Promise<Achievement[]> {
   const res = await fetch(`/${encodeURIComponent(login)}?tab=achievements`);

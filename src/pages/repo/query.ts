@@ -1,4 +1,9 @@
-import { gql } from '@/github/client';
+import { queryOptions, type QueryClient } from '@tanstack/react-query';
+import { gql, restHtml } from '@/github/client';
+import { absolutizeReadme } from '@/github/readme';
+import { persisted } from '@/lib/persist';
+import type { RepoView } from '@/lib/routes';
+import { blobUrl, rawUrl } from './urls';
 import type { Actor, CheckState, Language } from '@/github/types';
 
 export const REPO_QUERY = /* GraphQL */ `
@@ -12,11 +17,6 @@ export const REPO_QUERY = /* GraphQL */ `
       viewerHasStarred viewerSubscription viewerCanAdminister
       hasIssuesEnabled hasDiscussionsEnabled hasWikiEnabled
       defaultBranchRef { name }
-      repositoryTopics(first: 20) { nodes { topic { name } } }
-      licenseInfo { name spdxId }
-      languages(first: 8, orderBy: { field: SIZE, direction: DESC }) { totalSize edges { size node { name color } } }
-      latestRelease { name tagName publishedAt url }
-      releases { totalCount }
       branches: refs(refPrefix: "refs/heads/", first: 0) { totalCount }
       tags: refs(refPrefix: "refs/tags/", first: 0) { totalCount }
       issues(states: OPEN) { totalCount }
@@ -24,6 +24,28 @@ export const REPO_QUERY = /* GraphQL */ `
     }
   }
 `;
+
+// The sidebar's slower half (latest release and languages take ~0.6 s), fetched alongside REPO_QUERY rather
+// than inside it, which GitHub would resolve one after the other.
+const ABOUT_QUERY = /* GraphQL */ `
+  query RepoAbout($owner: String!, $name: String!) {
+    repository(owner: $owner, name: $name) {
+      repositoryTopics(first: 20) { nodes { topic { name } } }
+      licenseInfo { name spdxId }
+      languages(first: 8, orderBy: { field: SIZE, direction: DESC }) { totalSize edges { size node { name color } } }
+      latestRelease { name tagName publishedAt url }
+      releases { totalCount }
+    }
+  }
+`;
+
+export type RepoAbout = {
+  repositoryTopics: { nodes: { topic: { name: string } }[] };
+  licenseInfo: { name: string; spdxId: string | null } | null;
+  languages: { totalSize: number; edges: { size: number; node: NonNullable<Language> }[] };
+  latestRelease: { name: string | null; tagName: string; publishedAt: string | null; url: string } | null;
+  releases: { totalCount: number };
+};
 
 export type Subscription = 'SUBSCRIBED' | 'UNSUBSCRIBED' | 'IGNORED';
 
@@ -52,11 +74,6 @@ export type Repo = {
   hasDiscussionsEnabled: boolean;
   hasWikiEnabled: boolean;
   defaultBranchRef: { name: string } | null;
-  repositoryTopics: { nodes: { topic: { name: string } }[] };
-  licenseInfo: { name: string; spdxId: string | null } | null;
-  languages: { totalSize: number; edges: { size: number; node: NonNullable<Language> }[] };
-  latestRelease: { name: string | null; tagName: string; publishedAt: string | null; url: string } | null;
-  releases: { totalCount: number };
   branches: { totalCount: number };
   tags: { totalCount: number };
   issues: { totalCount: number };
@@ -165,3 +182,74 @@ export const REPO_MUTATIONS = {
   unstar: `mutation Unstar($id: ID!) { removeStar(input: { starrableId: $id }) { clientMutationId } }`,
   subscribe: `mutation Watch($id: ID!, $state: SubscriptionState!) { updateSubscription(input: { subscribableId: $id, state: $state }) { clientMutationId } }`,
 };
+
+const key = (owner: string, name: string) => [owner.toLowerCase(), name.toLowerCase()] as const;
+
+/** The revision a repo root is read at: its default branch, whatever it's called, without asking first. */
+export const DEFAULT_REVISION = 'HEAD';
+
+export const repoQuery = (owner: string, name: string) =>
+  queryOptions({
+    queryKey: ['repo', ...key(owner, name)],
+    queryFn: () => gql<{ repository: Repo | null }>(REPO_QUERY, { owner, name }, true),
+    persister: persisted,
+  });
+
+export const repoAboutQuery = (owner: string, name: string) =>
+  queryOptions({
+    queryKey: ['repo-about', ...key(owner, name)],
+    queryFn: async () => (await gql<{ repository: RepoAbout | null }>(ABOUT_QUERY, { owner, name }, true)).repository,
+    staleTime: 10 * 60_000,
+    persister: persisted,
+  });
+
+/** "<ref>/<path…>" from a /tree or /blob URL, as ref + path; null when nothing by that name exists. */
+export const repoResolveQuery = (owner: string, name: string, rest: string[]) =>
+  queryOptions({
+    queryKey: ['repo-resolve', ...key(owner, name), rest.join('/')],
+    queryFn: () => resolveRefPath(owner, name, rest),
+    staleTime: Infinity,
+    persister: persisted,
+  });
+
+/** A folder's entries or a file's text at a revision, with the last commit touching it. */
+export const repoContentQuery = (owner: string, name: string, revision: string, path: string) =>
+  queryOptions({
+    queryKey: ['repo-content', ...key(owner, name), revision, path],
+    queryFn: () => gql<ContentData>(CONTENT_QUERY, { owner, name, expr: `${revision}:${path}`, ref: revision, path: path || null }),
+    staleTime: 60_000,
+    persister: persisted,
+  });
+
+/** A folder's README, rendered by GitHub with links made absolute; null when there isn't one. */
+export const repoReadmeQuery = (nameWithOwner: string, revision: string, path: string) =>
+  queryOptions({
+    queryKey: ['repo-readme', nameWithOwner.toLowerCase(), revision, path],
+    queryFn: async () => {
+      const at = revision === DEFAULT_REVISION ? '' : `?ref=${encodeURIComponent(revision)}`;
+      const html = await restHtml(`/repos/${nameWithOwner}/readme/${path}${at}`);
+      const dir = path ? `${path}/` : '';
+      return html && absolutizeReadme(html, rawUrl(nameWithOwner, revision, dir), `https://github.com${blobUrl(nameWithOwner, revision, dir)}`);
+    },
+    staleTime: 5 * 60_000,
+    persister: persisted,
+  });
+
+/** What a repo URL will show, fetched together: started early (page load, link hover) by src/app/prefetch.ts. */
+export function prefetchRepo(client: QueryClient, owner: string, name: string, view: Extract<RepoView, 'code' | 'commits'>, rest: string[]) {
+  client.prefetchQuery(repoQuery(owner, name));
+  if (view === 'commits') {
+    if (rest.length) client.prefetchQuery(repoResolveQuery(owner, name, rest));
+    return;
+  }
+  if (!rest.length) {
+    client.prefetchQuery(repoAboutQuery(owner, name));
+    client.prefetchQuery(repoContentQuery(owner, name, DEFAULT_REVISION, ''));
+    client.prefetchQuery(repoReadmeQuery(`${owner}/${name}`, DEFAULT_REVISION, ''));
+    return;
+  }
+  client
+    .fetchQuery(repoResolveQuery(owner, name, rest))
+    .then((target) => target && client.prefetchQuery(repoContentQuery(owner, name, target.ref, target.path)))
+    .catch(() => {}); // the page shows the error when it asks
+}

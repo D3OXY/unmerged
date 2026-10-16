@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { localCache } from '@/lib/localCache';
+import { cachedQuery } from '@/lib/localCache';
+import { persisted } from '@/lib/persist';
 import { gql, rest } from './client';
 
 /** What the sidebar needs to draw a repo. */
@@ -63,19 +64,15 @@ export async function lookupRepos(names: string[]): Promise<RepoSummary[]> {
   return parts.flatMap((_, i) => data[`r${i}`] ?? []);
 }
 
-const recentCache = localCache<RepoSummary[]>('unmerged:recent-repos');
+const recentCache = cachedQuery<RepoSummary[]>('unmerged:recent-repos');
 
 export function useRecentRepos(login: string | undefined) {
   return useQuery({
     queryKey: ['recent-repos', login],
-    queryFn: async () => {
-      const repos = await fetchRecentRepos(login!);
-      recentCache.set(repos);
-      return repos;
-    },
+    queryFn: async () => recentCache.save(await fetchRecentRepos(login!)),
     enabled: !!login,
-    initialData: recentCache.get,
-    initialDataUpdatedAt: 0,
+    initialData: recentCache.initialData,
+    initialDataUpdatedAt: recentCache.initialDataUpdatedAt,
     staleTime: 5 * 60_000,
   });
 }
@@ -88,5 +85,6 @@ export function usePinnedRepos(pins: string[] | null) {
     enabled: !!pins?.length,
     staleTime: 10 * 60_000,
     placeholderData: (previous) => previous,
+    persister: persisted,
   });
 }

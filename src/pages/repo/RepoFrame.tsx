@@ -13,13 +13,10 @@ import { Menu } from '@/ui/Menu';
 import { Avatar, Pill } from '@/ui/primitives';
 import { Tab, TabBar } from '@/ui/Tabs';
 import { toast } from '@/ui/toast';
-import { REPO_MUTATIONS, REPO_QUERY, type Repo, type Subscription } from './query';
-
-const repoKey = (owner: string, name: string) => ['repo', owner.toLowerCase(), name.toLowerCase()];
+import { REPO_MUTATIONS, repoQuery, type Repo, type Subscription } from './query';
 
 /** The repo's metadata. Shared by the frame and the page inside it (one request). */
-export const useRepo = (owner: string, name: string) =>
-  useQuery({ queryKey: repoKey(owner, name), queryFn: () => gql<{ repository: Repo | null }>(REPO_QUERY, { owner, name }, true) });
+export const useRepo = (owner: string, name: string) => useQuery(repoQuery(owner, name));
 
 const LIST_TITLES: Partial<Record<RepoView, string>> = { issues: 'Issues', pulls: 'Pull requests' };
 
@@ -47,7 +44,7 @@ export function RepoFrame({ owner, name, view, children }: { owner: string; name
 
   return (
     <Shell>
-      <PageHeader crumbs={crumbs} actions={repo && <RepoActions repo={repo} queryKey={repoKey(owner, name)} />} />
+      <PageHeader crumbs={crumbs} actions={repo && <RepoActions repo={repo} queryKey={repoQuery(owner, name).queryKey} />} />
       <div className="mx-auto max-w-[1240px] animate-enter px-6 pt-8 pb-8">
         {repo ? <RepoHeader repo={repo} /> : <div className="h-[34px]" />}
         <RepoTabs repo={repo ?? undefined} nwo={nwo} view={view} />

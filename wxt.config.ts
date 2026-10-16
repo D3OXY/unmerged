@@ -30,7 +30,8 @@ export default defineConfig({
   manifest: {
     name: 'Unmerged',
     description: 'GitHub, as if it never got acquired. A calmer, faster skin for github.com.',
-    permissions: ['storage'],
+    // unlimitedStorage: the query cache (src/lib/persist.ts) can outgrow the default 10 MB; it shows no prompt.
+    permissions: ['storage', 'unlimitedStorage'],
     host_permissions: ['https://api.github.com/*'],
     web_accessible_resources: [{ resources: ['fonts/*', 'diffs.js', 'shiki-langs/*'], matches: ['https://github.com/*'] }],
   },

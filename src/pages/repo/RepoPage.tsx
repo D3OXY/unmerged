@@ -1,10 +1,10 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CircleDot, Copy, FileSearch, GitBranch, GitPullRequest, Pin, PinOff, Play, Tag } from 'lucide-react';
-import { gql } from '@/github/client';
 import { useRegisterCommands, type Command } from '@/app/commands';
 import { usePageHotkey } from '@/app/keyboard';
 import { copy } from '@/lib/clipboard';
+import { loadDiffs } from '@/lib/diffs';
 import { navigate } from '@/lib/navigation';
 import { pin, unpin, useIsPinned } from '@/lib/pins';
 import { useTitle } from '@/lib/useTitle';
@@ -15,7 +15,7 @@ import { BranchPicker } from './BranchPicker';
 import { CloneMenu } from './CloneMenu';
 import { CommitsView } from './CommitsView';
 import { FileFinder } from './FileFinder';
-import { CONTENT_QUERY, resolveRefPath, type ContentData, type Repo } from './query';
+import { DEFAULT_REVISION, repoContentQuery, repoResolveQuery, type Repo } from './query';
 import { RepoFrame, useRepo } from './RepoFrame';
 import { RepoSidebar } from './RepoSidebar';
 import { TreeSkeleton, TreeView } from './TreeView';
@@ -25,23 +25,19 @@ type Props = { owner: string; repo: string; view: 'code' | 'commits'; rest: stri
 
 /** A repository's code browser (root with sidebar, folders, files) or its commit history. */
 export function RepoPage({ owner, repo: name, view, rest }: Props) {
+  // Warm up the code renderer (file highlighting) while idle, so opening a file doesn't wait for it.
+  useEffect(() => {
+    const id = requestIdleCallback(() => loadDiffs().catch(() => {}));
+    return () => cancelIdleCallback(id);
+  }, []);
   const repo = useRepo(owner, name).data?.repository;
 
-  // "<ref>/<path…>" → ref + path. Root URLs use the default branch.
-  const resolved = useQuery({
-    queryKey: ['repo-resolve', owner.toLowerCase(), name.toLowerCase(), rest.join('/')],
-    queryFn: () => resolveRefPath(owner, name, rest),
-    enabled: rest.length > 0,
-    staleTime: Infinity,
-  });
-  const target = rest.length ? resolved.data : repo?.defaultBranchRef ? { ref: repo.defaultBranchRef.name, path: '' } : undefined;
-
-  const content = useQuery({
-    queryKey: ['repo-content', owner.toLowerCase(), name.toLowerCase(), target?.ref, target?.path],
-    queryFn: () => gql<ContentData>(CONTENT_QUERY, { owner, name, expr: `${target!.ref}:${target!.path}`, ref: target!.ref, path: target!.path || null }),
-    enabled: !!target && view === 'code',
-    staleTime: 60_000,
-  });
+  // "<ref>/<path…>" → ref + path. The root reads the default branch as HEAD, so it needn't wait for `repo`.
+  const resolved = useQuery({ ...repoResolveQuery(owner, name, rest), enabled: rest.length > 0 });
+  const revision = rest.length ? resolved.data : { ref: DEFAULT_REVISION, path: '' };
+  const content = useQuery({ ...repoContentQuery(owner, name, revision?.ref ?? '', revision?.path ?? ''), enabled: !!revision && view === 'code' });
+  // What links and the branch picker show: the branch's name rather than HEAD.
+  const target = revision && (revision.ref === DEFAULT_REVISION ? repo?.defaultBranchRef && { ref: repo.defaultBranchRef.name, path: '' } : revision);
 
   const nwo = repo?.nameWithOwner ?? `${owner}/${name}`;
   useTitle(
@@ -54,7 +50,8 @@ export function RepoPage({ owner, repo: name, view, rest }: Props) {
 
   const object = content.data?.repository?.object;
   const history = content.data?.repository?.commit?.history;
-  const notFound = (rest.length > 0 && resolved.data === null) || (content.data && !object);
+  // Waits for `repo`: an empty repository also has nothing at HEAD, and says so itself.
+  const notFound = !!repo && ((rest.length > 0 && resolved.data === null) || (content.data && !object));
 
   return (
     <RepoFrame owner={owner} name={name} view={view}>
@@ -79,10 +76,10 @@ export function RepoPage({ owner, repo: name, view, rest }: Props) {
           ) : object.__typename === 'Blob' ? (
             <BlobView nameWithOwner={nwo} gitRef={target.ref} path={target.path} blob={object} lastCommit={history?.nodes[0]} />
           ) : target.path ? (
-            <TreeView nameWithOwner={nwo} gitRef={target.ref} path={target.path} entries={object.entries} lastCommit={history?.nodes[0]} commitCount={history?.totalCount} />
+            <TreeView nameWithOwner={nwo} gitRef={target.ref} revision={revision!.ref} path={target.path} entries={object.entries} lastCommit={history?.nodes[0]} commitCount={history?.totalCount} />
           ) : (
             <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_296px]">
-              <TreeView nameWithOwner={nwo} gitRef={target.ref} path="" entries={object.entries} lastCommit={history?.nodes[0]} commitCount={history?.totalCount} />
+              <TreeView nameWithOwner={nwo} gitRef={target.ref} revision={revision!.ref} path="" entries={object.entries} lastCommit={history?.nodes[0]} commitCount={history?.totalCount} />
               <RepoSidebar repo={repo} />
             </div>
           )}

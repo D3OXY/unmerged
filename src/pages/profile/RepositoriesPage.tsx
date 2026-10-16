@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useInfiniteQuery, useMutation, useQueryClient, type InfiniteData } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, GitFork, Lock, Scale, Search, Star, X } from 'lucide-react';
 import { gql } from '@/github/client';
-import { REPO_CARD_FIELDS, type RepoCard } from '@/github/types';
 import { usePageHotkey } from '@/app/keyboard';
 import { REPO_MUTATIONS } from '@/pages/repo/query';
 import { cx } from '@/lib/cx';
@@ -12,36 +11,7 @@ import { Menu } from '@/ui/Menu';
 import { Empty, Kbd, LanguageDot, Panel, Pill, Skeleton } from '@/ui/primitives';
 import { toast } from '@/ui/toast';
 import { ProfileFrame } from './ProfileFrame';
-
-const REPOS_QUERY = /* GraphQL */ `
-  query ProfileRepos($login: String!, $after: String) {
-    user(login: $login) {
-      repositories(first: 100, after: $after, ownerAffiliations: OWNER, orderBy: { field: PUSHED_AT, direction: DESC }) {
-        totalCount
-        pageInfo { hasNextPage endCursor }
-        nodes {
-          ...RepoCard
-          isMirror isTemplate viewerHasStarred
-          licenseInfo { spdxId name }
-          parent { nameWithOwner }
-          repositoryTopics(first: 6) { nodes { topic { name } } }
-        }
-      }
-    }
-  }
-  ${REPO_CARD_FIELDS}
-`;
-
-type Repo = RepoCard & {
-  isMirror: boolean;
-  isTemplate: boolean;
-  viewerHasStarred: boolean;
-  licenseInfo: { spdxId: string | null; name: string } | null;
-  parent: { nameWithOwner: string } | null;
-  repositoryTopics: { nodes: { topic: { name: string } }[] };
-};
-
-type ReposPage = { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: Repo[] };
+import { profileReposQuery, type OwnedRepo as Repo } from './queries';
 
 // The `type` values GitHub uses in its own URLs, so links into this page keep working.
 const TYPES = {
@@ -98,15 +68,8 @@ function writeFilters({ q, type, language, sort }: Filters) {
  */
 export function RepositoriesPage({ login }: { login: string }) {
   const queryClient = useQueryClient();
-  const queryKey = ['profile-repos', login.toLowerCase()];
-  const query = useInfiniteQuery({
-    queryKey,
-    // Null for organizations; ProfileFrame hands those back to GitHub.
-    queryFn: async ({ pageParam }) =>
-      (await gql<{ user: { repositories: ReposPage } | null }>(REPOS_QUERY, { login, after: pageParam }, true)).user?.repositories ?? null,
-    initialPageParam: null as string | null,
-    getNextPageParam: (last) => (last?.pageInfo.hasNextPage ? last.pageInfo.endCursor : null),
-  });
+  const options = profileReposQuery(login);
+  const query = useInfiniteQuery(options);
 
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = query;
   useEffect(() => {
@@ -151,7 +114,7 @@ export function RepositoriesPage({ login }: { login: string }) {
   const countOf = (type: RepoType) => repos.filter(TYPES[type].test).length;
 
   const patchRepo = (id: string, changes: Partial<Repo>) =>
-    queryClient.setQueryData<InfiniteData<ReposPage | null>>(queryKey, (data) =>
+    queryClient.setQueryData(options.queryKey, (data) =>
       data && { ...data, pages: data.pages.map((page) => page && { ...page, nodes: page.nodes.map((r) => (r.id === id ? { ...r, ...changes } : r)) }) },
     );
 

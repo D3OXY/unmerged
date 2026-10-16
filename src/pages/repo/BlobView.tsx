@@ -5,7 +5,8 @@ import { restHtml } from '@/github/client';
 import { absolutizeReadme } from '@/github/readme';
 import { copy } from '@/lib/clipboard';
 import { cx } from '@/lib/cx';
-import { highlightLine, languageOf } from '@/lib/highlight';
+import { loadDiffs } from '@/lib/diffs';
+import { useIsDark } from '@/lib/settings';
 import { onNavigate } from '@/lib/navigation';
 import { Markdown, Panel, Skeleton } from '@/ui/primitives';
 import { CommitBar } from './TreeView';
@@ -33,7 +34,14 @@ export function BlobView({ nameWithOwner, gitRef, path, blob, lastCommit }: { na
   const [preview, setPreview] = useState(isMarkdown);
   const [selection, setSelection] = useState(() => parseLines(location.hash));
   const lines = useMemo(() => (blob.text ?? '').replace(/\n$/, '').split('\n'), [blob.text]);
-  const language = languageOf(path);
+  const dark = useIsDark();
+  // Plain text first; highlighting arrives with the code renderer (usually already loaded, see RepoPage).
+  const highlighted = useQuery({
+    queryKey: ['highlight', blob.oid, path, dark],
+    queryFn: async () => (await loadDiffs()).highlightLines(lines.slice(0, MAX_LINES).join('\n'), path, dark),
+    enabled: !isMarkdown || !preview,
+    staleTime: Infinity,
+  });
   const raw = rawUrl(nameWithOwner, gitRef, path);
   const tableRef = useRef<HTMLTableElement>(null);
 
@@ -117,7 +125,7 @@ export function BlobView({ nameWithOwner, gitRef, path, blob, lastCommit }: { na
         )
       ) : (
         <div className="overflow-x-auto">
-          <table ref={tableRef} className="u-diff w-full border-collapse font-mono text-[12px] leading-5">
+          <table ref={tableRef} className="w-full border-collapse font-mono text-[12px] leading-5">
             <tbody>
               {lines.slice(0, MAX_LINES).map((line, i) => {
                 const n = i + 1;
@@ -130,7 +138,11 @@ export function BlobView({ nameWithOwner, gitRef, path, blob, lastCommit }: { na
                     >
                       {n}
                     </td>
-                    <td className="px-3 whitespace-pre [tab-size:4]" dangerouslySetInnerHTML={{ __html: highlightLine(line, language) || ' ' }} />
+                    {highlighted.data ? (
+                      <td className="px-3 whitespace-pre [tab-size:4]" dangerouslySetInnerHTML={{ __html: highlighted.data[i] || ' ' }} />
+                    ) : (
+                      <td className="px-3 whitespace-pre [tab-size:4]">{line || ' '}</td>
+                    )}
                   </tr>
                 );
               })}

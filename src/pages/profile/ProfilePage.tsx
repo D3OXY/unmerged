@@ -1,97 +1,28 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowUpRight, AtSign, Building2, CalendarDays, GitFork, Heart, Link2, Lock, MapPin, Search, Star } from 'lucide-react';
-import { useAchievements, type Achievement } from '@/github/achievements';
-import { gql, restHtml } from '@/github/client';
-import { absolutizeReadme } from '@/github/readme';
-import { REPO_CARD_FIELDS, type RepoCard } from '@/github/types';
+import { achievementsQuery, type Achievement } from '@/github/achievements';
+import type { RepoCard } from '@/github/types';
 import { Shell, PageHeader } from '@/app/Shell';
-import { rememberOrgs } from '@/lib/orgs';
 import { cx } from '@/lib/cx';
 import { formatCount, formatMonthYear, timeAgo } from '@/lib/time';
 import { useTitle } from '@/lib/useTitle';
 import { Button } from '@/ui/Button';
 import { Avatar, Empty, LanguageDot, Markdown, Panel, Pill, SectionHeader, Skeleton } from '@/ui/primitives';
 import { PrStateIcon } from '@/ui/status';
-import { PR_ROW_FIELDS, type PrRowData } from '@/ui/WorkRow';
-import { ContributionGraph, type ContributionWeek } from './ContributionGraph';
+import type { PrRowData } from '@/ui/WorkRow';
+import { ContributionGraph } from './ContributionGraph';
 import { FollowButton } from './FollowButton';
+import {
+  profileActivityQuery,
+  profileReadmeQuery,
+  profileUserQuery,
+  profileWorkQuery,
+  type ProfileActivity,
+  type ProfileUser,
+  type ProfileWork,
+} from './queries';
 import { TierLabel } from './TierLabel';
-
-const PROFILE_QUERY = /* GraphQL */ `
-  query Profile($login: String!) {
-    user(login: $login) {
-      id login name avatarUrl bio company location websiteUrl pronouns createdAt
-      status { emojiHTML message }
-      followers { totalCount }
-      following { totalCount }
-      starredRepositories { totalCount }
-      sponsors { totalCount }
-      isViewer viewerIsFollowing viewerCanFollow isFollowingViewer hasSponsorsListing
-      isHireable isEmployee isGitHubStar isDeveloperProgramMember isCampusExpert isBountyHunter
-      socialAccounts(first: 10) { nodes { provider url displayName } }
-      organizations(first: 12) { nodes { login avatarUrl } }
-      pinnedItems(first: 6, types: [REPOSITORY]) { nodes { ... on Repository { ...RepoCard } } }
-      repositories(first: 100, ownerAffiliations: OWNER, isFork: false, orderBy: { field: PUSHED_AT, direction: DESC }) {
-        totalCount nodes { ...RepoCard }
-      }
-      repositoriesContributedTo(first: 12, includeUserRepositories: false, contributionTypes: [COMMIT, PULL_REQUEST, PULL_REQUEST_REVIEW]) {
-        nodes { ...RepoCard owner { avatarUrl } }
-      }
-      pullRequests(first: 6, orderBy: { field: UPDATED_AT, direction: DESC }) { nodes { ...PrRow } }
-      contributionsCollection {
-        totalCommitContributions totalPullRequestContributions totalPullRequestReviewContributions totalIssueContributions
-        restrictedContributionsCount
-        contributionCalendar { totalContributions weeks { contributionDays { date contributionCount contributionLevel } } }
-      }
-    }
-  }
-  ${REPO_CARD_FIELDS}
-  ${PR_ROW_FIELDS}
-`;
-
-type Profile = {
-  id: string;
-  login: string;
-  name: string | null;
-  avatarUrl: string;
-  bio: string | null;
-  company: string | null;
-  location: string | null;
-  websiteUrl: string | null;
-  pronouns: string | null;
-  createdAt: string;
-  status: { emojiHTML: string | null; message: string | null } | null;
-  followers: { totalCount: number };
-  following: { totalCount: number };
-  starredRepositories: { totalCount: number };
-  sponsors: { totalCount: number };
-  isViewer: boolean;
-  viewerIsFollowing: boolean;
-  viewerCanFollow: boolean;
-  isFollowingViewer: boolean;
-  hasSponsorsListing: boolean;
-  isHireable: boolean;
-  isEmployee: boolean;
-  isGitHubStar: boolean;
-  isDeveloperProgramMember: boolean;
-  isCampusExpert: boolean;
-  isBountyHunter: boolean;
-  socialAccounts: { nodes: { provider: string; url: string; displayName: string }[] };
-  organizations: { nodes: { login: string; avatarUrl: string }[] };
-  pinnedItems: { nodes: RepoCard[] };
-  repositories: { totalCount: number; nodes: RepoCard[] };
-  repositoriesContributedTo: { nodes: (RepoCard & { owner: { avatarUrl: string } })[] };
-  pullRequests: { nodes: PrRowData[] };
-  contributionsCollection: {
-    totalCommitContributions: number;
-    totalPullRequestContributions: number;
-    totalPullRequestReviewContributions: number;
-    totalIssueContributions: number;
-    restrictedContributionsCount: number;
-    contributionCalendar: { totalContributions: number; weeks: ContributionWeek[] };
-  };
-};
 
 // Profile flags worth a badge, in display order.
 const BADGES = [
@@ -101,39 +32,22 @@ const BADGES = [
   ['isCampusExpert', 'Campus Expert'],
   ['isBountyHunter', 'Security bug bounty hunter'],
   ['isDeveloperProgramMember', 'Developer Program Member'],
-] as const satisfies [keyof Profile, string][];
+] as const satisfies [keyof ProfileUser, string][];
 
 /** A person's profile: identity, activity, and work, at a glance. Organizations fall back to GitHub. */
 export function ProfilePage({ login }: { login: string }) {
   const queryClient = useQueryClient();
-  const { data: user, isPending, error } = useQuery({
-    queryKey: ['profile', login.toLowerCase()],
-    queryFn: async () => {
-      const { user } = await gql<{ user: Profile | null }>(PROFILE_QUERY, { login }, true);
-      if (!user) {
-        // Not a user: an organization (or nothing). Hand the URL back to GitHub for good.
-        rememberOrgs([login]);
-        location.reload();
-      }
-      return user;
-    },
-  });
+  const userQuery = profileUserQuery(login);
+  const { data: user, isPending, error } = useQuery(userQuery);
+  const { data: work } = useQuery(profileWorkQuery(login));
+  const { data: activity } = useQuery(profileActivityQuery(login));
+  const readme = useQuery(profileReadmeQuery(login));
 
   useTitle(user ? (user.name ? `${user.login} (${user.name})` : user.login) : undefined);
 
-  const readme = useQuery({
-    queryKey: ['readme', login.toLowerCase()],
-    queryFn: async () => {
-      const html = await restHtml(`/repos/${login}/${login}/readme`);
-      const repoUrl = `https://github.com/${login}/${login}`;
-      return html && absolutizeReadme(html, `${repoUrl}/raw/HEAD/`, `${repoUrl}/blob/HEAD/`);
-    },
-    staleTime: 10 * 60_000,
-  });
-
   const setFollowing = (following: boolean) =>
-    queryClient.setQueryData<Profile | null>(
-      ['profile', login.toLowerCase()],
+    queryClient.setQueryData(
+      userQuery.queryKey,
       (user) => user && { ...user, viewerIsFollowing: following, followers: { totalCount: user.followers.totalCount + (following ? 1 : -1) } },
     );
 
@@ -175,15 +89,15 @@ export function ProfilePage({ login }: { login: string }) {
         <div className="mx-auto max-w-[1180px] animate-enter px-6 pt-10 pb-8">
           <ProfileHeader user={user} />
 
-          <Contributions user={user} />
+          {activity ? <Contributions activity={activity} /> : <Skeleton className="mt-8 h-[214px] rounded-xl" />}
 
           <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
             <div className="flex min-w-0 flex-col gap-8">
-              {user.pinnedItems.nodes.length > 0 && (
+              {!!work?.pinnedItems.nodes.length && (
                 <section>
                   <SectionHeader title="Pinned" />
                   <div className="grid gap-3 md:grid-cols-2">
-                    {user.pinnedItems.nodes.map((repo) => (
+                    {work.pinnedItems.nodes.map((repo) => (
                       <RepoTile key={repo.id} repo={repo} />
                     ))}
                   </div>
@@ -199,21 +113,22 @@ export function ProfilePage({ login }: { login: string }) {
                 </section>
               )}
 
-              <RepoList user={user} />
+              {work ? <RepoList login={user.login} repositories={work.repositories} /> : <Skeleton className="h-64 rounded-xl" />}
             </div>
 
             <aside className="flex flex-col gap-8">
-              <Languages repos={user.repositories.nodes} />
+              {work && <Languages repos={work.repositories.nodes} />}
               <section>
                 <SectionHeader title="Recent pull requests" />
                 <Panel className="p-1.5">
-                  {user.pullRequests.nodes.length === 0 && <Empty>No pull requests yet.</Empty>}
-                  {user.pullRequests.nodes.map((pr) => (
+                  {!activity && <Skeleton className="m-1.5 h-24" />}
+                  {activity?.pullRequests.nodes.length === 0 && <Empty>No pull requests yet.</Empty>}
+                  {activity?.pullRequests.nodes.map((pr) => (
                     <CompactPr key={pr.id} pr={pr} />
                   ))}
                 </Panel>
               </section>
-              <ContributedTo repos={user.repositoriesContributedTo.nodes} />
+              {activity && <ContributedTo repos={activity.repositoriesContributedTo.nodes} />}
               {user.organizations.nodes.length > 0 && (
                 <section>
                   <SectionHeader title="Organizations" />
@@ -235,7 +150,7 @@ export function ProfilePage({ login }: { login: string }) {
 }
 
 /** Identity on the left; counts and achievements in a card lined up with the right-hand column below. */
-function ProfileHeader({ user }: { user: Profile }) {
+function ProfileHeader({ user }: { user: ProfileUser }) {
   const website = user.websiteUrl && (user.websiteUrl.startsWith('http') ? user.websiteUrl : `https://${user.websiteUrl}`);
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
@@ -359,24 +274,24 @@ function RepoMeta({ repo, className }: { repo: RepoCard; className?: string }) {
   );
 }
 
-function RepoList({ user }: { user: Profile }) {
+function RepoList({ login, repositories }: { login: string; repositories: ProfileWork['repositories'] }) {
   const [filter, setFilter] = useState('');
   // The 100 most recently pushed are loaded; the first 20 show until a filter searches all of them.
   const repos = useMemo(
     () =>
       filter
-        ? user.repositories.nodes.filter((repo) => `${repo.name} ${repo.description ?? ''}`.toLowerCase().includes(filter.toLowerCase()))
-        : user.repositories.nodes.slice(0, 20),
-    [user.repositories.nodes, filter],
+        ? repositories.nodes.filter((repo) => `${repo.name} ${repo.description ?? ''}`.toLowerCase().includes(filter.toLowerCase()))
+        : repositories.nodes.slice(0, 20),
+    [repositories.nodes, filter],
   );
 
   return (
     <section>
       <SectionHeader
         title="Repositories"
-        count={user.repositories.totalCount}
+        count={repositories.totalCount}
         action={
-          <a href={`/${user.login}?tab=repositories`} className="flex items-center gap-1 text-[12px] text-subtle hover:text-fg">
+          <a href={`/${login}?tab=repositories`} className="flex items-center gap-1 text-[12px] text-subtle hover:text-fg">
             View all <ArrowUpRight className="size-3" />
           </a>
         }
@@ -417,8 +332,8 @@ function RepoList({ user }: { user: Profile }) {
 }
 
 /** The year's heatmap, with the totals behind it. */
-function Contributions({ user }: { user: Profile }) {
-  const c = user.contributionsCollection;
+function Contributions({ activity }: { activity: ProfileActivity }) {
+  const c = activity.contributionsCollection;
   const stats = [
     [c.totalCommitContributions, 'commits'],
     [c.totalPullRequestContributions, 'pull requests'],
@@ -450,7 +365,7 @@ function Contributions({ user }: { user: Profile }) {
 
 /** The header card's lower half. Placeholders while loading; gone entirely when there are none. */
 function Achievements({ login }: { login: string }) {
-  const { data, isPending } = useAchievements(login);
+  const { data, isPending } = useQuery(achievementsQuery(login));
   if (!isPending && !data?.length) return null;
   return (
     <div className="border-t border-line px-3.5 pt-3 pb-3.5">
@@ -527,7 +442,7 @@ function Languages({ repos }: { repos: RepoCard[] }) {
 }
 
 /** Other people's repositories the user committed to, opened PRs on, or reviewed in the last year. */
-function ContributedTo({ repos }: { repos: Profile['repositoriesContributedTo']['nodes'] }) {
+function ContributedTo({ repos }: { repos: ProfileActivity['repositoriesContributedTo']['nodes'] }) {
   // GitHub ignores ordering on this connection; most-starred first reads best.
   const top = useMemo(() => [...repos].sort((a, b) => b.stargazerCount - a.stargazerCount).slice(0, 6), [repos]);
   if (!top.length) return null;

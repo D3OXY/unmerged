@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { localCache } from '@/lib/localCache';
+import { cachedQuery } from '@/lib/localCache';
 import { rememberOrgs } from '@/lib/orgs';
 import { gql } from './client';
 
@@ -20,19 +20,18 @@ export type Viewer = {
 };
 
 // The viewer drives the sidebar on every page, so it's cached across page loads for an instant shell.
-const cache = localCache<Viewer>('unmerged:viewer');
+const cache = cachedQuery<Viewer>('unmerged:viewer');
 
 export function useViewer() {
   return useQuery({
     queryKey: ['viewer'],
     queryFn: async () => {
       const { viewer } = await gql<{ viewer: Viewer }>(VIEWER_QUERY);
-      cache.set(viewer);
       rememberOrgs(viewer.organizations.nodes.map((org) => org.login));
-      return viewer;
+      return cache.save(viewer);
     },
-    initialData: cache.get,
-    initialDataUpdatedAt: 0,
+    initialData: cache.initialData,
+    initialDataUpdatedAt: cache.initialDataUpdatedAt,
     staleTime: 5 * 60_000,
   });
 }
