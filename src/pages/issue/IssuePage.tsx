@@ -25,7 +25,7 @@ type Props = { owner: string; repo: string; number: number };
 /** An issue (`/owner/repo/issues/<n>`) under the repo's header and tabs: description, activity and a sidebar. */
 export function IssuePage({ owner, repo, number }: Props) {
   const query = issueQuery(owner, repo, number);
-  const { data, isPending, error } = useQuery(query);
+  const { data, error } = useQuery(query);
   const subject = data?.repository?.issueOrPullRequest;
   const issue = subject?.__typename === 'Issue' ? subject : undefined;
   useTitle(issue && `${issue.title} · Issue #${number} · ${owner}/${repo}`);
@@ -57,7 +57,7 @@ export function IssuePage({ owner, repo, number }: Props) {
 }
 
 function IssueView({ issue, queryKey }: { issue: Issue; queryKey: QueryKey }) {
-  const toggleState = usePrMutation(queryKey);
+  const { mutate } = usePrMutation(queryKey);
 
   const commands = useMemo<Command[]>(() => {
     const list: Command[] = [
@@ -71,16 +71,15 @@ function IssueView({ issue, queryKey }: { issue: Issue; queryKey: QueryKey }) {
           group: 'Issue',
           title: reason.label,
           icon: <IssueIcon state="CLOSED" stateReason={reason.value} />,
-          perform: () => toggleState.mutate(stateChange(issue.id, reason.value)),
+          perform: () => mutate(stateChange(issue.id, reason.value)),
         })),
       );
     }
     if (issue.state === 'CLOSED' && issue.viewerCanReopen) {
-      list.unshift({ id: 'issue:reopen', group: 'Issue', title: 'Reopen issue', icon: <HugeiconsIcon icon={UndoIcon} />, perform: () => toggleState.mutate(stateChange(issue.id)) });
+      list.unshift({ id: 'issue:reopen', group: 'Issue', title: 'Reopen issue', icon: <HugeiconsIcon icon={UndoIcon} />, perform: () => mutate(stateChange(issue.id)) });
     }
     return list;
-    // The mutation object changes identity every render; its `mutate` is stable.
-  }, [issue]);
+  }, [issue, mutate]);
   useRegisterCommands('issue', commands);
 
   return (

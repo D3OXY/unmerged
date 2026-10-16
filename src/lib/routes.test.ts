@@ -56,7 +56,6 @@ describe('matchRoute', () => {
     ['https://github.com/o/r/commits/main/src', repo('commits', ['main', 'src'])],
     ['https://github.com/o/r/issues', repo('issues')],
     ['https://github.com/o/r/pulls?q=is:closed', repo('pulls')],
-    ['https://github.com/o/r/issues/5', null],
     ['https://github.com/o/r/commit/abc123', null],
     ['https://github.com/o/r/actions', null],
     ['https://github.com/Owner/Repo', { kind: 'repo', owner: 'Owner', repo: 'Repo', view: 'code', rest: [] }],
@@ -71,6 +70,11 @@ describe('matchRoute', () => {
     ['https://github.com/o/r/pull/12/commits/abc123', null],
     ['https://github.com/o/r/pull/12/unknown', null],
     ['https://github.com/o/r/pull/new', null],
+
+    // Issues
+    ['https://github.com/o/r/issues/123', { kind: 'issue', owner: 'o', repo: 'r', number: 123 }],
+    ['https://github.com/o/r/issues/new', null],
+    ['https://github.com/o/r/issues/12/edit', null],
 
     // Malformed escapes are left to GitHub instead of throwing
     ['https://github.com/%E0%A4%A', null],

@@ -17,7 +17,7 @@ const ISSUE_QUERY = /* GraphQL */ `
         __typename
         ... on PullRequest { url }
         ... on Issue {
-          id number title url state stateReason createdAt bodyHTML locked
+          id number title url state stateReason createdAt bodyHTML
           author { login avatarUrl }
           viewerCanClose viewerCanReopen
           labels(first: 20) { nodes { name color } }
@@ -44,8 +44,8 @@ const ISSUE_QUERY = /* GraphQL */ `
               ... on UnlabeledEvent { id actor { login avatarUrl } createdAt label { name color } }
               ... on AssignedEvent { id actor { login avatarUrl } createdAt assignee { ... on Actor { login } } }
               ... on UnassignedEvent { id actor { login avatarUrl } createdAt assignee { ... on Actor { login } } }
-              ... on CrossReferencedEvent { id actor { login avatarUrl } createdAt willCloseTarget source { ...Ref } }
-              ... on RenamedTitleEvent { id actor { login avatarUrl } createdAt previousTitle currentTitle }
+              ... on CrossReferencedEvent { id actor { login avatarUrl } createdAt source { ...Ref } }
+              ... on RenamedTitleEvent { id actor { login avatarUrl } createdAt previousTitle }
               ... on ConnectedEvent { id actor { login avatarUrl } createdAt source { ...Ref } subject { ...Ref } }
             }
           }
@@ -74,8 +74,8 @@ export type IssueTimelineItem =
   | Event<'ReopenedEvent'>
   | Event<'LabeledEvent' | 'UnlabeledEvent', { label: Label }>
   | Event<'AssignedEvent' | 'UnassignedEvent', { assignee: { login?: string } | null }>
-  | Event<'CrossReferencedEvent', { willCloseTarget: boolean; source: Ref }>
-  | Event<'RenamedTitleEvent', { previousTitle: string; currentTitle: string }>
+  | Event<'CrossReferencedEvent', { source: Ref }>
+  | Event<'RenamedTitleEvent', { previousTitle: string }>
   | Event<'ConnectedEvent', { source: Ref; subject: Ref }>;
 
 export type LinkedPr = Extract<Ref, { __typename: 'PullRequest' }>;
@@ -90,7 +90,6 @@ export type Issue = {
   stateReason: IssueStateReason | null;
   createdAt: string;
   bodyHTML: string;
-  locked: boolean;
   author: Actor;
   viewerCanClose: boolean;
   viewerCanReopen: boolean;
