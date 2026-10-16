@@ -1,5 +1,5 @@
 import { useState, type DragEvent, type ReactNode } from 'react';
-import { Bell, ChevronDown, CircleDot, GitPullRequest, Home, Lock, Monitor, Moon, PanelsTopLeft, Pin, Search, Sun, User, X } from 'lucide-react';
+import { Bell, ChevronDown, CircleDot, GitPullRequest, Home, Lock, Monitor, Moon, PanelsTopLeft, Pin, Search, Settings, Sun, User, X } from 'lucide-react';
 import { usePinnedRepos, useRecentRepos } from '@/github/repos';
 import { useViewer } from '@/github/viewer';
 import { openClassic } from '@/lib/classic';
@@ -10,6 +10,7 @@ import { pinsItem, themeItem, useStorageItem, type Theme } from '@/lib/settings'
 import { Avatar, Kbd } from '@/ui/primitives';
 import { paletteOpen } from './commands';
 import { Logo } from './Logo';
+import { settingsOpen } from './SettingsDialog';
 
 const RECENT_SHOWN = 8;
 // Set when dragging a pinned repo, so a drop inside Pinned reorders instead of re-adding.
@@ -30,6 +31,15 @@ export function Sidebar({ active }: { active?: NavSection }) {
       <div className="flex h-8 items-center gap-2 px-1.5">
         <Logo />
         <span className="text-[13.5px] font-semibold tracking-tight">Unmerged</span>
+        <button
+          type="button"
+          onClick={() => settingsOpen.set(true)}
+          title="Settings"
+          aria-label="Settings"
+          className="-mr-1 ml-auto flex size-7 cursor-pointer items-center justify-center rounded-md text-subtle transition-colors hover:bg-hover hover:text-fg"
+        >
+          <Settings className="size-4" />
+        </button>
       </div>
 
       <button

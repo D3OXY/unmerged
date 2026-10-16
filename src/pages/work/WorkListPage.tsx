@@ -131,7 +131,7 @@ export function WorkListPage({ type, filter }: { type: WorkType; filter: WorkFil
   return (
     <Shell active={type === 'pr' ? 'pulls' : 'issues'}>
       <PageHeader crumbs={[{ label: title }]} />
-      <div className="mx-auto max-w-[1180px] px-6 pb-20">
+      <div className="mx-auto max-w-[1180px] px-6 pb-8">
         <TabBar className="mt-2">
           {TABS[type].map((tab, i) => (
             <Tab key={tab.filter} href={tab.path} active={tab.filter === filter} icon={type === 'pr' ? <GitPullRequest /> : <CircleDot />} label={tab.label} count={tabCounts.data?.[i]} />

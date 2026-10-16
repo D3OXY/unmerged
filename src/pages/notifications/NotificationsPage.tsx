@@ -187,7 +187,7 @@ export function NotificationsPage() {
           )
         }
       />
-      <div className="mx-auto max-w-[1180px] px-6 pb-20">
+      <div className="mx-auto max-w-[1180px] px-6 pb-8">
         <TabBar
           className="mt-2"
           trailing={

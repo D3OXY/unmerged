@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useState } from 'react';
-import { storage } from '#imports';
+import { browser, storage } from '#imports';
 
 /** Surfaces Unmerged can take over. Each can be switched off from the popup. */
 export type Surface = 'home' | 'profile' | 'pr' | 'repo' | 'work' | 'notifications';
@@ -40,6 +40,9 @@ export function useIsDark() {
   }, []);
   return isDark(theme ?? 'auto');
 }
+
+/** A local build loaded unpacked, not a store install (the store adds `update_url` to the manifest). */
+export const isUnpacked = () => !('update_url' in browser.runtime.getManifest());
 
 /** Pinned repos ("owner/name"), in sidebar order. Synced across the user's browsers. */
 export const pinsItem = storage.defineItem<string[]>('sync:pinnedRepos', { fallback: [] });

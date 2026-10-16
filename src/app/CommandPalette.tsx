@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Bell, BookMarked, CircleDot, GitPullRequest, Home, Monitor, Moon, Search, Star, Sun, User } from 'lucide-react';
+import { Bell, BookMarked, CircleDot, GitPullRequest, Home, Monitor, Moon, Search, Settings, Star, Sun, User } from 'lucide-react';
 import { gql } from '@/github/client';
 import { navigate } from '@/lib/navigation';
 import { sessionLogin } from '@/lib/session';
@@ -9,6 +9,7 @@ import { cx } from '@/lib/cx';
 import { formatCount } from '@/lib/time';
 import { Avatar, Kbd } from '@/ui/primitives';
 import { paletteOpen, registeredCommands, type Command } from './commands';
+import { settingsOpen } from './SettingsDialog';
 
 const SEARCH_QUERY = /* GraphQL */ `
   query PaletteSearch($q: String!) {
@@ -48,6 +49,7 @@ function navigationCommands(): Command[] {
     { id: 'nav:issues', group: 'Navigate', title: 'Issues', icon: <CircleDot />, perform: go('/issues') },
     { id: 'nav:notifications', group: 'Navigate', title: 'Notifications', icon: <Bell />, perform: go('/notifications') },
     { id: 'nav:stars', group: 'Navigate', title: 'Your stars', icon: <Star />, perform: go(login ? `/${login}?tab=stars` : '/stars') },
+    { id: 'settings', group: 'Appearance', title: 'Settings', keywords: 'preferences token pages reload', icon: <Settings />, perform: () => settingsOpen.set(true) },
     { id: 'theme:light', group: 'Appearance', title: 'Light theme', keywords: 'mode', icon: <Sun />, perform: () => themeItem.setValue('light') },
     { id: 'theme:dark', group: 'Appearance', title: 'Dark theme', keywords: 'mode', icon: <Moon />, perform: () => themeItem.setValue('dark') },
     { id: 'theme:auto', group: 'Appearance', title: 'Auto theme (match GitHub)', keywords: 'mode system', icon: <Monitor />, perform: () => themeItem.setValue('auto') },

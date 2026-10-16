@@ -13,6 +13,7 @@ import { RepoPage } from '@/pages/repo/RepoPage';
 import { WorkListPage } from '@/pages/work/WorkListPage';
 import { Toaster } from '@/ui/toast';
 import { CommandPalette } from './CommandPalette';
+import { SettingsDialog } from './SettingsDialog';
 import { Logo } from './Logo';
 import { appState, authRejected } from './state';
 import { TokenGate } from './TokenGate';
@@ -36,6 +37,7 @@ export function App() {
       {route.kind === 'pr' && <PrPage key={`${route.owner}/${route.repo}#${route.number}`} {...route} />}
       {route.kind === 'repo' && <RepoPage key={`${route.owner}/${route.repo}`.toLowerCase()} {...route} />}
       <CommandPalette />
+      <SettingsDialog />
       <Toaster />
     </>
   );

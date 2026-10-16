@@ -63,7 +63,7 @@ export function ProfileFrame({ login, tab, children }: { login: string; tab: key
   return (
     <Shell active={user?.isViewer ? 'profile' : undefined}>
       <PageHeader crumbs={[{ label: 'People' }, { label: user?.login ?? login, href: base }, { label: title }]} />
-      <div className="mx-auto max-w-[1080px] px-6 pb-20">
+      <div className="mx-auto max-w-[1080px] px-6 pb-8">
         <div className="flex items-center gap-3 pt-8 pb-5">
           {user ? <Avatar src={user.avatarUrl} size={40} /> : <Skeleton className="size-10 rounded-full" />}
           <div className="min-w-0">

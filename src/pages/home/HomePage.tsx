@@ -69,7 +69,7 @@ export function HomePage() {
           </Button>
         }
       />
-      <div className="mx-auto max-w-[1180px] animate-enter px-6 pt-10 pb-20">
+      <div className="mx-auto max-w-[1180px] animate-enter px-6 pt-10 pb-8">
         <h1 className="text-[26px] font-semibold tracking-tight">
           {greeting()}
           {firstName && `, ${firstName}`}

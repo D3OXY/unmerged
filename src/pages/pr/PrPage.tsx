@@ -133,7 +133,7 @@ function PrView({ pr, repo, tab, queryKey }: { pr: PullRequest; repo: Repo; tab:
   const rollup = pr.commits.nodes[0]?.commit.statusCheckRollup;
 
   return (
-    <div className={cx('mx-auto animate-enter px-6 pt-8 pb-24', tab === 'files' ? 'max-w-[1600px]' : 'max-w-[1240px]')}>
+    <div className={cx('mx-auto animate-enter px-6 pt-8 pb-8', tab === 'files' ? 'max-w-[1600px]' : 'max-w-[1240px]')}>
       <div className="max-w-[860px]">
         <h1 className="text-[24px] leading-tight font-semibold tracking-tight">
           {pr.title} <span className="font-normal text-subtle">#{pr.number}</span>

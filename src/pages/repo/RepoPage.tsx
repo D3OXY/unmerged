@@ -79,7 +79,7 @@ export function RepoPage({ owner, repo: name, rest }: Props) {
   return (
     <Shell>
       <PageHeader crumbs={crumbs} actions={repo && <RepoActions repo={repo} queryKey={metaKey} />} />
-      <div className="mx-auto max-w-[1240px] animate-enter px-6 pt-8 pb-24">
+      <div className="mx-auto max-w-[1240px] animate-enter px-6 pt-8 pb-8">
         {repo ? <RepoHeader repo={repo} /> : <div className="h-[34px]" />}
         <RepoTabs repo={repo ?? undefined} nwo={nwo} />
 
