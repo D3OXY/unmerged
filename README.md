@@ -38,6 +38,9 @@ Open github.com and paste a token when asked
 
 `pnpm dev` runs WXT with hot reload in a separate browser profile. `pnpm build:firefox` builds for Firefox.
 
+`pnpm check` runs everything CI runs except the Firefox build: `pnpm typecheck`, `pnpm test` (Vitest),
+`pnpm lint` (ESLint) and `pnpm build`.
+
 ## How it works
 
 - A `document_start` content script hides GitHub's `<body>` for owned URLs before first paint and mounts a
