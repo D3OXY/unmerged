@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ArrowRight, KeyRound } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowRight02Icon, Key01Icon } from '@hugeicons/core-free-icons';
 import { NEW_TOKEN_URL, tokenItem } from '@/lib/settings';
 import { openClassic } from '@/lib/classic';
 import { Button } from '@/ui/Button';
@@ -30,7 +31,7 @@ export function TokenGate({ rejected }: { rejected?: boolean }) {
           }}
         >
           <label className="flex h-10 items-center gap-2.5 rounded-xl border border-line bg-panel px-3 focus-within:border-accent/60">
-            <KeyRound className="size-4 text-subtle" />
+            <HugeiconsIcon icon={Key01Icon} className="size-4 text-subtle" />
             <input
               autoFocus
               type="password"
@@ -41,7 +42,7 @@ export function TokenGate({ rejected }: { rejected?: boolean }) {
             />
           </label>
           <Button type="submit" variant="primary" disabled={!value.trim()} loading={saving} className="justify-center">
-            Continue <ArrowRight className="size-3.5" />
+            Continue <HugeiconsIcon icon={ArrowRight02Icon} className="size-3.5" />
           </Button>
         </form>
         <div className="mt-5 flex items-center justify-between text-[12.5px]">

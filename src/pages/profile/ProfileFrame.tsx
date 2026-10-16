@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Award, BookMarked, BookOpen, Star, UserRound, Users } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Award01Icon, Book02Icon, BookOpen01Icon, StarIcon, UserGroupIcon, UserIcon } from '@hugeicons/core-free-icons';
 import { achievementsQuery } from '@/github/achievements';
 import { Shell, PageHeader } from '@/app/Shell';
 import type { ProfileTab } from '@/lib/routes';
@@ -40,12 +41,12 @@ export function ProfileFrame({ login, tab, children }: { login: string; tab: key
         </div>
 
         <TabBar>
-          <Tab href={base} icon={<BookOpen />} label="Overview" />
-          <Tab href={`${base}?tab=repositories`} active={tab === 'repositories'} icon={<BookMarked />} label="Repositories" count={user?.repositories.totalCount} />
-          <Tab href={`${base}?tab=achievements`} active={tab === 'achievements'} icon={<Award />} label="Achievements" count={achievements.data?.length} />
-          <Tab href={`${base}?tab=followers`} active={tab === 'followers'} icon={<Users />} label="Followers" count={user?.followers.totalCount} />
-          <Tab href={`${base}?tab=following`} active={tab === 'following'} icon={<UserRound />} label="Following" count={user?.following.totalCount} />
-          <Tab href={`${base}?tab=stars`} icon={<Star />} label="Stars" count={user?.starredRepositories.totalCount} />
+          <Tab href={base} icon={<HugeiconsIcon icon={BookOpen01Icon} />} label="Overview" />
+          <Tab href={`${base}?tab=repositories`} active={tab === 'repositories'} icon={<HugeiconsIcon icon={Book02Icon} />} label="Repositories" count={user?.repositories.totalCount} />
+          <Tab href={`${base}?tab=achievements`} active={tab === 'achievements'} icon={<HugeiconsIcon icon={Award01Icon} />} label="Achievements" count={achievements.data?.length} />
+          <Tab href={`${base}?tab=followers`} active={tab === 'followers'} icon={<HugeiconsIcon icon={UserGroupIcon} />} label="Followers" count={user?.followers.totalCount} />
+          <Tab href={`${base}?tab=following`} active={tab === 'following'} icon={<HugeiconsIcon icon={UserIcon} />} label="Following" count={user?.following.totalCount} />
+          <Tab href={`${base}?tab=stars`} icon={<HugeiconsIcon icon={StarIcon} />} label="Stars" count={user?.starredRepositories.totalCount} />
         </TabBar>
 
         {children}

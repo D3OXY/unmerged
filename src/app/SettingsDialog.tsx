@@ -1,4 +1,5 @@
-import { RotateCw, X } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Cancel01Icon, ReloadIcon } from '@hugeicons/core-free-icons';
 import { isUnpacked } from '@/lib/settings';
 import { createStore } from '@/lib/store';
 import { Button } from '@/ui/Button';
@@ -38,7 +39,7 @@ function Dialog() {
           aria-label="Close"
           className="flex size-7 cursor-pointer items-center justify-center rounded-md text-subtle hover:bg-hover hover:text-fg"
         >
-          <X className="size-4" />
+          <HugeiconsIcon icon={Cancel01Icon} className="size-4" />
         </button>
       </header>
 
@@ -47,7 +48,7 @@ function Dialog() {
       <footer className="flex h-11 items-center justify-between border-t border-line px-4 text-[11.5px] text-subtle">
         <span className="tabular-nums">Unmerged v{browser.runtime.getManifest().version}</span>
         {isUnpacked() && (
-          <Button size="sm" variant="ghost" icon={<RotateCw className="size-3.5" />} onClick={reloadExtension}>
+          <Button size="sm" variant="ghost" icon={<HugeiconsIcon icon={ReloadIcon} className="size-3.5" />} onClick={reloadExtension}>
             Reload extension
           </Button>
         )}

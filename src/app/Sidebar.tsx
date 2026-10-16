@@ -1,5 +1,6 @@
 import { useState, type DragEvent, type ReactNode } from 'react';
-import { Bell, ChevronDown, CircleDot, GitPullRequest, Home, Lock, Monitor, Moon, PanelsTopLeft, Pin, Search, Settings, Sun, User, X } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowDown01Icon, BrowserIcon, Cancel01Icon, CircleDotIcon, ComputerIcon, GitPullRequestIcon, Home01Icon, Moon02Icon, Notification03Icon, PinIcon, Search01Icon, Settings02Icon, SquareLock02Icon, Sun03Icon, UserIcon } from '@hugeicons/core-free-icons';
 import { usePinnedRepos, useRecentRepos } from '@/github/repos';
 import { useViewer } from '@/github/viewer';
 import { openClassic } from '@/lib/classic';
@@ -38,7 +39,7 @@ export function Sidebar({ active }: { active?: NavSection }) {
           aria-label="Settings"
           className="-mr-1 ml-auto flex size-7 cursor-pointer items-center justify-center rounded-md text-subtle transition-colors hover:bg-hover hover:text-fg"
         >
-          <Settings className="size-4" />
+          <HugeiconsIcon icon={Settings02Icon} className="size-4" />
         </button>
       </div>
 
@@ -47,7 +48,7 @@ export function Sidebar({ active }: { active?: NavSection }) {
         onClick={() => paletteOpen.set(true)}
         className="mt-3 flex h-8 cursor-pointer items-center gap-2 rounded-lg border border-line bg-bg px-2.5 text-[12.5px] text-subtle transition-colors hover:border-line-strong hover:text-muted"
       >
-        <Search className="size-3.5" />
+        <HugeiconsIcon icon={Search01Icon} className="size-3.5" />
         Search or jump to…
         <span className="ml-auto flex gap-0.5">
           <Kbd>⌘</Kbd>
@@ -56,20 +57,20 @@ export function Sidebar({ active }: { active?: NavSection }) {
       </button>
 
       <nav className="mt-4 flex flex-col gap-px">
-        <NavItem href="/" icon={<Home />} active={active === 'home'}>
+        <NavItem href="/" icon={<HugeiconsIcon icon={Home01Icon} />} active={active === 'home'}>
           Home
         </NavItem>
-        <NavItem href="/pulls" icon={<GitPullRequest />} active={active === 'pulls'}>
+        <NavItem href="/pulls" icon={<HugeiconsIcon icon={GitPullRequestIcon} />} active={active === 'pulls'}>
           Pull requests
         </NavItem>
-        <NavItem href="/issues" icon={<CircleDot />} active={active === 'issues'}>
+        <NavItem href="/issues" icon={<HugeiconsIcon icon={CircleDotIcon} />} active={active === 'issues'}>
           Issues
         </NavItem>
-        <NavItem href="/notifications" icon={<Bell />} active={active === 'notifications'}>
+        <NavItem href="/notifications" icon={<HugeiconsIcon icon={Notification03Icon} />} active={active === 'notifications'}>
           Notifications
         </NavItem>
         {viewer && (
-          <NavItem href={`/${viewer.login}`} icon={<User />} active={active === 'profile'}>
+          <NavItem href={`/${viewer.login}`} icon={<HugeiconsIcon icon={UserIcon} />} active={active === 'profile'}>
             Profile
           </NavItem>
         )}
@@ -88,7 +89,7 @@ export function Sidebar({ active }: { active?: NavSection }) {
               onClick={() => setShowAll((s) => !s)}
               className="flex h-7 cursor-pointer items-center gap-2.5 rounded-md px-2 text-[12.5px] text-subtle hover:bg-hover hover:text-fg"
             >
-              <ChevronDown className={cx('size-4 transition-transform', showAll && 'rotate-180')} />
+              <HugeiconsIcon icon={ArrowDown01Icon} className={cx('size-4 transition-transform', showAll && 'rotate-180')} />
               {showAll ? 'Show less' : `${recentRepos.length - RECENT_SHOWN} more`}
             </button>
           )}
@@ -119,7 +120,7 @@ export function Sidebar({ active }: { active?: NavSection }) {
           title="Show this page in classic GitHub"
           className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2 text-[12px] text-subtle hover:bg-hover hover:text-fg"
         >
-          <PanelsTopLeft className="size-3.5" />
+          <HugeiconsIcon icon={BrowserIcon} className="size-3.5" />
           Classic
         </button>
       </div>
@@ -128,9 +129,9 @@ export function Sidebar({ active }: { active?: NavSection }) {
 }
 
 const THEME_CYCLE: Record<Theme, { next: Theme; label: string; icon: ReactNode }> = {
-  auto: { next: 'light', label: 'Auto (matches GitHub)', icon: <Monitor /> },
-  light: { next: 'dark', label: 'Light', icon: <Sun /> },
-  dark: { next: 'auto', label: 'Dark', icon: <Moon /> },
+  auto: { next: 'light', label: 'Auto (matches GitHub)', icon: <HugeiconsIcon icon={ComputerIcon} /> },
+  light: { next: 'dark', label: 'Light', icon: <HugeiconsIcon icon={Sun03Icon} /> },
+  dark: { next: 'auto', label: 'Dark', icon: <HugeiconsIcon icon={Moon02Icon} /> },
 };
 
 /** Cycles auto → light → dark. Also in the popup and the ⌘K palette. */
@@ -200,7 +201,7 @@ function PinnedGroup({ pins, viewerLogin }: { pins: string[] | null; viewerLogin
       className={cx('mt-5 rounded-lg transition-colors', dropBefore && 'bg-accent/8 ring-1 ring-accent/40')}
     >
       <div className="flex items-center gap-1.5 px-2 pb-1 text-[11px] font-medium text-subtle">
-        <Pin className="size-3" />
+        <HugeiconsIcon icon={PinIcon} className="size-3" />
         Pinned
       </div>
       {pins?.length ? (
@@ -223,7 +224,7 @@ function PinnedGroup({ pins, viewerLogin }: { pins: string[] | null; viewerLogin
                     }}
                     className="ml-auto hidden size-5 cursor-pointer items-center justify-center rounded text-subtle group-hover:flex hover:bg-hover hover:text-fg"
                   >
-                    <X className="size-3" />
+                    <HugeiconsIcon icon={Cancel01Icon} className="size-3" />
                   </button>
                 }
               />
@@ -295,7 +296,7 @@ function RepoItem({
         <span className="shrink-0 text-subtle group-hover:text-muted">/</span>
         <span className="max-w-[calc(100%-3.5ch)] shrink-0 truncate">{repo}</span>
       </span>
-      {isPrivate && <Lock className={cx('ml-auto size-3 shrink-0 text-subtle', !!trailing && 'group-hover:hidden')} />}
+      {isPrivate && <HugeiconsIcon icon={SquareLock02Icon} className={cx('ml-auto size-3 shrink-0 text-subtle', !!trailing && 'group-hover:hidden')} />}
       {trailing}
     </a>
   );

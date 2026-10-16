@@ -1,4 +1,5 @@
-import { MessageSquare } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Comment01Icon } from '@hugeicons/core-free-icons';
 import type { Actor, CheckState, IssueState, IssueStateReason, Label, PrState, ReviewDecision } from '@/github/types';
 import { cx } from '@/lib/cx';
 import { timeAgo } from '@/lib/time';
@@ -77,7 +78,7 @@ export function WorkRow(row: ({ kind: 'pr'; item: PrRowData } | { kind: 'issue';
       <span className="flex w-8 items-center gap-1 text-[12px] text-subtle tabular-nums">
         {item.comments.totalCount > 0 && (
           <>
-            <MessageSquare className="size-3" />
+            <HugeiconsIcon icon={Comment01Icon} className="size-3" />
             {item.comments.totalCount}
           </>
         )}

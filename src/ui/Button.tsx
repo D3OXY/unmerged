@@ -1,5 +1,6 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
-import { Loader2 } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Loading03Icon } from '@hugeicons/core-free-icons';
 import { cx } from '@/lib/cx';
 
 const variants = {
@@ -36,7 +37,7 @@ export function Button({ variant = 'secondary', size = 'md', loading, icon, clas
       )}
       {...props}
     >
-      {loading ? <Loader2 className="size-3.5 animate-spin" /> : icon}
+      {loading ? <HugeiconsIcon icon={Loading03Icon} className="size-3.5 animate-spin" /> : icon}
       {children}
     </button>
   );

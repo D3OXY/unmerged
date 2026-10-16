@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { ArrowDownUp, CircleCheck, CircleDot, Search } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowUpDownIcon, CheckmarkCircle02Icon, CircleDotIcon, Search01Icon } from '@hugeicons/core-free-icons';
 import { usePageHotkey } from '@/app/keyboard';
 import { cx } from '@/lib/cx';
 import { Button } from '@/ui/Button';
@@ -63,7 +64,7 @@ export function WorkList({ fallback, repo }: { fallback: string; repo?: string }
         }}
       >
         <label className="flex h-8 min-w-[280px] flex-1 items-center gap-2 rounded-lg border border-line bg-panel px-2.5 transition-colors focus-within:border-accent/60">
-          <Search className="size-3.5 shrink-0 text-subtle" />
+          <HugeiconsIcon icon={Search01Icon} className="size-3.5 shrink-0 text-subtle" />
           <input
             ref={searchRef}
             value={draft}
@@ -86,7 +87,7 @@ export function WorkList({ fallback, repo }: { fallback: string; repo?: string }
                 state === s ? 'bg-elevated font-medium text-fg shadow-sm' : 'text-muted hover:text-fg',
               )}
             >
-              {s === 'open' ? <CircleDot /> : <CircleCheck />}
+              {s === 'open' ? <HugeiconsIcon icon={CircleDotIcon} /> : <HugeiconsIcon icon={CheckmarkCircle02Icon} />}
               {s === 'open' ? 'Open' : 'Closed'}
               <span className="text-subtle tabular-nums">{first?.[s]?.issueCount.toLocaleString() ?? '–'}</span>
             </button>
@@ -97,7 +98,7 @@ export function WorkList({ fallback, repo }: { fallback: string; repo?: string }
           options={(Object.keys(SORTS) as Sort[]).map((value) => ({ value, label: SORTS[value] }))}
           onChange={(next) => setQ(withSort(q, next))}
           trigger={(open) => (
-            <Button onClick={open} icon={<ArrowDownUp className="size-3.5 text-subtle" />}>
+            <Button onClick={open} icon={<HugeiconsIcon icon={ArrowUpDownIcon} className="size-3.5 text-subtle" />}>
               {SORTS[sort]}
             </Button>
           )}

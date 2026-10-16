@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Cancel01Icon } from '@hugeicons/core-free-icons';
 import { useQuery } from '@tanstack/react-query';
 import { achievementDetailQuery, achievementsQuery, type Achievement } from '@/github/achievements';
 import { formatDate } from '@/lib/time';
@@ -72,7 +73,7 @@ function AchievementDialog({ login, achievement: { slug, name, image, tier }, on
           aria-label="Close"
           className="absolute top-3 right-3 flex size-7 cursor-pointer items-center justify-center rounded-md bg-black/30 text-white/80 backdrop-blur hover:bg-black/50 hover:text-white"
         >
-          <X className="size-4" />
+          <HugeiconsIcon icon={Cancel01Icon} className="size-4" />
         </button>
       </div>
 

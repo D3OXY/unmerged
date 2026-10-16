@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { Check, CircleDot, Eye, GitCommitHorizontal, GitMerge, GitPullRequestDraft, MessageSquare, Pencil, RotateCcw, Tag, Trash2, Upload, X } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Cancel01Icon, CircleDotIcon, Comment01Icon, Delete02Icon, GitCommitHorizontalIcon, GitMergeIcon, GitPullRequestDraftIcon, PencilEdit02Icon, Tag01Icon, Tick02Icon, UndoIcon, Upload01Icon, ViewIcon } from '@hugeicons/core-free-icons';
 import type { Actor } from '@/github/types';
 import { openClassic } from '@/lib/classic';
 import { cx } from '@/lib/cx';
@@ -14,7 +15,7 @@ export function Timeline({ items, hiddenCount }: { items: TimelineItem[]; hidden
     <div className="relative">
       <div className="absolute top-2 bottom-2 left-[15px] w-px bg-line" />
       {hiddenCount > 0 && (
-        <EventLine icon={<MessageSquare />}>
+        <EventLine icon={<HugeiconsIcon icon={Comment01Icon} />}>
           {hiddenCount} earlier events aren't shown.
           <button type="button" onClick={openClassic} className="cursor-pointer text-accent hover:underline">
             View in classic
@@ -38,7 +39,7 @@ function TimelineEntry({ item }: { item: TimelineItem }) {
       const { commit } = item;
       const user = commit.author?.user;
       return (
-        <EventLine icon={<GitCommitHorizontal />}>
+        <EventLine icon={<HugeiconsIcon icon={GitCommitHorizontalIcon} />}>
           <a href={commit.url} className="flex min-w-0 items-center gap-2 hover:text-fg">
             {user && <Avatar src={user.avatarUrl} size={16} />}
             <span className="truncate text-fg/90">{commit.messageHeadline}</span>
@@ -52,39 +53,39 @@ function TimelineEntry({ item }: { item: TimelineItem }) {
     }
     case 'MergedEvent':
       return (
-        <EventLine icon={<GitMerge />} tone="merged" actor={item.actor} at={item.createdAt}>
+        <EventLine icon={<HugeiconsIcon icon={GitMergeIcon} />} tone="merged" actor={item.actor} at={item.createdAt}>
           merged {item.commit && <code className="font-mono text-fg/90">{item.commit.abbreviatedOid}</code>} into{' '}
           <code className="font-mono text-fg/90">{item.mergeRefName}</code>
         </EventLine>
       );
     case 'ClosedEvent':
-      return <EventLine icon={<X />} tone="danger" actor={item.actor} at={item.createdAt}>closed this</EventLine>;
+      return <EventLine icon={<HugeiconsIcon icon={Cancel01Icon} />} tone="danger" actor={item.actor} at={item.createdAt}>closed this</EventLine>;
     case 'ReopenedEvent':
-      return <EventLine icon={<RotateCcw />} tone="success" actor={item.actor} at={item.createdAt}>reopened this</EventLine>;
+      return <EventLine icon={<HugeiconsIcon icon={UndoIcon} />} tone="success" actor={item.actor} at={item.createdAt}>reopened this</EventLine>;
     case 'HeadRefForcePushedEvent':
-      return <EventLine icon={<Upload />} actor={item.actor} at={item.createdAt}>force-pushed the branch</EventLine>;
+      return <EventLine icon={<HugeiconsIcon icon={Upload01Icon} />} actor={item.actor} at={item.createdAt}>force-pushed the branch</EventLine>;
     case 'HeadRefDeletedEvent':
-      return <EventLine icon={<Trash2 />} actor={item.actor} at={item.createdAt}>deleted the branch</EventLine>;
+      return <EventLine icon={<HugeiconsIcon icon={Delete02Icon} />} actor={item.actor} at={item.createdAt}>deleted the branch</EventLine>;
     case 'ReadyForReviewEvent':
-      return <EventLine icon={<Eye />} actor={item.actor} at={item.createdAt}>marked this ready for review</EventLine>;
+      return <EventLine icon={<HugeiconsIcon icon={ViewIcon} />} actor={item.actor} at={item.createdAt}>marked this ready for review</EventLine>;
     case 'ConvertToDraftEvent':
-      return <EventLine icon={<GitPullRequestDraft />} actor={item.actor} at={item.createdAt}>converted this to a draft</EventLine>;
+      return <EventLine icon={<HugeiconsIcon icon={GitPullRequestDraftIcon} />} actor={item.actor} at={item.createdAt}>converted this to a draft</EventLine>;
     case 'LabeledEvent':
       return (
-        <EventLine icon={<Tag />} actor={item.actor} at={item.createdAt}>
+        <EventLine icon={<HugeiconsIcon icon={Tag01Icon} />} actor={item.actor} at={item.createdAt}>
           added <Pill color={item.label.color}>{item.label.name}</Pill>
         </EventLine>
       );
     case 'RenamedTitleEvent':
       return (
-        <EventLine icon={<Pencil />} actor={item.actor} at={item.createdAt}>
+        <EventLine icon={<HugeiconsIcon icon={PencilEdit02Icon} />} actor={item.actor} at={item.createdAt}>
           renamed from <span className="text-fg/80 line-through decoration-subtle">{item.previousTitle}</span>
         </EventLine>
       );
     case 'ReviewRequestedEvent': {
       const who = item.requestedReviewer?.login ?? item.requestedReviewer?.name;
       return (
-        <EventLine icon={<Eye />} actor={item.actor} at={item.createdAt}>
+        <EventLine icon={<HugeiconsIcon icon={ViewIcon} />} actor={item.actor} at={item.createdAt}>
           requested review{who && <> from <span className="font-medium text-fg/90">{who}</span></>}
         </EventLine>
       );
@@ -93,11 +94,11 @@ function TimelineEntry({ item }: { item: TimelineItem }) {
 }
 
 const REVIEW_COPY: Record<ReviewState, { verb: string; icon: ReactNode; tone?: 'success' | 'danger' }> = {
-  APPROVED: { verb: 'approved these changes', icon: <Check />, tone: 'success' },
-  CHANGES_REQUESTED: { verb: 'requested changes', icon: <CircleDot />, tone: 'danger' },
-  COMMENTED: { verb: 'reviewed', icon: <Eye /> },
-  DISMISSED: { verb: 'left a dismissed review', icon: <Eye /> },
-  PENDING: { verb: 'started a review', icon: <Eye /> },
+  APPROVED: { verb: 'approved these changes', icon: <HugeiconsIcon icon={Tick02Icon} />, tone: 'success' },
+  CHANGES_REQUESTED: { verb: 'requested changes', icon: <HugeiconsIcon icon={CircleDotIcon} />, tone: 'danger' },
+  COMMENTED: { verb: 'reviewed', icon: <HugeiconsIcon icon={ViewIcon} /> },
+  DISMISSED: { verb: 'left a dismissed review', icon: <HugeiconsIcon icon={ViewIcon} /> },
+  PENDING: { verb: 'started a review', icon: <HugeiconsIcon icon={ViewIcon} /> },
 };
 
 function Review({ item }: { item: Extract<TimelineItem, { __typename: 'PullRequestReview' }> }) {

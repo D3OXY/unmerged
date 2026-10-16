@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { FileText, Search } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { File02Icon, Search01Icon } from '@hugeicons/core-free-icons';
 import { rest } from '@/github/client';
 import { cx } from '@/lib/cx';
 import { navigate } from '@/lib/navigation';
@@ -69,7 +70,7 @@ export function FileFinder({ nameWithOwner, gitRef, onClose }: { nameWithOwner: 
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-[12vh] backdrop-blur-[2px]" onPointerDown={onClose}>
       <div className="w-[680px] max-w-[calc(100vw-32px)] animate-pop overflow-hidden rounded-2xl border border-line-strong bg-elevated shadow-2xl shadow-black/50" onPointerDown={(e) => e.stopPropagation()}>
         <div className="flex h-12 items-center gap-3 border-b border-line px-4">
-          <Search className="size-4 text-subtle" />
+          <HugeiconsIcon icon={Search01Icon} className="size-4 text-subtle" />
           <input
             autoFocus
             value={query}
@@ -99,7 +100,7 @@ export function FileFinder({ nameWithOwner, gitRef, onClose }: { nameWithOwner: 
                 onClick={() => open(path)}
                 className={cx('flex h-9 w-full cursor-pointer items-center gap-3 rounded-lg px-2.5 text-left', i === active && 'bg-hover')}
               >
-                <FileText className="size-4 shrink-0 text-subtle" />
+                <HugeiconsIcon icon={File02Icon} className="size-4 shrink-0 text-subtle" />
                 <span className="truncate font-mono text-[12.5px]">
                   <span className="text-subtle">{path.slice(0, slash + 1)}</span>
                   {path.slice(slash + 1)}

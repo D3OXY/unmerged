@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Bell, Check, CheckCheck, CircleCheck, CircleDot, GitCommitHorizontal, GitPullRequest, Inbox, MessagesSquare, Tag, X } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Cancel01Icon, CheckmarkCircle02Icon, CircleDotIcon, GitCommitHorizontalIcon, GitPullRequestIcon, InboxIcon, MessageMultiple02Icon, Notification03Icon, Tag01Icon, Tick02Icon, TickDouble02Icon } from '@hugeicons/core-free-icons';
 import { rest } from '@/github/client';
 import { usePageHotkey } from '@/app/keyboard';
 import { PageHeader, Shell } from '@/app/Shell';
@@ -16,9 +17,9 @@ import { notificationsQuery, viewOf, type Notification, type View } from './quer
 
 // GitHub's own `?query=` values for these views, so links in and out keep meaning the same thing.
 const VIEWS: Record<View, { label: string; query: string | null; icon: ReactNode }> = {
-  inbox: { label: 'Inbox', query: null, icon: <Inbox /> },
-  unread: { label: 'Unread', query: 'is:unread', icon: <Bell /> },
-  participating: { label: 'Participating', query: 'reason:participating', icon: <MessagesSquare /> },
+  inbox: { label: 'Inbox', query: null, icon: <HugeiconsIcon icon={InboxIcon} /> },
+  unread: { label: 'Unread', query: 'is:unread', icon: <HugeiconsIcon icon={Notification03Icon} /> },
+  participating: { label: 'Participating', query: 'reason:participating', icon: <HugeiconsIcon icon={MessageMultiple02Icon} /> },
 };
 
 const REASONS: Record<string, string> = {
@@ -42,12 +43,12 @@ const REASONS: Record<string, string> = {
 const LOUD = new Set(['review_requested', 'mention', 'assign', 'approval_requested', 'security_alert', 'team_mention']);
 
 const ICONS: Record<string, ReactNode> = {
-  PullRequest: <GitPullRequest />,
-  Issue: <CircleDot />,
-  Commit: <GitCommitHorizontal />,
-  Release: <Tag />,
-  Discussion: <MessagesSquare />,
-  CheckSuite: <CircleCheck />,
+  PullRequest: <HugeiconsIcon icon={GitPullRequestIcon} />,
+  Issue: <HugeiconsIcon icon={CircleDotIcon} />,
+  Commit: <HugeiconsIcon icon={GitCommitHorizontalIcon} />,
+  Release: <HugeiconsIcon icon={Tag01Icon} />,
+  Discussion: <HugeiconsIcon icon={MessageMultiple02Icon} />,
+  CheckSuite: <HugeiconsIcon icon={CheckmarkCircle02Icon} />,
 };
 
 const API_PATH: Record<string, string> = { pulls: 'pull', issues: 'issues', commits: 'commit' };
@@ -159,7 +160,7 @@ export function NotificationsPage() {
         crumbs={[{ label: 'Notifications' }]}
         actions={
           unreadCount > 0 && (
-            <Button size="sm" icon={<CheckCheck className="size-3.5" />} loading={markAllRead.isPending} onClick={() => markAllRead.mutate()}>
+            <Button size="sm" icon={<HugeiconsIcon icon={TickDouble02Icon} className="size-3.5" />} loading={markAllRead.isPending} onClick={() => markAllRead.mutate()}>
               Mark all as read
             </Button>
           )
@@ -245,7 +246,7 @@ function NotificationRow({ notification: n, onOpen, onRead, onDone }: { notifica
       className="group flex h-12 cursor-pointer items-center gap-3 border-b border-line px-4 transition-colors last:border-b-0 hover:bg-hover focus:bg-hover focus:outline-none"
     >
       <span className={cx('size-1.5 shrink-0 rounded-full', n.unread ? 'bg-accent' : 'bg-transparent')} />
-      <span className={cx('flex size-4 shrink-0 items-center [&>svg]:size-4', n.unread ? 'text-fg' : 'text-subtle')}>{ICONS[n.subject.type] ?? <Bell />}</span>
+      <span className={cx('flex size-4 shrink-0 items-center [&>svg]:size-4', n.unread ? 'text-fg' : 'text-subtle')}>{ICONS[n.subject.type] ?? <HugeiconsIcon icon={Notification03Icon} />}</span>
       <span className="flex w-[180px] shrink-0 items-center gap-1.5 truncate text-[12px] text-subtle">
         <Avatar src={n.repository.owner.avatar_url} size={14} square />
         <span className="truncate">
@@ -263,8 +264,8 @@ function NotificationRow({ notification: n, onOpen, onRead, onDone }: { notifica
       </span>
       <span className="w-16 shrink-0 text-right text-[12px] text-subtle group-hover:hidden group-focus:hidden">{timeAgo(n.updated_at)}</span>
       <span className="hidden w-16 shrink-0 justify-end gap-0.5 group-hover:flex group-focus:flex">
-        {n.unread && <RowAction label="Mark as read" icon={<Check />} onClick={onRead} />}
-        <RowAction label="Done (E)" icon={<X />} onClick={onDone} />
+        {n.unread && <RowAction label="Mark as read" icon={<HugeiconsIcon icon={Tick02Icon} />} onClick={onRead} />}
+        <RowAction label="Done (E)" icon={<HugeiconsIcon icon={Cancel01Icon} />} onClick={onDone} />
       </span>
     </div>
   );
@@ -298,7 +299,7 @@ function RepoFilter({ active, onClick, label, avatar, count }: { active: boolean
         active ? 'bg-hover font-medium text-fg' : 'text-muted hover:bg-hover hover:text-fg',
       )}
     >
-      {avatar ? <Avatar src={avatar} size={14} square /> : <Inbox className="size-3.5 shrink-0" />}
+      {avatar ? <Avatar src={avatar} size={14} square /> : <HugeiconsIcon icon={InboxIcon} className="size-3.5 shrink-0" />}
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {count > 0 && <span className="text-[11px] text-subtle tabular-nums">{count}</span>}
     </button>

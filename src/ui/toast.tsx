@@ -1,4 +1,5 @@
-import { CheckCircle2, AlertCircle } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { AlertCircleIcon, CheckmarkCircle02Icon } from '@hugeicons/core-free-icons';
 import { createStore } from '@/lib/store';
 
 type Toast = { id: number; tone: 'success' | 'error'; message: string };
@@ -28,9 +29,9 @@ export function Toaster() {
           className="pointer-events-auto flex max-w-sm animate-pop items-start gap-2.5 rounded-xl border border-line-strong bg-elevated px-3.5 py-2.5 text-[13px] shadow-2xl shadow-black/30"
         >
           {t.tone === 'success' ? (
-            <CheckCircle2 className="mt-px size-4 shrink-0 text-success" />
+            <HugeiconsIcon icon={CheckmarkCircle02Icon} className="mt-px size-4 shrink-0 text-success" />
           ) : (
-            <AlertCircle className="mt-px size-4 shrink-0 text-danger" />
+            <HugeiconsIcon icon={AlertCircleIcon} className="mt-px size-4 shrink-0 text-danger" />
           )}
           <span className="whitespace-pre-line">{t.message}</span>
         </div>

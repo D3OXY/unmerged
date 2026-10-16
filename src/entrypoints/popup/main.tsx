@@ -1,7 +1,8 @@
 import './style.css';
 import { useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { RotateCw } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ReloadIcon } from '@hugeicons/core-free-icons';
 import { browser } from 'wxt/browser';
 import { localCache } from '@/lib/localCache';
 import { isDark, isUnpacked, themeItem, useStorageItem, type Theme } from '@/lib/settings';
@@ -57,7 +58,7 @@ function ReloadButton() {
       aria-label="Reload extension"
       className="flex size-7 cursor-pointer items-center justify-center rounded-md text-subtle transition-colors hover:bg-hover hover:text-fg"
     >
-      <RotateCw className="size-3.5" />
+      <HugeiconsIcon icon={ReloadIcon} className="size-3.5" />
     </button>
   );
 }

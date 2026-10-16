@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Copy, Download, FileText, History, Users } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Copy01Icon, Download01Icon, File02Icon, HistoryIcon, UserGroupIcon } from '@hugeicons/core-free-icons';
 import { restHtml } from '@/github/client';
 import { absolutizeReadme } from '@/github/readme';
 import { copy } from '@/lib/clipboard';
@@ -95,12 +96,12 @@ export function BlobView({ nameWithOwner, gitRef, path, blob, lastCommit }: { na
         {blob.text !== null && <span className="tabular-nums">{lines.length.toLocaleString()} lines</span>}
         <span className="tabular-nums">{formatBytes(blob.byteSize)}</span>
         <span className="ml-auto flex items-center gap-1">
-          <Action href={`/${nameWithOwner}/blame/${gitRef}/${path}`} icon={<Users />} label="Blame" />
-          <Action href={commitsUrl(nameWithOwner, gitRef, path)} icon={<History />} label="History" />
-          <Action href={raw} icon={<Download />} label="Raw" />
+          <Action href={`/${nameWithOwner}/blame/${gitRef}/${path}`} icon={<HugeiconsIcon icon={UserGroupIcon} />} label="Blame" />
+          <Action href={commitsUrl(nameWithOwner, gitRef, path)} icon={<HugeiconsIcon icon={HistoryIcon} />} label="History" />
+          <Action href={raw} icon={<HugeiconsIcon icon={Download01Icon} />} label="Raw" />
           {blob.text !== null && (
             <button type="button" onClick={() => copy(blob.text!, 'file contents')} className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2 hover:bg-hover hover:text-fg">
-              <Copy className="size-3.5" />
+              <HugeiconsIcon icon={Copy01Icon} className="size-3.5" />
               Copy
             </button>
           )}
@@ -116,7 +117,7 @@ export function BlobView({ nameWithOwner, gitRef, path, blob, lastCommit }: { na
           </div>
         ) : (
           <div className="flex flex-col items-center gap-3 px-4 py-12 text-[13px] text-subtle">
-            <FileText className="size-6" />
+            <HugeiconsIcon icon={File02Icon} className="size-6" />
             {blob.isBinary ? 'Binary file not shown.' : 'File too large to display.'}
             <a href={raw} className="text-accent hover:underline">
               View raw

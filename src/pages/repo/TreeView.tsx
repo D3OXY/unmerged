@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { BookOpen, CornerLeftUp, FileText, Folder, FolderGit2, History } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { BookOpen01Icon, CornerLeftUpIcon, File02Icon, Folder01Icon, FolderGitIcon, HistoryIcon } from '@hugeicons/core-free-icons';
 import { timeAgo, fullDate } from '@/lib/time';
 import { Avatar, Markdown, Panel, Skeleton } from '@/ui/primitives';
 import { CheckIcon } from '@/ui/status';
@@ -33,7 +34,7 @@ export function TreeView({ nameWithOwner, gitRef, revision, path, entries, lastC
         {lastCommit && <CommitBar nameWithOwner={nameWithOwner} gitRef={gitRef} path={path} commit={lastCommit} count={commitCount} />}
         {path && (
           <a href={treeUrl(nameWithOwner, gitRef, parent)} data-row className="flex h-10 items-center gap-3 border-b border-line px-4 text-[13px] text-muted hover:bg-hover focus:bg-hover focus:outline-none">
-            <CornerLeftUp className="size-4 text-subtle" />
+            <HugeiconsIcon icon={CornerLeftUpIcon} className="size-4 text-subtle" />
             ..
           </a>
         )}
@@ -43,11 +44,11 @@ export function TreeView({ nameWithOwner, gitRef, revision, path, entries, lastC
           return (
             <div key={entry.path} className="group flex h-10 items-center gap-3 border-b border-line px-4 last:border-b-0 hover:bg-hover">
               {entry.type === 'tree' ? (
-                <Folder className="size-4 shrink-0 fill-accent/25 text-accent" />
+                <HugeiconsIcon icon={Folder01Icon} className="size-4 shrink-0 fill-accent/25 text-accent" />
               ) : entry.type === 'commit' ? (
-                <FolderGit2 className="size-4 shrink-0 text-subtle" />
+                <HugeiconsIcon icon={FolderGitIcon} className="size-4 shrink-0 text-subtle" />
               ) : (
-                <FileText className="size-4 shrink-0 text-subtle" />
+                <HugeiconsIcon icon={File02Icon} className="size-4 shrink-0 text-subtle" />
               )}
               <a href={href} data-row className="w-[38%] min-w-0 shrink-0 truncate text-[13px] hover:text-accent hover:underline focus:underline focus:outline-none">
                 {entry.name}
@@ -74,7 +75,7 @@ export function TreeView({ nameWithOwner, gitRef, revision, path, entries, lastC
       {readmeEntry && (
         <Panel className="overflow-hidden">
           <div className="flex h-10 items-center gap-2 border-b border-line px-4 text-[12.5px] font-medium">
-            <BookOpen className="size-3.5 text-subtle" />
+            <HugeiconsIcon icon={BookOpen01Icon} className="size-3.5 text-subtle" />
             {readmeEntry.name}
           </div>
           <div className="px-8 py-6">
@@ -103,7 +104,7 @@ export function CommitBar({ nameWithOwner, gitRef, path, commit, count }: { name
         </a>
         <span title={fullDate(commit.committedDate)}>{timeAgo(commit.committedDate)}</span>
         <a href={commitsUrl(nameWithOwner, gitRef, path)} className="flex items-center gap-1.5 rounded-md px-2 py-1 font-medium text-muted hover:bg-hover hover:text-fg">
-          <History className="size-3.5" />
+          <HugeiconsIcon icon={HistoryIcon} className="size-3.5" />
           {count !== undefined ? `${count.toLocaleString()} commit${count === 1 ? '' : 's'}` : 'History'}
         </a>
       </span>

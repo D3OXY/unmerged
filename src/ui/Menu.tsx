@@ -1,6 +1,7 @@
 import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Check } from 'lucide-react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Tick02Icon } from '@hugeicons/core-free-icons';
 import { cx } from '@/lib/cx';
 import { useDismiss } from './useDismiss';
 
@@ -83,7 +84,7 @@ export function Menu<T extends string>({
           }}
           className="flex w-full cursor-pointer items-start gap-2 rounded-lg px-2.5 py-2 text-left hover:bg-hover"
         >
-          <Check className={cx('mt-0.5 size-3.5 shrink-0', option.value === value ? 'text-accent' : 'invisible')} />
+          <HugeiconsIcon icon={Tick02Icon} className={cx('mt-0.5 size-3.5 shrink-0', option.value === value ? 'text-accent' : 'invisible')} />
           <span>
             <span className="block text-[13px] font-medium">{option.label}</span>
             {option.hint && <span className="block text-[12px] text-muted">{option.hint}</span>}
