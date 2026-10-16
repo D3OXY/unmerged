@@ -1,18 +1,19 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Copy01Icon, Download01Icon, File02Icon, HistoryIcon, UserGroupIcon } from '@hugeicons/core-free-icons';
-import { restHtml } from '@/github/client';
-import { absolutizeReadme } from '@/github/readme';
+import { Copy01Icon, Download01Icon, File02Icon, HistoryIcon, Link02Icon, UserGroupIcon } from '@hugeicons/core-free-icons';
+import { useRegisterCommands, type Command } from '@/app/commands';
+import { usePageHotkey } from '@/app/keyboard';
 import { copy } from '@/lib/clipboard';
 import { cx } from '@/lib/cx';
 import { loadDiffs } from '@/lib/diffs';
 import { useIsDark } from '@/lib/settings';
 import { onNavigate } from '@/lib/navigation';
 import { Markdown, Panel, Skeleton } from '@/ui/primitives';
+import { LoadError } from './LoadError';
 import { CommitBar } from './TreeView';
-import type { LastCommit } from './query';
-import { blobUrl, commitsUrl, rawUrl } from './urls';
+import { repoMarkdownQuery, type LastCommit } from './query';
+import { blameUrl, blobUrl, commitsUrl, rawUrl } from './urls';
 
 type Blob = { oid: string; byteSize: number; isBinary: boolean | null; isTruncated: boolean; text: string | null };
 
@@ -29,8 +30,16 @@ function parseLines(hash: string): [number, number] | null {
   return [Math.min(a, b), Math.max(a, b)];
 }
 
-/** A file: highlighted code with linkable lines, rendered Markdown, or an image. */
-export function BlobView({ nameWithOwner, gitRef, path, blob, lastCommit }: { nameWithOwner: string; gitRef: string; path: string; blob: Blob; lastCommit?: LastCommit }) {
+/** [10, 20] → "#L10-L20"; [10, 10] → "#L10". */
+const linesHash = ([a, b]: [number, number]) => (a === b ? `#L${a}` : `#L${a}-L${b}`);
+
+type Props = { nameWithOwner: string; gitRef: string; path: string; blob: Blob; lastCommit?: LastCommit; commitOid?: string };
+
+/**
+ * A file: highlighted code with linkable lines, rendered Markdown, or an image. `commitOid` is the commit
+ * `gitRef` pointed at when the file was read, for permalinks.
+ */
+export function BlobView({ nameWithOwner, gitRef, path, blob, lastCommit, commitOid }: Props) {
   const isMarkdown = MARKDOWN.test(path);
   const [preview, setPreview] = useState(isMarkdown);
   const [selection, setSelection] = useState(() => parseLines(location.hash));
@@ -46,17 +55,18 @@ export function BlobView({ nameWithOwner, gitRef, path, blob, lastCommit }: { na
   const raw = rawUrl(nameWithOwner, gitRef, path);
   const tableRef = useRef<HTMLTableElement>(null);
 
-  const markdown = useQuery({
-    queryKey: ['repo-markdown', nameWithOwner, gitRef, path],
-    enabled: isMarkdown && preview,
-    queryFn: async () => {
-      const html = await restHtml(`/repos/${nameWithOwner}/contents/${path}?ref=${encodeURIComponent(gitRef)}`);
-      const dir = path.split('/').slice(0, -1).join('/');
-      const base = dir ? `${dir}/` : '';
-      return html && absolutizeReadme(html, rawUrl(nameWithOwner, gitRef, base), `https://github.com${blobUrl(nameWithOwner, gitRef, base)}`);
-    },
-    staleTime: 5 * 60_000,
-  });
+  const markdown = useQuery({ ...repoMarkdownQuery(nameWithOwner, gitRef, path), enabled: isMarkdown && preview });
+
+  // The file at this commit, with the selected lines: unlike the branch URL, it keeps pointing at what's shown.
+  const copyPermalink = useCallback(() => {
+    if (commitOid) copy(`https://github.com${blobUrl(nameWithOwner, commitOid, path)}${selection ? linesHash(selection) : ''}`, 'permalink');
+  }, [nameWithOwner, commitOid, path, selection]);
+  usePageHotkey('y', copyPermalink);
+  const commands = useMemo<Command[]>(
+    () => [{ id: 'blob:permalink', group: 'File', title: 'Copy permalink', hint: 'Y', icon: <HugeiconsIcon icon={Link02Icon} />, perform: copyPermalink }],
+    [copyPermalink],
+  );
+  useRegisterCommands('blob', commands);
 
   // Keep the highlighted range in sync with #L links (ours or pasted).
   useEffect(() => onNavigate(() => setSelection(parseLines(location.hash))), []);
@@ -70,7 +80,7 @@ export function BlobView({ nameWithOwner, gitRef, path, blob, lastCommit }: { na
   const selectLine = (n: number, extend: boolean) => {
     const next: [number, number] = extend && selection ? [Math.min(selection[0], n), Math.max(selection[0], n)] : [n, n];
     setSelection(next);
-    history.replaceState(history.state, '', next[0] === next[1] ? `#L${next[0]}` : `#L${next[0]}-L${next[1]}`);
+    history.replaceState(history.state, '', linesHash(next));
   };
 
   const showCode = !(isMarkdown && preview);
@@ -96,7 +106,7 @@ export function BlobView({ nameWithOwner, gitRef, path, blob, lastCommit }: { na
         {blob.text !== null && <span className="tabular-nums">{lines.length.toLocaleString()} lines</span>}
         <span className="tabular-nums">{formatBytes(blob.byteSize)}</span>
         <span className="ml-auto flex items-center gap-1">
-          <Action href={`/${nameWithOwner}/blame/${gitRef}/${path}`} icon={<HugeiconsIcon icon={UserGroupIcon} />} label="Blame" />
+          <Action href={blameUrl(nameWithOwner, gitRef, path)} icon={<HugeiconsIcon icon={UserGroupIcon} />} label="Blame" />
           <Action href={commitsUrl(nameWithOwner, gitRef, path)} icon={<HugeiconsIcon icon={HistoryIcon} />} label="History" />
           <Action href={raw} icon={<HugeiconsIcon icon={Download01Icon} />} label="Raw" />
           {blob.text !== null && (
@@ -105,11 +115,25 @@ export function BlobView({ nameWithOwner, gitRef, path, blob, lastCommit }: { na
               Copy
             </button>
           )}
+          {commitOid && (
+            <button type="button" onClick={copyPermalink} title="Copy a link to this version of the file and the selected lines (Y)" className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2 hover:bg-hover hover:text-fg">
+              <HugeiconsIcon icon={Link02Icon} className="size-3.5" />
+              Permalink
+            </button>
+          )}
         </span>
       </div>
 
       {!showCode ? (
-        <div className="px-8 py-6">{markdown.isPending ? <Skeleton className="h-48" /> : markdown.data && <Markdown html={markdown.data} />}</div>
+        <div className="px-8 py-6">
+          {markdown.data ? (
+            <Markdown html={markdown.data} />
+          ) : markdown.error ? (
+            <LoadError what="the preview" error={markdown.error} retry={markdown.refetch} />
+          ) : (
+            markdown.isPending && <Skeleton className="h-48" />
+          )}
+        </div>
       ) : blob.isBinary || blob.text === null ? (
         IMAGE.test(path) ? (
           <div className="flex justify-center bg-[repeating-conic-gradient(var(--u-elevated)_0%_25%,transparent_0%_50%)] bg-[length:16px_16px] p-8">
