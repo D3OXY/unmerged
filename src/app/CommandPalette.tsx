@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Bell, BookMarked, CircleDot, GitPullRequest, Home, Search, Star, User } from 'lucide-react';
+import { Bell, BookMarked, CircleDot, GitPullRequest, Home, Monitor, Moon, Search, Star, Sun, User } from 'lucide-react';
 import { gql } from '@/github/client';
 import { navigate } from '@/lib/navigation';
 import { sessionLogin } from '@/lib/session';
+import { themeItem } from '@/lib/settings';
 import { cx } from '@/lib/cx';
 import { formatCount } from '@/lib/time';
 import { Avatar, Kbd } from '@/ui/primitives';
@@ -34,7 +35,7 @@ function useDebounced<T>(value: T, ms: number) {
   return debounced;
 }
 
-/** Commands that are always available, regardless of page. */
+/** Commands that are always available, regardless of page: navigation and appearance. */
 function navigationCommands(): Command[] {
   const login = sessionLogin();
   const go = (href: string) => () => navigate(href);
@@ -47,6 +48,9 @@ function navigationCommands(): Command[] {
     { id: 'nav:issues', group: 'Navigate', title: 'Issues', icon: <CircleDot />, perform: go('/issues') },
     { id: 'nav:notifications', group: 'Navigate', title: 'Notifications', icon: <Bell />, perform: go('/notifications') },
     { id: 'nav:stars', group: 'Navigate', title: 'Your stars', icon: <Star />, perform: go(login ? `/${login}?tab=stars` : '/stars') },
+    { id: 'theme:light', group: 'Appearance', title: 'Light theme', keywords: 'mode', icon: <Sun />, perform: () => themeItem.setValue('light') },
+    { id: 'theme:dark', group: 'Appearance', title: 'Dark theme', keywords: 'mode', icon: <Moon />, perform: () => themeItem.setValue('dark') },
+    { id: 'theme:auto', group: 'Appearance', title: 'Auto theme (match GitHub)', keywords: 'mode system', icon: <Monitor />, perform: () => themeItem.setValue('auto') },
   ];
 }
 

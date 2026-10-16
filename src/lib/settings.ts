@@ -13,6 +13,18 @@ export const surfacesItem = storage.defineItem<Surfaces>('local:surfaces', {
   fallback: { home: true, profile: true, pr: true, repo: true },
 });
 
+/** Color theme. "auto" follows GitHub's own appearance setting, then the OS. */
+export type Theme = 'auto' | 'light' | 'dark';
+
+export const themeItem = storage.defineItem<Theme>('local:theme', { fallback: 'auto' });
+
+/** Whether a theme resolves to dark right now. Outside github.com (the popup) "auto" is just the OS. */
+export function isDark(theme: Theme) {
+  if (theme !== 'auto') return theme === 'dark';
+  const mode = document.documentElement.dataset.colorMode;
+  return mode === 'dark' || (mode !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+}
+
 /** Pinned repos ("owner/name"), in sidebar order. Synced across the user's browsers. */
 export const pinsItem = storage.defineItem<string[]>('sync:pinnedRepos', { fallback: [] });
 

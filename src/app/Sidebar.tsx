@@ -1,12 +1,12 @@
 import { useState, type DragEvent, type ReactNode } from 'react';
-import { Bell, ChevronDown, CircleDot, GitPullRequest, Home, Lock, PanelsTopLeft, Pin, Search, User, X } from 'lucide-react';
+import { Bell, ChevronDown, CircleDot, GitPullRequest, Home, Lock, Monitor, Moon, PanelsTopLeft, Pin, Search, Sun, User, X } from 'lucide-react';
 import { usePinnedRepos, useRecentRepos } from '@/github/repos';
 import { useViewer } from '@/github/viewer';
 import { openClassic } from '@/lib/classic';
 import { cx } from '@/lib/cx';
 import { isPinned, pin, unpin } from '@/lib/pins';
 import { matchRoute } from '@/lib/routes';
-import { pinsItem, useStorageItem } from '@/lib/settings';
+import { pinsItem, themeItem, useStorageItem, type Theme } from '@/lib/settings';
 import { Avatar, Kbd } from '@/ui/primitives';
 import { paletteOpen } from './commands';
 import { Logo } from './Logo';
@@ -100,17 +100,42 @@ export function Sidebar({ active }: { active?: 'home' | 'profile' }) {
             <span className="truncate text-[12.5px] font-medium">{viewer.login}</span>
           </a>
         )}
+        <ThemeButton />
         <button
           type="button"
           onClick={openClassic}
           title="Show this page in classic GitHub"
-          className="ml-auto flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2 text-[12px] text-subtle hover:bg-hover hover:text-fg"
+          className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2 text-[12px] text-subtle hover:bg-hover hover:text-fg"
         >
           <PanelsTopLeft className="size-3.5" />
           Classic
         </button>
       </div>
     </aside>
+  );
+}
+
+const THEME_CYCLE: Record<Theme, { next: Theme; label: string; icon: ReactNode }> = {
+  auto: { next: 'light', label: 'Auto (matches GitHub)', icon: <Monitor /> },
+  light: { next: 'dark', label: 'Light', icon: <Sun /> },
+  dark: { next: 'auto', label: 'Dark', icon: <Moon /> },
+};
+
+/** Cycles auto → light → dark. Also in the popup and the ⌘K palette. */
+function ThemeButton() {
+  const theme = useStorageItem(themeItem);
+  if (!theme) return null;
+  const { next, label, icon } = THEME_CYCLE[theme];
+  return (
+    <button
+      type="button"
+      onClick={() => themeItem.setValue(next)}
+      title={`Theme: ${label}`}
+      aria-label={`Theme: ${label}`}
+      className="ml-auto flex size-7 cursor-pointer items-center justify-center rounded-md text-subtle hover:bg-hover hover:text-fg [&>svg]:size-3.5"
+    >
+      {icon}
+    </button>
   );
 }
 

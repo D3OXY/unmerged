@@ -2,9 +2,12 @@ import { isKnownOrg } from './orgs';
 
 export type PrTab = 'conversation' | 'commits' | 'checks' | 'files';
 
+/** Profile views Unmerged renders; other `?tab=` values (repositories, stars…) stay on GitHub. */
+export type ProfileTab = 'overview' | 'followers' | 'following';
+
 export type Route =
   | { kind: 'home' }
-  | { kind: 'profile'; login: string }
+  | { kind: 'profile'; login: string; tab: ProfileTab }
   | { kind: 'pr'; owner: string; repo: string; number: number; tab: PrTab }
   /**
    * Repo code browser for /owner/repo, /tree/… and /blob/…. `rest` is "<ref>/<path…>" split on "/"; branch
@@ -33,8 +36,8 @@ export function matchRoute(url: URL): Route | null {
 
   const [first, second, third, fourth, fifth] = parts;
   if (parts.length === 1 && first && !RESERVED.has(first.toLowerCase()) && !isKnownOrg(first)) {
-    const tab = url.searchParams.get('tab');
-    return !tab || tab === 'overview' ? { kind: 'profile', login: first } : null;
+    const tab = url.searchParams.get('tab') || 'overview';
+    return tab === 'overview' || tab === 'followers' || tab === 'following' ? { kind: 'profile', login: first, tab } : null;
   }
 
   if (first && second && !RESERVED.has(first.toLowerCase())) {

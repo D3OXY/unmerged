@@ -10,7 +10,8 @@ import { classicPath, clearClassicUnless } from '@/lib/classic';
 import { emitNavigate, isModifiedClick, navigate, onNavigate, setOwns } from '@/lib/navigation';
 import { matchRoute, type Route } from '@/lib/routes';
 import { sessionLogin } from '@/lib/session';
-import { surfacesItem, type Surfaces } from '@/lib/settings';
+import { localCache } from '@/lib/localCache';
+import { isDark, surfacesItem, themeItem, type Surfaces, type Theme } from '@/lib/settings';
 
 const OWNING = 'unmerged-owning';
 
@@ -22,10 +23,8 @@ const DOCUMENT_CSS = `
   unmerged-app { display: block; }
 `;
 
-function prefersDark() {
-  const mode = document.documentElement.dataset.colorMode;
-  return mode === 'dark' || (mode !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
-}
+// Mirror of the theme setting in github.com's localStorage, read synchronously so first paint can't flash.
+const themeCache = localCache<Theme>('unmerged:theme');
 
 export default defineContentScript({
   matches: ['https://github.com/*'],
@@ -37,7 +36,23 @@ export default defineContentScript({
     const style = document.createElement('style');
     style.textContent = DOCUMENT_CSS;
     html.append(style);
-    html.classList.toggle('unmerged-dark', prefersDark());
+
+    let theme = themeCache.get() ?? 'auto';
+    let container: HTMLElement | undefined;
+    const applyTheme = () => {
+      const dark = isDark(theme);
+      html.classList.toggle('unmerged-dark', dark);
+      container?.classList.toggle('dark', dark);
+    };
+    const setTheme = (value: Theme) => {
+      theme = value;
+      themeCache.set(value);
+      applyTheme();
+    };
+    applyTheme();
+    themeItem.getValue().then(setTheme);
+    themeItem.watch(setTheme);
+    ctx.addEventListener(matchMedia('(prefers-color-scheme: dark)'), 'change', applyTheme);
 
     let surfaces: Surfaces = { home: true, profile: true, pr: true, repo: true };
     let mounted = false;
@@ -62,9 +77,10 @@ export default defineContentScript({
       anchor: 'html',
       append: 'last',
       isolateEvents: true,
-      onMount(container) {
+      onMount(element) {
+        container = element;
         container.classList.add('u-root');
-        container.classList.toggle('dark', prefersDark());
+        applyTheme();
         const queryClient = new QueryClient({
           defaultOptions: { queries: { refetchOnWindowFocus: true, retry: (n, err) => !(err instanceof AuthError) && n < 2 } },
           queryCache: new QueryCache({ onError: (err) => err instanceof AuthError && authRejected.set(true) }),
