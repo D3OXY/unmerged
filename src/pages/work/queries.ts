@@ -1,4 +1,4 @@
-import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
+import { infiniteQueryOptions, queryOptions, type QueryClient } from '@tanstack/react-query';
 import { gql } from '@/github/client';
 import { persisted } from '@/lib/persist';
 import type { WorkFilter } from '@/lib/routes';
@@ -30,25 +30,48 @@ const QUALIFIER: Record<WorkFilter, string> = {
 /** What GitHub's own page searches for a tab, so plain `/pulls` links mean the same thing here. */
 export const defaultQuery = (type: WorkType, filter: WorkFilter) => `is:open is:${type} ${QUALIFIER[filter]} archived:false sort:updated-desc`;
 
-/** The search a list URL shows: its `?q=`, or the tab's default. */
-export const workQueryOf = (url: URL, type: WorkType, filter: WorkFilter) => url.searchParams.get('q') || defaultQuery(type, filter);
+/** A repo's own list (`/owner/repo/issues`, `/pulls`) for a bare URL. */
+export const repoListQuery = (tab: 'issues' | 'pulls') => (tab === 'issues' ? 'is:open is:issue' : 'is:open is:pr');
 
-// GitHub's newer pages write `state:open`; both mean the same.
-export const STATE = /(^|\s)(?:is|state):(open|closed|merged)(?=\s|$)/g;
+/** The search a list URL shows: its `?q=`, or `fallback`, the query for the bare URL. The page and prefetch both read it. */
+export const workQueryOf = (url: URL, fallback: string) => url.searchParams.get('q') || fallback;
+
 export const squash = (q: string) => q.replace(/\s+/g, ' ').trim();
 
-/** The query with its state qualifier set: first, where GitHub puts it. */
-export const withState = (q: string, state: 'open' | 'closed') => squash(`is:${state} ${q.replace(STATE, ' ')}`);
+const VALUE = String.raw`(?:"[^"]*"|\S+)`;
+
+/** The qualifiers the list's controls edit, each pattern matching one whole token of the search. */
+const QUALIFIERS = {
+  // GitHub's newer pages write `state:open`; both mean the same.
+  state: '(?:is|state):(?:open|closed|merged)',
+  sort: `sort:${VALUE}`,
+  author: `author:${VALUE}`,
+  label: `label:${VALUE}`,
+  review: `review(?:-requested)?:${VALUE}`,
+  ci: `status:${VALUE}`,
+};
+export type Qualifier = keyof typeof QUALIFIERS;
+
+const tokens = (name: Qualifier) => new RegExp(String.raw`(?<=^|\s)${QUALIFIERS[name]}(?=\s|$)`, 'g');
+
+/** The first `name` qualifier in `q` as written (e.g. `sort:created-asc`), or '' when it has none. */
+export const qualifierOf = (q: string, name: Qualifier) => q.match(tokens(name))?.[0] ?? '';
+
+/** `q` with its `name` qualifiers replaced by `token` ('' removes them). State goes first, where GitHub puts it. */
+export const withQualifier = (q: string, name: Qualifier, token: string) => {
+  const rest = q.replace(tokens(name), ' ');
+  return squash(name === 'state' ? `${token} ${rest}` : `${rest} ${token}`);
+};
+
+const scoped = (q: string, repo?: string) => (repo ? `${q} repo:${repo}` : q);
 
 const LIST_QUERY = /* GraphQL */ `
-  query WorkList($q: String!, $open: String!, $closed: String!, $after: String, $counts: Boolean!) {
+  query WorkList($q: String!, $after: String) {
     results: search(type: ISSUE, query: $q, first: 50, after: $after) {
       issueCount
       pageInfo { hasNextPage endCursor }
       nodes { __typename ...PrRow ...IssueRow }
     }
-    open: search(type: ISSUE, query: $open, first: 0) @include(if: $counts) { issueCount }
-    closed: search(type: ISSUE, query: $closed, first: 0) @include(if: $counts) { issueCount }
   }
   ${PR_ROW_FIELDS}
   ${ISSUE_ROW_FIELDS}
@@ -57,47 +80,42 @@ const LIST_QUERY = /* GraphQL */ `
 type Item = ({ __typename: 'PullRequest' } & PrRowData) | ({ __typename: 'Issue' } & IssueRowData);
 export type ListPage = {
   results: { issueCount: number; pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: Item[] };
-  open?: { issueCount: number };
-  closed?: { issueCount: number };
 };
 
-/** A repo's own list (`/owner/repo/issues`, `/pulls`) for a bare URL. */
-export const repoListQuery = (tab: 'issues' | 'pulls') => (tab === 'issues' ? 'is:open is:issue' : 'is:open is:pr');
-
-/**
- * One search, 50 results a page; the first page also counts its open and closed matches. `repo`
- * ("owner/name") scopes the search without being part of `q`, as on GitHub.
- */
-export const workListQuery = (q: string, repo?: string) => {
-  const scoped = (query: string) => (repo ? `${query} repo:${repo}` : query);
-  return infiniteQueryOptions({
+/** One search, 50 results a page. `repo` ("owner/name") scopes the search without being part of `q`, as on GitHub. */
+export const workListQuery = (q: string, repo?: string) =>
+  infiniteQueryOptions({
     queryKey: ['work', repo?.toLowerCase(), q],
-    queryFn: ({ pageParam }) =>
-      gql<ListPage>(LIST_QUERY, {
-        q: scoped(q),
-        open: scoped(withState(q, 'open')),
-        closed: scoped(withState(q, 'closed')),
-        after: pageParam,
-        counts: pageParam === null,
-      }),
+    queryFn: ({ pageParam }) => gql<ListPage>(LIST_QUERY, { q: scoped(q, repo), after: pageParam }),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => (last.results.pageInfo.hasNextPage ? last.results.pageInfo.endCursor : null),
     staleTime: 30_000,
     // Infinite queries infer their data type from `persister` too; pin it.
     persister: persisted<ListPage>,
   });
-};
 
-/** Open counts for each tab's default search, in one request. */
-export const workTabsQuery = (type: WorkType) =>
-  queryOptions({
-    queryKey: ['work-tabs', type],
-    queryFn: async () => {
-      const tabs = TABS[type];
-      const fields = tabs.map((tab, i) => `t${i}: search(type: ISSUE, first: 0, query: ${JSON.stringify(defaultQuery(type, tab.filter))}) { issueCount }`);
-      const data = await gql<Record<string, { issueCount: number }>>(`query WorkTabs { ${fields.join(' ')} }`);
-      return tabs.map((_, i) => data[`t${i}`]?.issueCount ?? 0);
-    },
+// Each count is its own request: GitHub runs one query's searches one after another, so bundled they'd wait on
+// each other and on the list. Sort doesn't change a count, so it's dropped and equal counts share a cache entry
+// (a tab's count is also its list's Open count).
+const workCountQuery = (q: string) => {
+  const query = withQualifier(q, 'sort', '');
+  return queryOptions({
+    queryKey: ['work-count', query],
+    queryFn: async () =>
+      (await gql<{ search: { issueCount: number } }>(`query WorkCount($q: String!) { search(type: ISSUE, first: 0, query: $q) { issueCount } }`, { q: query })).search.issueCount,
     staleTime: 60_000,
     persister: persisted,
   });
+};
+
+/** The Open and Closed counts beside a list's search, in that order. */
+export const workStateCountQueries = (q: string, repo?: string) => (['open', 'closed'] as const).map((state) => workCountQuery(scoped(withQualifier(q, 'state', `is:${state}`), repo)));
+
+/** The open count of each tab's default search, in `TABS` order. */
+export const workTabCountQueries = (type: WorkType) => TABS[type].map((tab) => workCountQuery(defaultQuery(type, tab.filter)));
+
+/** Starts everything a list shows for `q` at once: its results and its Open/Closed counts. */
+export function prefetchWorkList(client: QueryClient, q: string, repo?: string) {
+  client.prefetchInfiniteQuery(workListQuery(q, repo));
+  for (const count of workStateCountQueries(q, repo)) client.prefetchQuery(count);
+}

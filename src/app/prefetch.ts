@@ -16,7 +16,7 @@ import {
   profileWorkQuery,
 } from '@/pages/profile/queries';
 import { prefetchRepo, repoQuery } from '@/pages/repo/query';
-import { repoListQuery, workListQuery, workQueryOf, workTabsQuery } from '@/pages/work/queries';
+import { defaultQuery, prefetchWorkList, repoListQuery, workQueryOf, workTabCountQueries } from '@/pages/work/queries';
 
 /**
  * Starts the requests a page makes when it opens, so they're under way (or done) by the time it renders:
@@ -46,7 +46,7 @@ export function prefetchRoute(client: QueryClient, route: Route, url: URL) {
     case 'repo':
       if (route.view === 'issues' || route.view === 'pulls') {
         client.prefetchQuery(repoQuery(route.owner, route.repo));
-        client.prefetchInfiniteQuery(workListQuery(url.searchParams.get('q') || repoListQuery(route.view), `${route.owner}/${route.repo}`));
+        prefetchWorkList(client, workQueryOf(url, repoListQuery(route.view)), `${route.owner}/${route.repo}`);
       } else prefetchRepo(client, route.owner, route.repo, route.view, route.rest);
       return;
     case 'issue':
@@ -60,8 +60,8 @@ export function prefetchRoute(client: QueryClient, route: Route, url: URL) {
       prefetchCommit(client, route.owner, route.repo, route.sha, route.pr);
       return;
     case 'work':
-      client.prefetchInfiniteQuery(workListQuery(workQueryOf(url, route.type, route.filter)));
-      client.prefetchQuery(workTabsQuery(route.type));
+      prefetchWorkList(client, workQueryOf(url, defaultQuery(route.type, route.filter)));
+      for (const count of workTabCountQueries(route.type)) client.prefetchQuery(count);
       return;
     case 'notifications':
       client.prefetchInfiniteQuery(notificationsQuery(viewOf(url)));

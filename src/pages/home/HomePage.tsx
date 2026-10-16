@@ -9,8 +9,8 @@ import { useTitle } from '@/lib/useTitle';
 import { Button } from '@/ui/Button';
 import { Empty, Kbd, Panel, SectionHeader, Skeleton } from '@/ui/primitives';
 import { PrStateIcon } from '@/ui/status';
-import { WorkRow } from '@/ui/WorkRow';
-import { homeQueries } from './queries';
+import { repoLabelFor, WorkRow, type PrRowData } from '@/ui/WorkRow';
+import { homeQueries, standing, STANDINGS } from './queries';
 
 function greeting() {
   const hour = new Date().getHours();
@@ -26,6 +26,8 @@ export function HomePage() {
   const merged = useQuery(homeQueries.merged());
   const { data: mergedThisWeek } = useQuery(homeQueries.mergedThisWeek());
   const error = review.error ?? authored.error ?? assigned.error ?? merged.error;
+  const reviewRepo = repoLabelFor(review.data?.nodes ?? []);
+  const assignedRepo = repoLabelFor(assigned.data?.nodes ?? []);
 
   const firstName = viewer?.name?.split(' ')[0] ?? viewer?.login;
   useTitle('GitHub');
@@ -61,15 +63,15 @@ export function HomePage() {
         <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1fr)_300px]">
           <div className="flex min-w-0 flex-col gap-7">
             <ListSection title="Needs your review" count={review.data?.issueCount} loading={review.isPending} more="/pulls/review-requested">
-              {review.data?.nodes.map((pr) => <WorkRow key={pr.id} item={pr} kind="pr" />)}
+              {review.data?.nodes.map((pr) => <WorkRow key={pr.id} item={pr} kind="pr" repo={reviewRepo} />)}
               {review.data && !review.data.nodes.length && <Empty>Inbox zero. Nobody is waiting on you.</Empty>}
             </ListSection>
             <ListSection title="Your pull requests" count={authored.data?.issueCount} loading={authored.isPending} more="/pulls">
-              {authored.data?.nodes.map((pr) => <WorkRow key={pr.id} item={pr} kind="pr" />)}
+              {authored.data && <AuthoredGroups prs={authored.data.nodes} />}
               {authored.data && !authored.data.nodes.length && <Empty>No open pull requests.</Empty>}
             </ListSection>
             <ListSection title="Assigned issues" count={assigned.data?.issueCount} loading={assigned.isPending} more="/issues/assigned">
-              {assigned.data?.nodes.map((issue) => <WorkRow key={issue.id} item={issue} kind="issue" />)}
+              {assigned.data?.nodes.map((issue) => <WorkRow key={issue.id} item={issue} kind="issue" repo={assignedRepo} />)}
               {assigned.data && !assigned.data.nodes.length && <Empty>Nothing assigned to you.</Empty>}
             </ListSection>
           </div>
@@ -79,17 +81,20 @@ export function HomePage() {
               <SectionHeader title="Recently merged" />
               <Panel className="p-1.5">
                 {merged.isPending && <RowsSkeleton rows={4} />}
-                {merged.data?.nodes.map((pr) => (
-                  <a key={pr.id} href={pr.url} data-row className="flex items-start gap-2.5 rounded-lg px-2.5 py-2 hover:bg-hover focus:bg-hover focus:outline-none">
-                    <PrStateIcon state="MERGED" className="mt-0.5 size-3.5" />
-                    <span className="min-w-0">
-                      <span className="line-clamp-2 text-[12.5px] leading-snug font-medium">{pr.title}</span>
-                      <span className="text-[11.5px] text-subtle">
-                        {pr.repository.nameWithOwner} · {timeAgo(pr.updatedAt)}
+                {merged.data?.nodes
+                  .toSorted((a, b) => b.mergedAt.localeCompare(a.mergedAt))
+                  .slice(0, 6)
+                  .map((pr) => (
+                    <a key={pr.id} href={pr.url} data-row className="flex items-start gap-2.5 rounded-lg px-2.5 py-2 hover:bg-hover focus:bg-hover focus:outline-none">
+                      <PrStateIcon state="MERGED" className="mt-0.5 size-3.5" />
+                      <span className="min-w-0">
+                        <span className="line-clamp-2 text-[12.5px] leading-snug font-medium">{pr.title}</span>
+                        <span className="text-[11.5px] text-subtle">
+                          {pr.repository.nameWithOwner} · {timeAgo(pr.mergedAt)}
+                        </span>
                       </span>
-                    </span>
-                  </a>
-                ))}
+                    </a>
+                  ))}
                 {merged.data && !merged.data.nodes.length && <Empty>Nothing merged yet.</Empty>}
               </Panel>
             </div>
@@ -107,6 +112,27 @@ export function HomePage() {
       </div>
     </Shell>
   );
+}
+
+/** Your open PRs, grouped by what they need next; empty groups are left out. */
+function AuthoredGroups({ prs }: { prs: PrRowData[] }) {
+  const repo = repoLabelFor(prs);
+  return STANDINGS.map(({ key, title }) => {
+    const group = prs.filter((pr) => standing(pr) === key);
+    return (
+      group.length > 0 && (
+        <div key={key} className="border-b border-line last:border-b-0">
+          <div className="flex gap-2 border-b border-line px-4 py-1.5 text-[11.5px] font-medium text-subtle">
+            {title}
+            <span className="tabular-nums">{group.length}</span>
+          </div>
+          {group.map((pr) => (
+            <WorkRow key={pr.id} item={pr} kind="pr" repo={repo} />
+          ))}
+        </div>
+      )
+    );
+  });
 }
 
 function Stat({ label, value, tone }: { label: string; value: number | undefined; tone: string }) {
