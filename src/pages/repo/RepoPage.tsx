@@ -14,6 +14,7 @@ import { cx } from '@/lib/cx';
 import { navigate } from '@/lib/navigation';
 import { pin, unpin, useIsPinned } from '@/lib/pins';
 import { formatCount } from '@/lib/time';
+import type { RepoView } from '@/lib/routes';
 import { useTitle } from '@/lib/useTitle';
 import { Button } from '@/ui/Button';
 import { Menu } from '@/ui/Menu';
@@ -23,16 +24,17 @@ import { toast } from '@/ui/toast';
 import { BlobView } from './BlobView';
 import { BranchPicker } from './BranchPicker';
 import { CloneMenu } from './CloneMenu';
+import { CommitsView } from './CommitsView';
 import { FileFinder } from './FileFinder';
 import { CONTENT_QUERY, REPO_MUTATIONS, REPO_QUERY, resolveRefPath, type ContentData, type Repo, type Subscription } from './query';
 import { RepoSidebar } from './RepoSidebar';
 import { TreeSkeleton, TreeView } from './TreeView';
 import { treeUrl } from './urls';
 
-type Props = { owner: string; repo: string; rest: string[] };
+type Props = { owner: string; repo: string; view: RepoView; rest: string[] };
 
-/** A repository: header and tabs over a code browser (root with sidebar, folders, files). */
-export function RepoPage({ owner, repo: name, rest }: Props) {
+/** A repository: header and tabs over a code browser (root with sidebar, folders, files) or its commit history. */
+export function RepoPage({ owner, repo: name, view, rest }: Props) {
   const metaKey = ['repo', owner.toLowerCase(), name.toLowerCase()];
   const meta = useQuery({ queryKey: metaKey, queryFn: () => gql<{ repository: Repo | null }>(REPO_QUERY, { owner, name }, true) });
   const repo = meta.data?.repository;
@@ -49,12 +51,18 @@ export function RepoPage({ owner, repo: name, rest }: Props) {
   const content = useQuery({
     queryKey: ['repo-content', owner.toLowerCase(), name.toLowerCase(), target?.ref, target?.path],
     queryFn: () => gql<ContentData>(CONTENT_QUERY, { owner, name, expr: `${target!.ref}:${target!.path}`, ref: target!.ref, path: target!.path || null }),
-    enabled: !!target,
+    enabled: !!target && view === 'code',
     staleTime: 60_000,
   });
 
   const nwo = repo?.nameWithOwner ?? `${owner}/${name}`;
-  useTitle(target?.path ? `${target.path.split('/').pop()} at ${target.ref} · ${nwo}` : nwo);
+  useTitle(
+    view === 'commits'
+      ? `${target?.path ? `History for ${target.path}` : 'Commits'} · ${nwo}`
+      : target?.path
+        ? `${target.path.split('/').pop()} at ${target.ref} · ${nwo}`
+        : nwo,
+  );
 
   const crumbs = [{ label: owner, href: `/${owner}` }, { label: name, href: `/${owner}/${name}` }];
 
@@ -94,6 +102,8 @@ export function RepoPage({ owner, repo: name, rest }: Props) {
               Back to the default branch
             </Button>
           </Panel>
+        ) : view === 'commits' ? (
+          repo && target ? <CommitsView key={`${target.ref}:${target.path}`} repo={repo} gitRef={target.ref} path={target.path} /> : <TreeSkeleton />
         ) : (
           <>
             {repo && target && <Toolbar repo={repo} gitRef={target.ref} path={target.path} />}
@@ -199,7 +209,7 @@ function Toolbar({ repo, gitRef, path }: { repo: Repo; gitRef: string; path: str
 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2">
-      <BranchPicker owner={owner} name={name} current={gitRef} path={path} />
+      <BranchPicker owner={owner} name={name} current={gitRef} hrefFor={(ref) => treeUrl(repo.nameWithOwner, ref, path)} />
       {!path && (
         <span className="hidden items-center gap-3 px-2 text-[12.5px] text-muted sm:flex">
           <a href={`/${repo.nameWithOwner}/branches`} className="flex items-center gap-1.5 hover:text-fg">
