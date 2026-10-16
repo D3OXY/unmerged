@@ -21,31 +21,39 @@ import { ChecksTab } from './ChecksTab';
 import { CommitsTab } from './CommitsTab';
 import { ConversationTab } from './ConversationTab';
 import { FilesTab } from './files/FilesTab';
-import { isSettling, MUTATIONS, prefetchPr, prFilesQuery, prQuery, prStatusQuery, type PullRequest, type Repo } from './query';
+import { isSettling, MUTATIONS, prFilesQuery, prQuery, prStatusQuery, prViewedQuery, type PullRequest, type Repo } from './query';
 import { usePrMutation } from './usePrMutation';
 
 type Props = { owner: string; repo: string; number: number; tab: PrTab };
+
+/** Above this many changed files, other tabs don't download the patches in the background. */
+const IDLE_PREFETCH_MAX_FILES = 300;
 
 /** A pull request: shared header and tab bar over Conversation, Commits, Checks and Files changed. */
 export function PrPage({ owner, repo, number, tab }: Props) {
   const query = prQuery(owner, repo, number);
   const { queryKey } = query;
-  // While the reader is on another tab, get Files changed ready: the diff renderer, the files themselves,
-  // and the grammars for their languages.
+  const { data, isPending, error } = useQuery(query);
+  const pr = data?.repository?.pullRequest;
+
+  // While the reader is on another tab, get Files changed ready: the diff renderer, the viewed marks, and
+  // (unless there are too many) the files themselves and the grammars for their languages.
   const queryClient = useQueryClient();
   const dark = useIsDark();
+  const headRefOid = pr?.headRefOid;
+  const changedFiles = pr?.changedFiles;
   useEffect(() => {
+    if (!headRefOid || changedFiles === undefined) return;
     const id = requestIdleCallback(() => {
-      prefetchPr(queryClient, owner, repo, number, 'files');
-      Promise.all([loadDiffs(), queryClient.fetchQuery(prFilesQuery(owner, repo, number))])
-        .then(([renderer, files]) => renderer.preloadHighlighting(files.map((f) => f.filename), dark))
+      queryClient.prefetchQuery(prViewedQuery(owner, repo, number));
+      const files = changedFiles > IDLE_PREFETCH_MAX_FILES ? [] : queryClient.fetchQuery(prFilesQuery(owner, repo, { number, headRefOid, changedFiles }));
+      Promise.all([loadDiffs(), files])
+        .then(([renderer, list]) => renderer.preloadHighlighting(list.map((f) => f.filename), dark))
         .catch(() => {});
     });
     return () => cancelIdleCallback(id);
-  }, [queryClient, owner, repo, number, dark]);
-  const { data, isPending, error } = useQuery(query);
+  }, [queryClient, owner, repo, number, headRefOid, changedFiles, dark]);
 
-  const pr = data?.repository?.pullRequest;
   const poll = useStatusPoll(owner, repo, number, pr);
   const base = `/${owner}/${repo}`;
   useTitle(pr && `${pr.title} · Pull Request #${number} · ${owner}/${repo}`);

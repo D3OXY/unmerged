@@ -365,21 +365,24 @@ export const prStatusQuery = (owner: string, repo: string, number: number) =>
     },
   });
 
-/** Every changed file with its patch. GitHub serves at most 3000 files, 100 per page. */
-export const prFilesQuery = (owner: string, repo: string, number: number) =>
+const FILES_PER_PAGE = 100;
+const MAX_FILES = 3000; // GitHub lists no more than this
+
+/**
+ * Every changed file with its patch, at one head commit: a push changes the key, so the files never go stale
+ * before then. All pages load at once (`changedFiles` says how many). Not persisted: patches are large.
+ */
+export const prFilesQuery = (owner: string, repo: string, pr: Pick<PullRequest, 'number' | 'headRefOid' | 'changedFiles'>) =>
   queryOptions({
-    queryKey: ['pr-files', ...prKey(owner, repo, number)],
+    queryKey: ['pr-files', ...prKey(owner, repo, pr.number), pr.headRefOid],
     queryFn: async () => {
-      const files: PrFile[] = [];
-      for (let page = 1; page <= 30; page++) {
-        const batch = await rest<PrFile[]>(`/repos/${owner}/${repo}/pulls/${number}/files?per_page=100&page=${page}`);
-        files.push(...batch);
-        if (batch.length < 100) break;
-      }
-      return files;
+      const pages = Math.max(1, Math.ceil(Math.min(pr.changedFiles, MAX_FILES) / FILES_PER_PAGE));
+      const batches = await Promise.all(
+        Array.from({ length: pages }, (_, i) => rest<PrFile[]>(`/repos/${owner}/${repo}/pulls/${pr.number}/files?per_page=${FILES_PER_PAGE}&page=${i + 1}`)),
+      );
+      return batches.flat();
     },
-    staleTime: 60_000,
-    persister: persisted,
+    staleTime: Infinity,
   });
 
 const VIEWED_QUERY = /* GraphQL */ `
@@ -417,11 +420,20 @@ export const prViewedQuery = (owner: string, repo: string, number: number) =>
     persister: persisted,
   });
 
+// Just what the patches' cache key needs, in a fraction of the full pull request's time.
+const PR_HEAD_QUERY = /* GraphQL */ `
+  query PullRequestHead($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner, name: $repo) { pullRequest(number: $number) { number headRefOid changedFiles } }
+  }
+`;
+
 /** What a pull request URL will show, started early (page load, link hover) by src/app/prefetch.ts. */
 export function prefetchPr(client: QueryClient, owner: string, repo: string, number: number, tab: PrTab) {
   client.prefetchQuery(prQuery(owner, repo, number));
-  if (tab === 'files') {
-    client.prefetchQuery(prFilesQuery(owner, repo, number));
-    client.prefetchQuery(prViewedQuery(owner, repo, number));
-  }
+  if (tab !== 'files') return;
+  client.prefetchQuery(prViewedQuery(owner, repo, number));
+  // Patches are keyed by the head commit; look it up on its own so they don't wait for the full pull request.
+  gql<{ repository: { pullRequest: Pick<PullRequest, 'number' | 'headRefOid' | 'changedFiles'> | null } | null }>(PR_HEAD_QUERY, { owner, repo, number })
+    .then(({ repository }) => repository?.pullRequest && client.prefetchQuery(prFilesQuery(owner, repo, repository.pullRequest)))
+    .catch(() => {});
 }
