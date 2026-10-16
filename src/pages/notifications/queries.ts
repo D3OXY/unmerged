@@ -48,8 +48,8 @@ export function notificationsUrl({ view, repo, reason }: Filters) {
 
 const hasNext = (headers: Headers) => /rel="next"/.test(headers.get('Link') ?? '');
 
-async function fetchPage(view: View, page: number): Promise<Page> {
-  const { data, headers } = await restWithHeaders<Notification[]>(`/notifications?${PARAMS[view]}&per_page=${PAGE_SIZE}&page=${page}`);
+async function fetchPage(view: View, page: number, signal: AbortSignal): Promise<Page> {
+  const { data, headers } = await restWithHeaders<Notification[]>(`/notifications?${PARAMS[view]}&per_page=${PAGE_SIZE}&page=${page}`, { signal });
   return { items: data ?? [], hasMore: hasNext(headers) };
 }
 
@@ -60,7 +60,7 @@ async function fetchPage(view: View, page: number): Promise<Page> {
 export const notificationsQuery = (view: View) =>
   infiniteQueryOptions({
     queryKey: ['notifications', 'list', view],
-    queryFn: ({ pageParam }) => fetchPage(view, pageParam),
+    queryFn: ({ pageParam, signal }) => fetchPage(view, pageParam, signal),
     initialPageParam: 1,
     getNextPageParam: (last, pages) => (last.hasMore ? pages.length + 1 : null),
     refetchOnWindowFocus: false,
@@ -77,12 +77,12 @@ type Poll = { unread: Notification[]; hasMore: boolean; lastModified: string | n
  */
 export const unreadPollQuery = queryOptions({
   queryKey: ['notifications', 'poll'],
-  queryFn: async ({ client, queryKey }): Promise<Poll> => {
+  queryFn: async ({ client, queryKey, signal }): Promise<Poll> => {
     const last = client.getQueryData<Poll>(queryKey);
-    const { data, headers } = await restWithHeaders<Notification[]>(
-      `/notifications?all=false&per_page=${PAGE_SIZE}`,
-      last?.lastModified ? { 'If-Modified-Since': last.lastModified } : {},
-    );
+    const { data, headers } = await restWithHeaders<Notification[]>(`/notifications?all=false&per_page=${PAGE_SIZE}`, {
+      headers: last?.lastModified ? { 'If-Modified-Since': last.lastModified } : {},
+      signal,
+    });
     const interval = Number(headers.get('X-Poll-Interval')) || 60;
     if (last && !data) return { ...last, interval };
     return { unread: data ?? [], hasMore: hasNext(headers), lastModified: headers.get('Last-Modified'), interval };
