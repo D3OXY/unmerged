@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { CircleDotIcon, Copy01Icon, FileSearchIcon, GitBranchIcon, GitPullRequestCreateIcon, GitPullRequestIcon, PinIcon, PinOffIcon, PlayIcon, PlusSignIcon, Tag01Icon } from '@hugeicons/core-free-icons';
 import { useRegisterCommands, type Command } from '@/app/commands';
 import { usePageHotkey } from '@/app/keyboard';
 import { copy } from '@/lib/clipboard';
+import { cx } from '@/lib/cx';
 import { loadDiffs } from '@/lib/diffs';
 import { navigate } from '@/lib/navigation';
 import { pin, unpin, useIsPinned } from '@/lib/pins';
@@ -74,18 +75,18 @@ export function RepoPage({ owner, repo: name, view, rest }: Props) {
       ) : (
         <>
           {repo && !rest.length && <RecentPushes repo={repo} />}
-          {repo && target && <Toolbar repo={repo} gitRef={target.ref} path={target.path} />}
-          {!object || !target || !repo ? (
+          {!repo || !target ? (
             <TreeSkeleton />
-          ) : object.__typename === 'Blob' ? (
-            <BlobView nameWithOwner={nwo} gitRef={target.ref} path={target.path} blob={object} lastCommit={history?.nodes[0]} commitOid={commit?.oid} />
-          ) : target.path ? (
-            <TreeView nameWithOwner={nwo} gitRef={target.ref} revision={revision!.ref} path={target.path} entries={object.entries} lastCommit={history?.nodes[0]} commitCount={history?.totalCount} />
           ) : (
-            <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_296px]">
-              <TreeView nameWithOwner={nwo} gitRef={target.ref} revision={revision!.ref} path="" entries={object.entries} lastCommit={history?.nodes[0]} commitCount={history?.totalCount} />
-              <RepoSidebar repo={repo} />
-            </div>
+            <Toolbar repo={repo} gitRef={target.ref} path={target.path} aside={object?.__typename === 'Tree' && !target.path && <RepoSidebar repo={repo} />}>
+              {!object ? (
+                <TreeSkeleton />
+              ) : object.__typename === 'Blob' ? (
+                <BlobView nameWithOwner={nwo} gitRef={target.ref} path={target.path} blob={object} lastCommit={history?.nodes[0]} commitOid={commit?.oid} />
+              ) : (
+                <TreeView nameWithOwner={nwo} gitRef={target.ref} revision={revision!.ref} path={target.path} entries={object.entries} lastCommit={history?.nodes[0]} commitCount={history?.totalCount} />
+              )}
+            </Toolbar>
           )}
         </>
       )}
@@ -93,7 +94,12 @@ export function RepoPage({ owner, repo: name, view, rest }: Props) {
   );
 }
 
-function Toolbar({ repo, gitRef, path }: { repo: Repo; gitRef: string; path: string }) {
+/**
+ * Branch picker, path and the code actions above `children`. With an `aside` (the root's sidebar) it adds a
+ * second column that sticks under the tab bar on wide screens, headed by the actions. Only the aside scrolls, so
+ * the Code menu isn't clipped.
+ */
+function Toolbar({ repo, gitRef, path, aside, children }: { repo: Repo; gitRef: string; path: string; aside?: ReactNode; children: ReactNode }) {
   const [owner, name] = repo.nameWithOwner.split('/') as [string, string];
   const [finding, setFinding] = useState(false);
   const segments = path ? path.split('/') : [];
@@ -119,8 +125,23 @@ function Toolbar({ repo, gitRef, path }: { repo: Repo; gitRef: string; path: str
     [repo, openFinder, pinned],
   );
   useRegisterCommands('repo', commands);
+  const actionsInColumn = useWide() && !!aside;
 
-  return (
+  const actions = (
+    <div className={cx('flex items-center justify-end gap-2', !actionsInColumn && 'ml-auto')}>
+      <button
+        type="button"
+        onClick={openFinder}
+        className="flex h-8 w-52 cursor-pointer items-center gap-2 rounded-lg border border-line bg-panel px-2.5 text-[12.5px] text-subtle hover:border-line-strong hover:text-muted"
+      >
+        <HugeiconsIcon icon={FileSearchIcon} className="size-3.5" />
+        Go to file
+        <Kbd className="ml-auto">T</Kbd>
+      </button>
+      <CloneMenu repo={repo} gitRef={gitRef} />
+    </div>
+  );
+  const bar = (
     <div className="mb-4 flex flex-wrap items-center gap-2">
       <BranchPicker owner={owner} name={name} current={gitRef} hrefFor={(ref) => treeUrl(repo.nameWithOwner, ref, path)} />
       {!path && (
@@ -157,19 +178,44 @@ function Toolbar({ repo, gitRef, path }: { repo: Repo; gitRef: string; path: str
           </button>
         </div>
       )}
-      <div className="ml-auto flex items-center gap-2">
-        <button
-          type="button"
-          onClick={openFinder}
-          className="flex h-8 w-52 cursor-pointer items-center gap-2 rounded-lg border border-line bg-panel px-2.5 text-[12.5px] text-subtle hover:border-line-strong hover:text-muted"
-        >
-          <HugeiconsIcon icon={FileSearchIcon} className="size-3.5" />
-          Go to file
-          <Kbd className="ml-auto">T</Kbd>
-        </button>
-        <CloneMenu repo={repo} gitRef={gitRef} />
-      </div>
-      {finding && <FileFinder nameWithOwner={repo.nameWithOwner} gitRef={gitRef} onClose={() => setFinding(false)} />}
+      {!actionsInColumn && actions}
     </div>
+  );
+
+  return (
+    <>
+      {aside ? (
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_296px]">
+          <div className="min-w-0">
+            {bar}
+            {children}
+          </div>
+          <div className="flex flex-col gap-4 lg:sticky lg:top-[108px] lg:max-h-[calc(100vh-124px)] lg:self-start">
+            {actionsInColumn && actions}
+            {aside}
+          </div>
+        </div>
+      ) : (
+        <>
+          {bar}
+          {children}
+        </>
+      )}
+      {finding && <FileFinder nameWithOwner={repo.nameWithOwner} gitRef={gitRef} onClose={() => setFinding(false)} />}
+    </>
+  );
+}
+
+const WIDE = '(min-width: 64rem)'; // Tailwind's `lg`
+
+/** Whether the window is at least `lg` wide, following resizes. */
+function useWide() {
+  return useSyncExternalStore(
+    (onChange) => {
+      const query = matchMedia(WIDE);
+      query.addEventListener('change', onChange);
+      return () => query.removeEventListener('change', onChange);
+    },
+    () => matchMedia(WIDE).matches,
   );
 }
