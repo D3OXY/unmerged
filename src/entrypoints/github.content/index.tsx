@@ -67,8 +67,9 @@ export default defineContentScript({
     /** Decides, for a URL, whether Unmerged owns the page, shows the classic pill, or stays out of the way. */
     const resolve = (url: URL): { owning: boolean; route: Route } | null => {
       const route = matchRoute(url);
-      // `?? true`: settings saved before a surface existed don't list it. New issues go with issues.
-      if (!route || !(surfaces[route.kind === 'newIssue' ? 'issue' : route.kind] ?? true)) return null;
+      // `?? true`: settings saved before a surface existed don't list it. New issues go with issues, organizations
+      // with profiles.
+      if (!route || !(surfaces[route.kind === 'newIssue' ? 'issue' : route.kind === 'org' ? 'profile' : route.kind] ?? true)) return null;
       // The logged-out homepage is GitHub's marketing site; leave it alone.
       if (route.kind === 'home' && sessionLogin() === '') return null;
       return { owning: classicPath() !== url.pathname, route };

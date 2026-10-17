@@ -60,7 +60,7 @@ export function FollowsPage({ login, tab }: { login: string; tab: 'followers' | 
   );
 }
 
-function PersonRow({ person, showFollowsYou, onToggled }: { person: Person; showFollowsYou: boolean; onToggled: (following: boolean) => void }) {
+export function PersonRow({ person, showFollowsYou, onToggled }: { person: Person; showFollowsYou: boolean; onToggled: (following: boolean) => void }) {
   return (
     <div className="flex items-center gap-4 border-b border-line px-4 py-3.5 last:border-b-0">
       <a href={`/${person.login}`} data-row className="flex min-w-0 flex-1 items-start gap-3 rounded-lg focus:outline-none focus-visible:bg-hover">

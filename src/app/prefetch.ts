@@ -8,6 +8,7 @@ import { prefetchHome } from '@/pages/home/queries';
 import { newIssueQuery } from '@/pages/issue/newIssue';
 import { issueQuery } from '@/pages/issue/query';
 import { notificationsQuery, viewOf } from '@/pages/notifications/queries';
+import { orgPeopleQuery, orgQuery, orgReadmeQuery, orgWorkQuery } from '@/pages/org/queries';
 import { prefetchPr } from '@/pages/pr/query';
 import {
   followsQuery,
@@ -37,7 +38,14 @@ export function prefetchRoute(client: QueryClient, route: Route, url: URL) {
       const { login, tab } = route;
       client.prefetchQuery(achievementsQuery(login));
       if (tab === 'overview') {
-        client.prefetchQuery(profileUserQuery(login));
+        // A login is only known to be an organization once `user` comes back null; its page's requests start then.
+        const user = profileUserQuery(login);
+        client.prefetchQuery(user).then(() => {
+          if (client.getQueryData(user.queryKey) !== null) return;
+          client.prefetchQuery(orgQuery(login));
+          client.prefetchQuery(orgWorkQuery(login));
+          client.prefetchQuery(orgReadmeQuery(login));
+        });
         client.prefetchQuery(profileWorkQuery(login));
         client.prefetchQuery(profileActivityQuery(login));
         client.prefetchQuery(profileReadmeQuery(login));
@@ -48,6 +56,11 @@ export function prefetchRoute(client: QueryClient, route: Route, url: URL) {
       if (tab === 'followers' || tab === 'following') client.prefetchInfiniteQuery(followsQuery(login, tab));
       return;
     }
+    case 'org':
+      client.prefetchQuery(orgQuery(route.login));
+      if (route.tab === 'repositories') client.prefetchInfiniteQuery(profileReposQuery(route.login));
+      else client.prefetchInfiniteQuery(orgPeopleQuery(route.login));
+      return;
     case 'repo':
       if (route.view === 'issues' || route.view === 'pulls') {
         client.prefetchQuery(repoQuery(route.owner, route.repo));

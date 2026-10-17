@@ -8,7 +8,7 @@ import { NEW_TOKEN_URL, openSettingsPage, sidePanelItem, surfacesItem, themeItem
 
 const SURFACES: Record<Surface, { label: string; path: string; icon: ReactNode }> = {
   home: { label: 'Home', path: 'github.com', icon: <HugeiconsIcon icon={Home01Icon} /> },
-  profile: { label: 'Profiles', path: 'github.com/<user>', icon: <HugeiconsIcon icon={UserIcon} /> },
+  profile: { label: 'Profiles & organizations', path: 'github.com/<user>, /<org>', icon: <HugeiconsIcon icon={UserIcon} /> },
   pr: { label: 'Pull requests', path: '…/pull/<number>', icon: <HugeiconsIcon icon={GitPullRequestIcon} /> },
   issue: { label: 'Issues', path: '…/issues/<number>, …/issues/new', icon: <HugeiconsIcon icon={CircleDotIcon} /> },
   commit: { label: 'Commits', path: '…/commit/<sha>, …/pull/<number>/commits/<sha>', icon: <HugeiconsIcon icon={GitCommitHorizontalIcon} /> },

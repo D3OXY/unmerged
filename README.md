@@ -18,7 +18,8 @@
 | Page | URL | Fallback |
 |---|---|---|
 | Home | `github.com/` (signed in) | Logged-out marketing page is left alone |
-| Profile | `github.com/<user>`, `?tab=repositories`, `?tab=achievements`, `?tab=followers`, `?tab=following` | Organizations, Stars and other `?tab=` views stay on GitHub |
+| Profile | `github.com/<user>`, `?tab=repositories`, `?tab=achievements`, `?tab=followers`, `?tab=following` | Stars and other `?tab=` views stay on GitHub |
+| Organization | `github.com/<org>`, `/orgs/<org>/repositories`, `/orgs/<org>/people` | Teams, projects, packages and settings stay on GitHub |
 | Pull request | `github.com/<owner>/<repo>/pull/<n>` plus `/commits`, `/checks`, `/files` | |
 | Commit | `github.com/<owner>/<repo>/commit/<sha>`, `…/pull/<n>/commits/<sha>` | `.patch` / `.diff` and the commit's checks page stay on GitHub |
 | Workflow run | `github.com/<owner>/<repo>/actions/runs/<id>` plus `/job/<id>` (steps and logs) and `/attempts/<n>` | The Actions tab and workflow pages stay on GitHub, and so do a running job's live logs |

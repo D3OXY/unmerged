@@ -2,7 +2,6 @@ import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { gql, restHtml } from '@/github/client';
 import { absolutizeReadme } from '@/github/readme';
 import { REPO_CARD_FIELDS, type RepoCard } from '@/github/types';
-import { rememberOrgs } from '@/lib/orgs';
 import { persisted } from '@/lib/persist';
 import { PR_ROW_FIELDS, type PrRowData } from '@/ui/WorkRow';
 import type { ContributionWeek } from './ContributionGraph';
@@ -109,18 +108,11 @@ export type ProfileActivity = {
 
 const key = (login: string) => login.toLowerCase();
 
+/** Null when the login isn't a user: an organization (see OwnerPage), or nobody. */
 export const profileUserQuery = (login: string) =>
   queryOptions({
     queryKey: ['profile', key(login)],
-    queryFn: async () => {
-      const { user } = await gql<{ user: ProfileUser | null }>(USER_QUERY, { login }, true);
-      if (!user) {
-        // Not a user: an organization (or nothing). Hand the URL back to GitHub for good.
-        rememberOrgs([login]);
-        location.reload();
-      }
-      return user;
-    },
+    queryFn: async () => (await gql<{ user: ProfileUser | null }>(USER_QUERY, { login }, true)).user,
     persister: persisted,
   });
 
@@ -174,23 +166,16 @@ export type ProfileHead = {
   starredRepositories: { totalCount: number };
 };
 
-/** Who a sub-page (repositories, followers…) belongs to, with the counts its tabs show. */
+/** Who a sub-page (repositories, followers…) belongs to, with the counts its tabs show. Null for organizations. */
 export const profileHeadQuery = (login: string) =>
   queryOptions({
     queryKey: ['profile-head', key(login)],
-    queryFn: async () => {
-      const { user } = await gql<{ user: ProfileHead | null }>(HEAD_QUERY, { login }, true);
-      if (!user) {
-        // An organization: GitHub's page has these tabs for orgs too, so hand the URL back for good.
-        rememberOrgs([login]);
-        location.reload();
-      }
-      return user;
-    },
+    queryFn: async () => (await gql<{ user: ProfileHead | null }>(HEAD_QUERY, { login }, true)).user,
     persister: persisted,
   });
 
-const PAGE = /* GraphQL */ `{
+/** A page of people, as FollowsPage's rows show them. */
+export const PEOPLE_PAGE = /* GraphQL */ `{
   pageInfo { hasNextPage endCursor }
   nodes {
     id login name avatarUrl bio company location
@@ -203,8 +188,8 @@ const PAGE = /* GraphQL */ `{
 const FOLLOWS_QUERY = /* GraphQL */ `
   query Follows($login: String!, $followers: Boolean!, $after: String) {
     user(login: $login) {
-      followerList: followers(first: 50, after: $after) @include(if: $followers) ${PAGE}
-      followingList: following(first: 50, after: $after) @skip(if: $followers) ${PAGE}
+      followerList: followers(first: 50, after: $after) @include(if: $followers) ${PEOPLE_PAGE}
+      followingList: following(first: 50, after: $after) @skip(if: $followers) ${PEOPLE_PAGE}
     }
   }
 `;
@@ -230,7 +215,7 @@ type Follows = { followerList?: PeoplePage; followingList?: PeoplePage };
 
 type FollowsPage = { people: PeoplePage } | null;
 
-/** Followers or following, 50 per page. Null for organizations; ProfileFrame hands those back to GitHub. */
+/** Followers or following, 50 per page. Null for organizations; ProfileFrame sends those to the org's page. */
 export const followsQuery = (login: string, tab: 'followers' | 'following') =>
   infiniteQueryOptions({
     queryKey: ['follows', key(login), tab],
@@ -247,7 +232,7 @@ export const followsQuery = (login: string, tab: 'followers' | 'following') =>
 
 const REPOS_QUERY = /* GraphQL */ `
   query ProfileRepos($login: String!, $after: String) {
-    user(login: $login) {
+    repositoryOwner(login: $login) {
       repositories(first: 100, after: $after, ownerAffiliations: OWNER, orderBy: { field: PUSHED_AT, direction: DESC }) {
         totalCount
         pageInfo { hasNextPage endCursor }
@@ -275,12 +260,12 @@ export type OwnedRepo = RepoCard & {
 
 type ReposPage = { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: OwnedRepo[] };
 
-/** Every repository the user owns, 100 per page. Null for organizations. */
+/** Every repository a user or organization owns, 100 per page. */
 export const profileReposQuery = (login: string) =>
   infiniteQueryOptions({
     queryKey: ['profile-repos', key(login)],
     queryFn: async ({ pageParam }) =>
-      (await gql<{ user: { repositories: ReposPage } | null }>(REPOS_QUERY, { login, after: pageParam }, true)).user?.repositories ?? null,
+      (await gql<{ repositoryOwner: { repositories: ReposPage } | null }>(REPOS_QUERY, { login, after: pageParam }, true)).repositoryOwner?.repositories ?? null,
     initialPageParam: null as string | null,
     getNextPageParam: (last) => (last?.pageInfo.hasNextPage ? last.pageInfo.endCursor : null),
     persister: persisted<ReposPage | null>,

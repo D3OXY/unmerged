@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { rememberOrgs } from './orgs';
 import { matchRoute, type PrTab, type RepoView, type Route } from './routes';
 
 const repo = (view: RepoView, rest: string[] = []): Route => ({ kind: 'repo', owner: 'o', repo: 'r', view, rest });
@@ -7,8 +6,6 @@ const pr = (tab: PrTab): Route => ({ kind: 'pr', owner: 'o', repo: 'r', number: 
 const compare = (spec: { base?: string; head?: string; expand?: boolean }): Route => ({ kind: 'compare', owner: 'o', repo: 'r', expand: false, ...spec });
 
 describe('matchRoute', () => {
-  rememberOrgs(['Vercel']);
-
   it.each<[string, Route | null]>([
     // Home and other hosts
     ['https://github.com/', { kind: 'home' }],
@@ -34,16 +31,23 @@ describe('matchRoute', () => {
     ['https://github.com/Settings', null],
     ['https://github.com/settings/profile', null],
     ['https://github.com/marketplace/actions', null],
-    ['https://github.com/orgs/acme/people', null],
+    ['https://github.com/orgs', null],
+    ['https://github.com/orgs/acme', null],
+    ['https://github.com/orgs/acme/teams', null],
 
-    // Profiles, and orgs we've learned about
+    // Profiles (users and organizations alike)
     ['https://github.com/octocat', { kind: 'profile', login: 'octocat', tab: 'overview' }],
     ['https://github.com/octocat/', { kind: 'profile', login: 'octocat', tab: 'overview' }],
     ['https://github.com/octocat?tab=', { kind: 'profile', login: 'octocat', tab: 'overview' }],
     ['https://github.com/octocat?tab=repositories', { kind: 'profile', login: 'octocat', tab: 'repositories' }],
     ['https://github.com/octocat?tab=stars', null],
-    ['https://github.com/vercel', null],
-    ['https://github.com/VERCEL', null],
+    ['https://github.com/vercel', { kind: 'profile', login: 'vercel', tab: 'overview' }],
+
+    // Organization lists
+    ['https://github.com/orgs/acme/repositories?q=x&sort=name', { kind: 'org', login: 'acme', tab: 'repositories' }],
+    ['https://github.com/orgs/Acme/people', { kind: 'org', login: 'Acme', tab: 'people' }],
+    ['https://github.com/orgs/acme/people/', { kind: 'org', login: 'acme', tab: 'people' }],
+    ['https://github.com/orgs/acme/people/octocat', null],
 
     // Repo views
     ['https://github.com/o/r', repo('code')],

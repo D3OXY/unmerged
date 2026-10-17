@@ -35,7 +35,7 @@ const BADGES = [
   ['isDeveloperProgramMember', 'Developer Program Member'],
 ] as const satisfies [keyof ProfileUser, string][];
 
-/** A person's profile: identity, activity, and work, at a glance. Organizations fall back to GitHub. */
+/** A person's profile: identity, activity, and work, at a glance. Organizations get OrgPage (see OwnerPage). */
 export function ProfilePage({ login }: { login: string }) {
   const queryClient = useQueryClient();
   const userQuery = profileUserQuery(login);
@@ -114,7 +114,7 @@ export function ProfilePage({ login }: { login: string }) {
                 </section>
               )}
 
-              {work ? <RepoList login={user.login} repositories={work.repositories} /> : <Skeleton className="h-64 rounded-xl" />}
+              {work ? <RepoList href={`/${user.login}?tab=repositories`} repositories={work.repositories} /> : <Skeleton className="h-64 rounded-xl" />}
             </div>
 
             <aside className="flex flex-col gap-8">
@@ -214,7 +214,7 @@ function ProfileHeader({ user }: { user: ProfileUser }) {
   );
 }
 
-function Meta({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+export function Meta({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   return (
     <span className="flex items-center gap-1.5 [&>svg]:size-3.5 [&>svg]:text-subtle">
       {icon}
@@ -223,7 +223,7 @@ function Meta({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   );
 }
 
-function Count({ href, value, label }: { href: string; value: number; label: string }) {
+export function Count({ href, value, label }: { href: string; value: number; label: string }) {
   return (
     <a href={href} className="min-w-0 px-3.5 py-3 transition-colors hover:bg-hover">
       <div className="text-[17px] font-semibold tracking-tight tabular-nums">{formatCount(value)}</div>
@@ -232,7 +232,7 @@ function Count({ href, value, label }: { href: string; value: number; label: str
   );
 }
 
-function RepoTile({ repo }: { repo: RepoCard }) {
+export function RepoTile({ repo }: { repo: RepoCard }) {
   return (
     <a
       href={repo.url}
@@ -275,7 +275,8 @@ function RepoMeta({ repo, className }: { repo: RepoCard; className?: string }) {
   );
 }
 
-function RepoList({ login, repositories }: { login: string; repositories: ProfileWork['repositories'] }) {
+/** The most recently pushed repositories, filterable; `href` is the full list. */
+export function RepoList({ href, repositories }: { href: string; repositories: ProfileWork['repositories'] }) {
   const [filter, setFilter] = useState('');
   // The 100 most recently pushed are loaded; the first 20 show until a filter searches all of them.
   const repos = useMemo(
@@ -292,7 +293,7 @@ function RepoList({ login, repositories }: { login: string; repositories: Profil
         title="Repositories"
         count={repositories.totalCount}
         action={
-          <a href={`/${login}?tab=repositories`} className="flex items-center gap-1 text-[12px] text-subtle hover:text-fg">
+          <a href={href} className="flex items-center gap-1 text-[12px] text-subtle hover:text-fg">
             View all <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3" />
           </a>
         }
@@ -473,8 +474,8 @@ function ScrollEdge({ side, shown, onClick }: { side: 'left' | 'right'; shown: b
   );
 }
 
-/** Share of primary languages across the user's own (non-fork) repositories. */
-function Languages({ repos }: { repos: RepoCard[] }) {
+/** Share of primary languages across the given repositories. */
+export function Languages({ repos }: { repos: RepoCard[] }) {
   const languages = useMemo(() => {
     const counts = new Map<string, { name: string; color: string | null; count: number }>();
     for (const { primaryLanguage: lang } of repos) {
@@ -555,7 +556,7 @@ function CompactPr({ pr }: { pr: PrRowData }) {
   );
 }
 
-function ProfileSkeleton() {
+export function ProfileSkeleton() {
   return (
     <div className="mx-auto max-w-[1180px] px-6 pt-10">
       <div className="flex gap-6">
