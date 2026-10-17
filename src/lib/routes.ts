@@ -12,6 +12,11 @@ export type OrgTab = 'repositories' | 'people';
 /** Which of your pull requests or issues a list shows; GitHub's own path segments (`/pulls/assigned`). */
 export type WorkFilter = 'created' | 'assigned' | 'mentioned' | 'review-requested';
 
+/** GitHub's search tabs (its `?type=` values) that Unmerged renders; discussions, topics, wikis… stay on GitHub. */
+export const SEARCH_TYPES = ['repositories', 'code', 'issues', 'pullrequests', 'users', 'commits'] as const;
+export type SearchType = (typeof SEARCH_TYPES)[number];
+const isSearchType = (type: string): type is SearchType => (SEARCH_TYPES as readonly string[]).includes(type);
+
 /** Repo views Unmerged renders; the other repo tabs (Actions, Settings…) stay on GitHub. */
 export type RepoView = 'code' | 'commits' | 'issues' | 'pulls';
 
@@ -32,6 +37,8 @@ export type Route =
   | { kind: 'home' }
   | { kind: 'work'; type: 'pr' | 'issue'; filter: WorkFilter; peek?: Peek }
   | { kind: 'notifications' }
+  /** GitHub search. `sort` is GitHub's `?s=` and `?o=` as one ("stars-desc"), '' for best match. */
+  | { kind: 'search'; q: string; type: SearchType; sort: string }
   /** A user or an organization: `/<login>` can be either, and only the API knows which. */
   | { kind: 'profile'; login: string; tab: ProfileTab }
   | { kind: 'org'; login: string; tab: OrgTab }
@@ -87,6 +94,7 @@ export function matchRoute(url: URL): Route | null {
 
   const [first, second, third, fourth, fifth, sixth] = parts;
   if (first === 'notifications' && parts.length === 1) return { kind: 'notifications' };
+  if (first === 'search' && parts.length === 1) return searchRoute(url);
   if ((first === 'pulls' || first === 'issues') && parts.length <= 2) {
     const filter = (first === 'pulls' ? PULL_FILTERS : ISSUE_FILTERS)[second ?? ''];
     return filter ? { kind: 'work', type: first === 'pulls' ? 'pr' : 'issue', filter, peek: peekOf(url) } : null;
@@ -116,6 +124,7 @@ export function matchRoute(url: URL): Route | null {
       if (parts.length === 7 && id && sixth === 'attempts') return { ...run, attempt: id };
     }
     if (third === 'compare') return compareRoute(first, second, parts.slice(3).join('/'), url);
+    if (third === 'search' && parts.length === 3) return searchRoute(url, `${first}/${second}`);
   }
 
   if (first && second && third === 'pull' && fourth && /^\d+$/.test(fourth)) {
@@ -140,6 +149,19 @@ function compareRoute(owner: string, repo: string, spec: string, url: URL): Comp
   const head = dots === -1 ? spec : spec.slice(dots + 3);
   if (base === '' || base?.includes(':') || !head || head.includes('..') || /\.(diff|patch)$/.test(head)) return null;
   return { kind: 'compare', owner, repo, base, head, expand };
+}
+
+/**
+ * `/search?q=…&type=…&s=…&o=…`. A repo's own search (`/owner/repo/search`, `repo` "owner/name") is the same
+ * search with `repo:owner/name` in front, defaulting to code as GitHub's does. Old capitalized types still work.
+ */
+function searchRoute(url: URL, repo?: string): Route | null {
+  const params = url.searchParams;
+  const type = params.get('type')?.toLowerCase() || (repo ? 'code' : 'repositories');
+  if (!isSearchType(type)) return null;
+  const q = params.get('q')?.trim() ?? '';
+  const s = params.get('s');
+  return { kind: 'search', q: repo ? `repo:${repo} ${q}`.trim() : q, type, sort: s ? `${s}-${params.get('o') === 'asc' ? 'asc' : 'desc'}` : '' };
 }
 
 /** The pull request or issue a list's `?peek=` opens in its side panel; anything else is ignored. */

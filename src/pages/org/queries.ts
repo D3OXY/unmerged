@@ -3,7 +3,7 @@ import { gql, restHtml } from '@/github/client';
 import { absolutizeReadme } from '@/github/readme';
 import { REPO_CARD_FIELDS } from '@/github/types';
 import { persisted } from '@/lib/persist';
-import { PEOPLE_PAGE, type PeoplePage, type ProfileWork } from '@/pages/profile/queries';
+import { PEOPLE_PAGE, PERSON_FIELDS, type PeoplePage, type ProfileWork } from '@/pages/profile/queries';
 
 // Like a profile, the overview is separate requests sent together (GitHub resolves a query's fields one
 // after another): who the organization is, which also heads its lists, and its repositories.
@@ -37,6 +37,7 @@ const PEOPLE_QUERY = /* GraphQL */ `
       membersWithRole(first: 50, after: $after) ${PEOPLE_PAGE}
     }
   }
+  ${PERSON_FIELDS}
 `;
 
 export type Org = {
