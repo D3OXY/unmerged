@@ -60,6 +60,7 @@ export function FollowsPage({ login, tab }: { login: string; tab: 'followers' | 
   );
 }
 
+/** A person with their bio and follow button; `showFollowsYou` marks those who follow you. */
 export function PersonRow({ person, showFollowsYou, onToggled }: { person: Person; showFollowsYou: boolean; onToggled: (following: boolean) => void }) {
   return (
     <div className="flex items-center gap-4 border-b border-line px-4 py-3.5 last:border-b-0">
@@ -85,10 +86,12 @@ export function PersonRow({ person, showFollowsYou, onToggled }: { person: Perso
                 {person.location}
               </span>
             )}
-            <span className="flex items-center gap-1">
-              <HugeiconsIcon icon={UserGroupIcon} />
-              {formatCount(person.followers.totalCount)} follower{person.followers.totalCount === 1 ? '' : 's'}
-            </span>
+            {person.followers && (
+              <span className="flex items-center gap-1">
+                <HugeiconsIcon icon={UserGroupIcon} />
+                {formatCount(person.followers.totalCount)} follower{person.followers.totalCount === 1 ? '' : 's'}
+              </span>
+            )}
           </div>
         </div>
       </a>

@@ -1,3 +1,4 @@
+import { browser } from '#imports';
 import { tokenItem } from '@/lib/settings';
 import { formatTime } from '@/lib/time';
 
@@ -88,6 +89,31 @@ export async function restWithHeaders<T>(
   if (res.status === 304) return { data: null, headers: res.headers };
   if (!res.ok) throw await httpError(res);
   return { data: (await res.json()) as T, headers: res.headers };
+}
+
+type CodeSearchAnswer<T> = { data: T } | { error: { message: string; status: number; problem: GitHubProblem } };
+
+/**
+ * GitHub's code search (`/search/code?<params>`, with matched fragments). It answers without CORS headers, so
+ * github.com can't read it: the background fetches it (`answerCodeSearch`) and hands it over. Fails like `rest`.
+ */
+export async function searchCode<T>(params: string): Promise<T> {
+  const answer: CodeSearchAnswer<T> = await browser.runtime.sendMessage({ type: 'search-code', params });
+  if ('error' in answer) throw new GitHubError(answer.error.message, answer.error.status, answer.error.problem);
+  return answer.data;
+}
+
+/** The background's half of `searchCode`; null for any other message. */
+export function answerCodeSearch(message: unknown): Promise<CodeSearchAnswer<unknown>> | null {
+  if (typeof message !== 'object' || message === null || !('type' in message) || message.type !== 'search-code') return null;
+  if (!('params' in message) || typeof message.params !== 'string') return null;
+  return restWithHeaders(`/search/code?${new URLSearchParams(message.params)}`, { headers: { Accept: 'application/vnd.github.text-match+json' } }).then(
+    ({ data }) => ({ data }),
+    (error: unknown) =>
+      error instanceof GitHubError
+        ? { error: { message: error.message, status: error.status, problem: error.problem } }
+        : { error: { message: String(error), status: 0, problem: { kind: 'other' } } },
+  );
 }
 
 /** REST GET returning rendered HTML (READMEs). Resolves to null on 404. */

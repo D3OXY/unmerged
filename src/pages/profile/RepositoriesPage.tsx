@@ -290,8 +290,11 @@ function Chip({ children, onRemove }: { children: ReactNode; onRemove: () => voi
   );
 }
 
-/** `onChange` patches the cached repo: optimistically on star/unstar, and back if GitHub refuses. */
-function RepoRow({ repo, onChange }: { repo: Repo; onChange: (changes: Partial<Repo>) => Promise<void> }) {
+/**
+ * A repository with its description, topics, stats and a star button. `onChange` patches the cached repo:
+ * optimistically on star/unstar, and back if GitHub refuses. `fullName` shows "owner/name" (search results).
+ */
+export function RepoRow({ repo, onChange, fullName }: { repo: Repo; onChange: (changes: Partial<Repo>) => Promise<void>; fullName?: boolean }) {
   const star = useMutation({
     mutationFn: (starred: boolean) => gql(starred ? REPO_MUTATIONS.unstar : REPO_MUTATIONS.star, { id: repo.id }),
     onMutate: async (starred) => {
@@ -311,7 +314,7 @@ function RepoRow({ repo, onChange }: { repo: Repo; onChange: (changes: Partial<R
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <a href={repo.url} data-row className="truncate rounded text-[14.5px] font-semibold hover:underline focus:outline-none focus-visible:underline">
-            {repo.name}
+            {fullName ? repo.nameWithOwner : repo.name}
           </a>
           {repo.isPrivate && (
             <Pill>

@@ -209,7 +209,9 @@ function PaletteDialog() {
         });
       }
     }
-    return [...(jump ? [jump] : []), ...local, ...remote];
+    // Above the live results, so it stays put while they arrive.
+    const searchAll: Command[] = q && !jump ? [{ id: 'search', group: 'Search', title: `Search GitHub for “${q}”`, icon: <HugeiconsIcon icon={Search01Icon} />, perform: () => navigate(`/search?${new URLSearchParams({ q })}`) }] : [];
+    return [...(jump ? [jump] : []), ...local, ...searchAll, ...remote];
   }, [q, here, settled, resolved.data, pageCommands, client, search.data, unread]);
 
   const close = () => paletteOpen.set(false);

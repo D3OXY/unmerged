@@ -174,15 +174,17 @@ export const profileHeadQuery = (login: string) =>
     persister: persisted,
   });
 
-/** A page of people, as FollowsPage's rows show them. */
-export const PEOPLE_PAGE = /* GraphQL */ `{
-  pageInfo { hasNextPage endCursor }
-  nodes {
+/** What a `Person` row shows of a user; search results use it too. */
+export const PERSON_FIELDS = /* GraphQL */ `
+  fragment Person on User {
     id login name avatarUrl bio company location
     isViewer viewerIsFollowing viewerCanFollow isFollowingViewer
     followers { totalCount }
   }
-}`;
+`;
+
+/** A page of people, as FollowsPage's rows show them. Queries using it include `PERSON_FIELDS`. */
+export const PEOPLE_PAGE = /* GraphQL */ `{ pageInfo { hasNextPage endCursor } nodes { ...Person } }`;
 
 // Followers and following are different connection types, so each gets its own (mutually exclusive) field.
 const FOLLOWS_QUERY = /* GraphQL */ `
@@ -192,6 +194,7 @@ const FOLLOWS_QUERY = /* GraphQL */ `
       followingList: following(first: 50, after: $after) @skip(if: $followers) ${PEOPLE_PAGE}
     }
   }
+  ${PERSON_FIELDS}
 `;
 
 export type Person = {
@@ -206,7 +209,8 @@ export type Person = {
   viewerIsFollowing: boolean;
   viewerCanFollow: boolean;
   isFollowingViewer: boolean;
-  followers: { totalCount: number };
+  /** Null for an organization (in search results), which has no followers. */
+  followers: { totalCount: number } | null;
 };
 
 export type PeoplePage = { pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: Person[] };
@@ -230,23 +234,29 @@ export const followsQuery = (login: string, tab: 'followers' | 'following') =>
     persister: persisted<FollowsPage>,
   });
 
+/** What a repository row (`OwnedRepo`) shows; search results use it too. Includes the `RepoCard` fragment. */
+export const REPO_ROW_FIELDS = /* GraphQL */ `
+  fragment RepoRow on Repository {
+    ...RepoCard
+    isMirror isTemplate viewerHasStarred
+    licenseInfo { spdxId name }
+    parent { nameWithOwner }
+    repositoryTopics(first: 6) { nodes { topic { name } } }
+  }
+  ${REPO_CARD_FIELDS}
+`;
+
 const REPOS_QUERY = /* GraphQL */ `
   query ProfileRepos($login: String!, $after: String) {
     repositoryOwner(login: $login) {
       repositories(first: 100, after: $after, ownerAffiliations: OWNER, orderBy: { field: PUSHED_AT, direction: DESC }) {
         totalCount
         pageInfo { hasNextPage endCursor }
-        nodes {
-          ...RepoCard
-          isMirror isTemplate viewerHasStarred
-          licenseInfo { spdxId name }
-          parent { nameWithOwner }
-          repositoryTopics(first: 6) { nodes { topic { name } } }
-        }
+        nodes { ...RepoRow }
       }
     }
   }
-  ${REPO_CARD_FIELDS}
+  ${REPO_ROW_FIELDS}
 `;
 
 export type OwnedRepo = RepoCard & {

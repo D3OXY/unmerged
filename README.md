@@ -28,6 +28,7 @@
 | Issue | `github.com/<owner>/<repo>/issues/<n>`, `/issues/new` (template chooser, Markdown templates, `?title=`, `?body=`, `?labels=`, `?assignees=`) | Sub-issues and projects are only shown on GitHub; YAML issue forms (`?template=*.yml`) open GitHub's form |
 | Pull requests & issues | `github.com/pulls`, `/pulls/assigned`, `/issues`, … (any `?q=` search) | |
 | Notifications | `github.com/notifications` (inbox, unread, participating) | |
+| Search | `github.com/search?q=…` with `type=` repositories, code, issues, pullrequests, users or commits; `…/<repo>/search` | Discussions, topics, wikis and other types stay on GitHub |
 
 Every other page is untouched. Each page can be switched off from the toolbar popup, and **Classic** (sidebar
 or ⌘K) shows the stock page for the current URL with a pill to come back.

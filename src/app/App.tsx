@@ -19,6 +19,7 @@ import { NewIssuePage } from '@/pages/issue/NewIssuePage';
 import { PrPage } from '@/pages/pr/PrPage';
 import { RepoListPage } from '@/pages/repo/RepoListPage';
 import { RepoPage } from '@/pages/repo/RepoPage';
+import { SearchPage } from '@/pages/search/SearchPage';
 import { WorkListPage } from '@/pages/work/WorkListPage';
 import { MediaViewer } from '@/ui/MediaViewer';
 import { Toaster } from '@/ui/toast';
@@ -44,6 +45,7 @@ export function App() {
       {route.kind === 'home' && <HomePage />}
       {route.kind === 'work' && <WorkListPage key={`${route.type}/${route.filter}`} type={route.type} filter={route.filter} peek={route.peek} />}
       {route.kind === 'notifications' && <NotificationsPage />}
+      {route.kind === 'search' && <SearchPage key={route.q} {...route} />}
       {route.kind === 'profile' && <ProfileRoute key={route.login} login={route.login} tab={route.tab} />}
       {route.kind === 'org' && <OrgListPage key={route.login.toLowerCase()} login={route.login} tab={route.tab} />}
       {route.kind === 'pr' && <PrPage key={`${route.owner}/${route.repo}#${route.number}`} {...route} />}

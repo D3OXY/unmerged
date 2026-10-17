@@ -20,6 +20,7 @@ import {
   profileWorkQuery,
 } from '@/pages/profile/queries';
 import { prefetchRepo, repoQuery } from '@/pages/repo/query';
+import { prefetchSearch } from '@/pages/search/queries';
 import { defaultQuery, prefetchWorkList, repoListQuery, workQueryOf, workTabCountQueries } from '@/pages/work/queries';
 
 /**
@@ -93,6 +94,9 @@ export function prefetchRoute(client: QueryClient, route: Route, url: URL) {
       return;
     case 'notifications':
       client.prefetchInfiniteQuery(notificationsQuery(viewOf(url)));
+      return;
+    case 'search':
+      prefetchSearch(client, route);
       return;
   }
 }

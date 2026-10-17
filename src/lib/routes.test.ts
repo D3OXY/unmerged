@@ -26,6 +26,19 @@ describe('matchRoute', () => {
     ['https://github.com/issues/review-requested', null],
     ['https://github.com/pulls/assigned/more', null],
 
+    // Search: GitHub's own `type` values, its `s`/`o` sort, and a repo's search as `repo:` in the query
+    ['https://github.com/search?q=react+hooks&type=repositories', { kind: 'search', q: 'react hooks', type: 'repositories', sort: '' }],
+    ['https://github.com/search?q=x', { kind: 'search', q: 'x', type: 'repositories', sort: '' }],
+    ['https://github.com/search', { kind: 'search', q: '', type: 'repositories', sort: '' }],
+    ['https://github.com/search?q=x&type=Code', { kind: 'search', q: 'x', type: 'code', sort: '' }],
+    ['https://github.com/search?q=x&type=pullrequests&s=created&o=asc', { kind: 'search', q: 'x', type: 'pullrequests', sort: 'created-asc' }],
+    ['https://github.com/search?q=x&type=commits&s=author-date', { kind: 'search', q: 'x', type: 'commits', sort: 'author-date-desc' }],
+    ['https://github.com/search?q=x&type=discussions', null],
+    ['https://github.com/search/advanced', null],
+    ['https://github.com/o/r/search?q=useState', { kind: 'search', q: 'repo:o/r useState', type: 'code', sort: '' }],
+    ['https://github.com/o/r/search?q=bug&type=issues', { kind: 'search', q: 'repo:o/r bug', type: 'issues', sort: '' }],
+    ['https://github.com/o/r/search/x', null],
+
     // Reserved first segments are GitHub features, never profiles or repos
     ['https://github.com/settings', null],
     ['https://github.com/Settings', null],
