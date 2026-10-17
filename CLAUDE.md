@@ -15,7 +15,8 @@ TypeScript 7, pnpm. README.md explains the user-facing behaviour; this file cove
 ## Website (`site/`)
 
 - unmerged.deoxy.dev: a TanStack Start app, its own package in the pnpm workspace (`pnpm site` for dev).
-  Everything is prerendered; `site/dist/client` is the deployable output.
+  Everything is prerendered; `site/dist/client` is the deployable output. Vercel deploys it from `main` only
+  (`site/vercel.json`); other branches get no preview deployments.
 - It reuses the extension's `src/ui/tokens.css`, fonts and logo by relative path, so changing those changes
   the site too. Its copy makes claims about the extension (pages, speed numbers, privacy): keep them true.
 - The root tsconfig excludes `site/`; the site has its own tsconfig. ESLint covers both.
