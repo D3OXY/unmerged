@@ -264,5 +264,17 @@ export default defineContentScript({
       },
       { capture: true },
     );
+
+    // Double-clicking a `data-peek` link opens its page full screen: the first click has already opened the
+    // side panel (and prefetched it), the second goes to the page. It doesn't select a word of the title.
+    const peekLink = (event: Event) =>
+      event.composedPath().find((el): el is HTMLAnchorElement => el instanceof HTMLAnchorElement && !!el.dataset.peek);
+    ctx.addEventListener(document, 'mousedown', (event) => {
+      if (event.detail > 1 && peekLink(event)) event.preventDefault();
+    });
+    ctx.addEventListener(document, 'dblclick', (event) => {
+      const anchor = peekLink(event);
+      if (anchor && !isModifiedClick(event) && resolve(new URL(anchor.href))?.owning) navigate(anchor.href);
+    });
   },
 });
