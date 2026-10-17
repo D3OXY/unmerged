@@ -34,7 +34,9 @@ export type Route =
    * /pulls lists. `rest` is "<ref>/<path…>" split on "/" (empty for the lists); branch names can contain
    * slashes, so it's resolved against the repo later (and whether it's a file or folder). Only the lists peek.
    */
-  | { kind: 'repo'; owner: string; repo: string; view: RepoView; rest: string[]; peek?: Peek };
+  | { kind: 'repo'; owner: string; repo: string; view: RepoView; rest: string[]; peek?: Peek }
+  /** A GitHub Actions workflow run (…/actions/runs/<id>), one attempt at it (/attempts/<n>), or one job's logs (/job/<id>). */
+  | { kind: 'run'; owner: string; repo: string; runId: number; attempt?: number; job?: number };
 
 // Hex only, so /commit/<sha>.patch and .diff stay GitHub's.
 const isSha = (part: string | undefined): part is string => !!part && /^[0-9a-f]{7,40}$/i.test(part);
@@ -85,6 +87,13 @@ export function matchRoute(url: URL): Route | null {
     if ((third === 'issues' || third === 'pulls') && parts.length === 3) return { kind: 'repo', owner: first, repo: second, view: third, rest: [], peek: peekOf(url) };
     if (third === 'issues' && fourth && /^\d+$/.test(fourth) && parts.length === 4) return { kind: 'issue', owner: first, repo: second, number: Number(fourth) };
     if (third === 'commit' && parts.length === 4 && isSha(fourth)) return { kind: 'commit', owner: first, repo: second, sha: fourth };
+    if (third === 'actions' && fourth === 'runs' && fifth && /^\d+$/.test(fifth)) {
+      const run = { kind: 'run', owner: first, repo: second, runId: Number(fifth) } as const;
+      const id = parts[6] && /^\d+$/.test(parts[6]) ? Number(parts[6]) : undefined;
+      if (parts.length === 5) return run;
+      if (parts.length === 7 && id && sixth === 'job') return { ...run, job: id };
+      if (parts.length === 7 && id && sixth === 'attempts') return { ...run, attempt: id };
+    }
   }
 
   if (first && second && third === 'pull' && fourth && /^\d+$/.test(fourth)) {

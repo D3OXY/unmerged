@@ -21,6 +21,7 @@
 | Profile | `github.com/<user>`, `?tab=repositories`, `?tab=achievements`, `?tab=followers`, `?tab=following` | Organizations, Stars and other `?tab=` views stay on GitHub |
 | Pull request | `github.com/<owner>/<repo>/pull/<n>` plus `/commits`, `/checks`, `/files` | |
 | Commit | `github.com/<owner>/<repo>/commit/<sha>`, `…/pull/<n>/commits/<sha>` | `.patch` / `.diff` and the commit's checks page stay on GitHub |
+| Workflow run | `github.com/<owner>/<repo>/actions/runs/<id>` plus `/job/<id>` (steps and logs) and `/attempts/<n>` | The Actions tab and workflow pages stay on GitHub, and so do a running job's live logs |
 | Repository | `github.com/<owner>/<repo>`, `/tree/…`, `/blob/…`, `/commits/…`, `/issues`, `/pulls` (any `?q=` search) | Actions, Settings, etc. stay on GitHub |
 | Issue | `github.com/<owner>/<repo>/issues/<n>` | Sub-issues and projects are only shown on GitHub |
 | Pull requests & issues | `github.com/pulls`, `/pulls/assigned`, `/issues`, … (any `?q=` search) | |
@@ -75,10 +76,10 @@ you want, and pick only the repos and permissions for the features you use:
 | Feature | Permission |
 |---|---|
 | Browsing repos, PRs, lists, home (always needed) | Repository → Metadata: read, Contents: read, Pull requests: read, Issues: read |
-| Checks tab | Repository → Checks: read, Commit statuses: read, Actions: read |
+| Checks tab, workflow runs and job logs | Repository → Checks: read, Commit statuses: read, Actions: read |
 | Comment, review, resolve threads, mark files viewed, close/reopen, draft/ready | Repository → Pull requests: read and write |
 | Merge, auto-merge, merge queue, update branch, delete branch | Repository → Contents: read and write, Pull requests: read and write |
-| Re-run failed checks | Repository → Actions: read and write |
+| Re-run failed checks or jobs | Repository → Actions: read and write |
 | Star / unstar | Account → Starring: read and write |
 | Watch | Account → Watching: read and write |
 | Follow | Account → Followers: read and write |

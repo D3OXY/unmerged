@@ -2,6 +2,7 @@ import { queryOptions, type QueryClient } from '@tanstack/react-query';
 import { gql, rest } from '@/github/client';
 import { persisted } from '@/lib/persist';
 import type { PrFile } from '@/pages/pr/files/FileDiff';
+import type { CheckContext } from '@/pages/pr/query';
 import { COMMIT_ROW_FIELDS, type CommitRowData } from '@/ui/CommitList';
 
 // The header: message, people, parents and checks. The files come from REST (patches), in parallel.
@@ -58,6 +59,41 @@ export const commitFilesQuery = (owner: string, repo: string, sha: string) =>
       return files;
     },
     staleTime: Infinity,
+    persister: persisted,
+  });
+
+// A commit's checks, in the shape the PR sidebar's ChecksCard lists (without a PR, none is "required").
+const COMMIT_CHECKS_QUERY = /* GraphQL */ `
+  query CommitChecks($owner: String!, $repo: String!, $sha: String!) {
+    repository(owner: $owner, name: $repo) {
+      object(expression: $sha) {
+        ... on Commit {
+          statusCheckRollup {
+            contexts(first: 100) {
+              nodes {
+                __typename
+                ... on CheckRun { id name status conclusion detailsUrl checkSuite { app { name logoUrl } workflowRun { workflow { name } } } }
+                ... on StatusContext { id context state targetUrl description avatarUrl }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+type Unrequired<T> = T extends unknown ? Omit<T, 'isRequired'> : never;
+type CommitChecksData = { repository: { object: { statusCheckRollup: { contexts: { nodes: Unrequired<CheckContext>[] } } | null } | null } | null };
+
+/** Every check on a commit, for the checks popover in its header. */
+export const commitChecksQuery = (owner: string, repo: string, sha: string) =>
+  queryOptions({
+    queryKey: ['commit-checks', ...key(owner, repo, sha)],
+    queryFn: async (): Promise<CheckContext[]> => {
+      const data = await gql<CommitChecksData>(COMMIT_CHECKS_QUERY, { owner, repo, sha });
+      return (data.repository?.object?.statusCheckRollup?.contexts.nodes ?? []).map((check) => ({ ...check, isRequired: false }));
+    },
     persister: persisted,
   });
 

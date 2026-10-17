@@ -5,6 +5,7 @@ import { Alert02Icon, ArrowUpRight01Icon, CancelCircleIcon, InformationCircleIco
 import { gql, rest } from '@/github/client';
 import type { CheckState } from '@/github/types';
 import { cx } from '@/lib/cx';
+import { navigate } from '@/lib/navigation';
 import { Button } from '@/ui/Button';
 import { Avatar, Empty, Panel, Pill, Skeleton } from '@/ui/primitives';
 import { CheckIcon } from '@/ui/status';
@@ -104,7 +105,7 @@ function duration(run: CheckRun) {
   return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
 }
 
-function OutcomeIcon({ outcome }: { outcome: CheckOutcome }) {
+export function OutcomeIcon({ outcome }: { outcome: CheckOutcome }) {
   return outcome === 'NEUTRAL' ? <HugeiconsIcon icon={MinusSignIcon} className="size-3.5 shrink-0 text-subtle" /> : <CheckIcon state={outcome} />;
 }
 
@@ -204,7 +205,13 @@ function SuiteCard({
     <Panel className="p-1.5">
       <div className="flex h-9 items-center gap-2.5 px-2.5">
         {suite.app && <Avatar src={suite.app.logoUrl} size={16} square />}
-        <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">{run ? run.workflow.name : (suite.app?.name ?? 'Checks')}</span>
+        {run ? (
+          <a href={run.url} className="min-w-0 flex-1 truncate text-[12.5px] font-medium hover:underline">
+            {run.workflow.name}
+          </a>
+        ) : (
+          <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">{suite.app?.name ?? 'Checks'}</span>
+        )}
         {run && <span className="text-[11.5px] text-subtle">#{run.runNumber} · {run.event.replace(/_/g, ' ')}</span>}
         {run && failed && (
           <Button size="sm" variant="ghost" loading={rerun.isPending} icon={<HugeiconsIcon icon={UndoIcon} className="size-3" />} onClick={() => rerun.mutate()}>
@@ -260,7 +267,7 @@ function RunDetail({ run, suite, repoUrl, oid }: { run: CheckRun; suite?: Suite;
           </div>
         </div>
         {run.detailsUrl && (
-          <Button size="sm" icon={<HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5" />} onClick={() => location.assign(run.detailsUrl!)}>
+          <Button size="sm" icon={<HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5" />} onClick={() => navigate(run.detailsUrl!)}>
             Logs
           </Button>
         )}
