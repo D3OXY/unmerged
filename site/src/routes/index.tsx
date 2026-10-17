@@ -328,7 +328,7 @@ function Privacy() {
       id="privacy"
       eyebrow="Privacy"
       title="Your token never leaves your browser."
-      lede="Unmerged has no server and no analytics. It talks to GitHub and nothing else."
+      lede="Unmerged has no server and no analytics. It talks to GitHub, and to another site only when you play a video linked from it."
     >
       <div className="grid gap-4 md:grid-cols-3">
         <Fact icon={Key01Icon} title="Stored in the extension">

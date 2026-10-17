@@ -138,6 +138,8 @@
     }
   }
   & .u-video:hover > button, & .u-video > button:focus-visible { opacity: 1; }
+  /* Linked videos play in the extension's player page (src/lib/player.ts); its size isn't known until it plays. */
+  & .u-player { display: block; width: 100%; max-width: 720px; aspect-ratio: 16 / 9; border: 0; border-radius: 8px; background: #000; margin: 0 0 12px; }
   & svg.octicon { display: inline-block; width: 14px; height: 14px; fill: currentColor; vertical-align: text-bottom; }
   & .user-mention, & .team-mention { font-weight: 600; color: var(--u-fg); }
   & g-emoji { font-family: 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif; }

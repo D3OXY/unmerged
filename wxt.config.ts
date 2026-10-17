@@ -33,6 +33,6 @@ export default defineConfig({
     // unlimitedStorage: the query cache (src/lib/persist.ts) can outgrow the default 10 MB; it shows no prompt.
     permissions: ['storage', 'unlimitedStorage'],
     host_permissions: ['https://api.github.com/*'],
-    web_accessible_resources: [{ resources: ['fonts/*', 'diffs.js', 'shiki-langs/*'], matches: ['https://github.com/*'] }],
+    web_accessible_resources: [{ resources: ['fonts/*', 'diffs.js', 'shiki-langs/*', 'player.html'], matches: ['https://github.com/*'] }],
   },
 });
