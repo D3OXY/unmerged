@@ -30,7 +30,7 @@ export function Sidebar({ active }: { active?: NavSection }) {
   const unread = useUnreadCount();
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-[232px] shrink-0 flex-col border-r border-line bg-panel/60 px-3 py-3 lg:flex">
+    <aside className="sticky top-0 hidden h-screen w-[clamp(240px,18vw,300px)] shrink-0 flex-col border-r border-line bg-panel/60 px-3 py-3 lg:flex">
       <div className="flex h-8 items-center gap-2 px-1.5">
         <Logo />
         <span className="text-[13.5px] font-semibold tracking-tight">Unmerged</span>
@@ -50,9 +50,9 @@ export function Sidebar({ active }: { active?: NavSection }) {
         onClick={() => paletteOpen.set(true)}
         className="mt-3 flex h-8 cursor-pointer items-center gap-2 rounded-lg border border-line bg-bg px-2.5 text-[12.5px] text-subtle transition-colors hover:border-line-strong hover:text-muted"
       >
-        <HugeiconsIcon icon={Search01Icon} className="size-3.5" />
-        Search or jump to…
-        <span className="ml-auto flex gap-0.5">
+        <HugeiconsIcon icon={Search01Icon} className="size-3.5 shrink-0" />
+        <span className="truncate">Search or jump to…</span>
+        <span className="ml-auto flex shrink-0 gap-0.5">
           <Kbd>⌘</Kbd>
           <Kbd>K</Kbd>
         </span>
