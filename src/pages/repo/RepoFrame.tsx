@@ -24,8 +24,9 @@ const LIST_TITLES: Partial<Record<RepoView, string>> = { issues: 'Issues', pulls
 /**
  * Frame for every repo view: breadcrumbs with Watch/Star/Fork, the repo's name, and tabs between views.
  * `item` is the last crumb of a page inside a list (an issue's "#12"); the list's crumb then links back.
+ * `aside` goes to the shell's right (a list's side panel).
  */
-export function RepoFrame({ owner, name, view, item, children }: { owner: string; name: string; view: RepoView; item?: string; children: ReactNode }) {
+export function RepoFrame({ owner, name, view, item, aside, children }: { owner: string; name: string; view: RepoView; item?: string; aside?: ReactNode; children: ReactNode }) {
   const meta = useRepo(owner, name);
   const repo = meta.data?.repository;
   const nwo = repo?.nameWithOwner ?? `${owner}/${name}`;
@@ -52,7 +53,7 @@ export function RepoFrame({ owner, name, view, item, children }: { owner: string
   }
 
   return (
-    <Shell>
+    <Shell aside={aside}>
       <PageHeader crumbs={crumbs} actions={repo && <RepoActions repo={repo} queryKey={repoQuery(owner, name).queryKey} />} />
       <div className="mx-auto max-w-[1240px] animate-enter px-6 pt-8 pb-8">
         {repo ? <RepoHeader repo={repo} /> : <div className="h-[34px]" />}
@@ -141,7 +142,7 @@ function RepoTabs({ repo, nwo, view }: { repo?: Repo; nwo: string; view: RepoVie
 
 const WATCH_LABEL: Record<Subscription, string> = { UNSUBSCRIBED: 'Watch', SUBSCRIBED: 'Watching', IGNORED: 'Ignoring' };
 
-/** Pin / Watch / Fork / Star, with optimistic counts. */
+/** Pin / Watch / Fork / Star, with optimistic counts. Narrow (next to a side panel), only icons and counts. */
 function RepoActions({ repo, queryKey }: { repo: Repo; queryKey: unknown[] }) {
   const queryClient = useQueryClient();
   // A refetch already in flight would land after the patch and flip it back, so it's cancelled first.
@@ -176,7 +177,7 @@ function RepoActions({ repo, queryKey }: { repo: Repo; queryKey: unknown[] }) {
         onClick={() => (pinned ? unpin(repo.nameWithOwner) : pin(repo.nameWithOwner))}
         title={pinned ? 'Unpin from sidebar' : 'Pin to sidebar'}
       >
-        {pinned ? 'Pinned' : 'Pin'}
+        <span className="@max-3xl:hidden">{pinned ? 'Pinned' : 'Pin'}</span>
       </Button>
       <Menu<Subscription>
         value={subscription}
@@ -188,13 +189,13 @@ function RepoActions({ repo, queryKey }: { repo: Repo; queryKey: unknown[] }) {
         onChange={(state) => watch.mutate(state)}
         trigger={(open) => (
           <Button size="sm" variant="ghost" icon={subscription === 'IGNORED' ? <HugeiconsIcon icon={ViewOffSlashIcon} className="size-3.5" /> : <HugeiconsIcon icon={ViewIcon} className="size-3.5" />} onClick={open}>
-            {WATCH_LABEL[subscription]}
+            <span className="@max-3xl:hidden">{WATCH_LABEL[subscription]}</span>
             <span className="text-subtle tabular-nums">{formatCount(repo.watchers.totalCount)}</span>
           </Button>
         )}
       />
       <Button size="sm" variant="ghost" icon={<HugeiconsIcon icon={GitForkIcon} className="size-3.5" />} onClick={() => location.assign(`/${repo.nameWithOwner}/fork`)}>
-        Fork
+        <span className="@max-3xl:hidden">Fork</span>
         <span className="text-subtle tabular-nums">{formatCount(repo.forkCount)}</span>
       </Button>
       <Button
@@ -203,7 +204,7 @@ function RepoActions({ repo, queryKey }: { repo: Repo; queryKey: unknown[] }) {
         icon={<HugeiconsIcon icon={StarIcon} className={cx('size-3.5', repo.viewerHasStarred && 'fill-warning text-warning')} />}
         onClick={() => star.mutate(repo.viewerHasStarred)}
       >
-        {repo.viewerHasStarred ? 'Starred' : 'Star'}
+        <span className="@max-3xl:hidden">{repo.viewerHasStarred ? 'Starred' : 'Star'}</span>
         <span className="text-subtle tabular-nums">{formatCount(repo.stargazerCount)}</span>
       </Button>
     </>

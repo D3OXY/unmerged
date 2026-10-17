@@ -31,6 +31,39 @@ const IDLE_PREFETCH_MAX_FILES = 300;
 
 /** A pull request: shared header and tab bar over Conversation, Commits, Checks and Files changed. */
 export function PrPage({ owner, repo, number, tab }: Props) {
+  const { data } = useQuery(prQuery(owner, repo, number));
+  const pr = data?.repository?.pullRequest;
+  useTitle(pr && `${pr.title} · Pull Request #${number} · ${owner}/${repo}`);
+  const base = `/${owner}/${repo}`;
+  const crumbs = [
+    { label: owner, href: `/${owner}` },
+    { label: repo, href: base },
+    { label: 'Pull requests', href: `${base}/pulls` },
+    { label: `#${number}` },
+  ];
+
+  return (
+    <Shell>
+      <PageHeader
+        crumbs={crumbs}
+        actions={
+          pr && (
+            <Button size="sm" variant="ghost" icon={<HugeiconsIcon icon={ComputerTerminal01Icon} className="size-3.5" />} onClick={() => copy(`gh pr checkout ${pr.number}`, 'checkout command')}>
+              Checkout
+            </Button>
+          )
+        }
+      />
+      <PrContent owner={owner} repo={repo} number={number} tab={tab} />
+    </Shell>
+  );
+}
+
+/**
+ * The pull request without the page's frame: on its own page and in a list's side panel (`panel`), where its
+ * tabs switch the panel instead of leaving the list.
+ */
+export function PrContent({ owner, repo, number, tab, panel }: Props & { panel?: boolean }) {
   const query = prQuery(owner, repo, number);
   const { queryKey } = query;
   const { data, isPending, error } = useQuery(query);
@@ -55,48 +88,19 @@ export function PrPage({ owner, repo, number, tab }: Props) {
   }, [queryClient, owner, repo, number, headRefOid, changedFiles, dark]);
 
   const poll = useStatusPoll(owner, repo, number, pr);
-  const base = `/${owner}/${repo}`;
-  useTitle(pr && `${pr.title} · Pull Request #${number} · ${owner}/${repo}`);
-  const crumbs = [
-    { label: owner, href: `/${owner}` },
-    { label: repo, href: base },
-    { label: 'Pull requests', href: `${base}/pulls` },
-    { label: `#${number}` },
-  ];
 
   if (error || (data && !pr)) {
     return (
-      <Shell>
-        <PageHeader crumbs={crumbs} />
-        <div className="p-10 text-[13px]">
-          <p className="text-danger">{error?.message ?? 'Pull request not found.'}</p>
-          <Button className="mt-4" onClick={openClassic}>
-            Open in classic GitHub
-          </Button>
-        </div>
-      </Shell>
+      <div className="p-10 text-[13px]">
+        <p className="text-danger">{error?.message ?? 'Pull request not found.'}</p>
+        <Button className="mt-4" onClick={openClassic}>
+          Open in classic GitHub
+        </Button>
+      </div>
     );
   }
-
-  return (
-    <Shell>
-      <PageHeader
-        crumbs={crumbs}
-        actions={
-          pr && (
-            <Button size="sm" variant="ghost" icon={<HugeiconsIcon icon={ComputerTerminal01Icon} className="size-3.5" />} onClick={() => copy(`gh pr checkout ${pr.number}`, 'checkout command')}>
-              Checkout
-            </Button>
-          )
-        }
-      />
-      {isPending || !pr || !data.repository ? (
-        <PrSkeleton />
-      ) : (
-        <PrView pr={pr} repo={data.repository} tab={tab} queryKey={queryKey} poll={poll} />
-      )}
-    </Shell>
-  );
+  if (isPending || !pr || !data.repository) return <PrSkeleton />;
+  return <PrView pr={pr} repo={data.repository} tab={tab} queryKey={queryKey} poll={poll} panel={panel} />;
 }
 
 type StatusPoll = ReturnType<typeof useStatusPoll>;
@@ -124,7 +128,7 @@ function useStatusPoll(owner: string, repo: string, number: number, pr: PullRequ
   return { watching, watch };
 }
 
-function PrView({ pr, repo, tab, queryKey, poll }: { pr: PullRequest; repo: Repo; tab: PrTab; queryKey: QueryKey; poll: StatusPoll }) {
+function PrView({ pr, repo, tab, queryKey, poll, panel }: { pr: PullRequest; repo: Repo; tab: PrTab; queryKey: QueryKey; poll: StatusPoll; panel?: boolean }) {
   const approve = usePrMutation(queryKey);
   const draft = usePrMutation(queryKey);
   const total = pr.additions + pr.deletions || 1;
@@ -210,16 +214,17 @@ function PrView({ pr, repo, tab, queryKey, poll }: { pr: PullRequest; repo: Repo
           </span>
         }
       >
-        <Tab href={pr.url} active={tab === 'conversation'} icon={<HugeiconsIcon icon={Comment01Icon} />} label="Conversation" />
-        <Tab href={`${pr.url}/commits`} active={tab === 'commits'} icon={<HugeiconsIcon icon={GitCommitHorizontalIcon} />} label="Commits" count={pr.commits.totalCount} />
+        <Tab href={pr.url} peek={panel} active={tab === 'conversation'} icon={<HugeiconsIcon icon={Comment01Icon} />} label="Conversation" />
+        <Tab href={`${pr.url}/commits`} peek={panel} active={tab === 'commits'} icon={<HugeiconsIcon icon={GitCommitHorizontalIcon} />} label="Commits" count={pr.commits.totalCount} />
         <Tab
           href={`${pr.url}/checks`}
+          peek={panel}
           active={tab === 'checks'}
           icon={rollup ? <CheckIcon state={rollup.state} /> : <HugeiconsIcon icon={TaskDone01Icon} />}
           label="Checks"
           count={rollup?.contexts.nodes.length}
         />
-        <Tab href={`${pr.url}/files`} active={tab === 'files'} icon={<HugeiconsIcon icon={FileDiffIcon} />} label="Files changed" count={pr.changedFiles} />
+        <Tab href={`${pr.url}/files`} peek={panel} active={tab === 'files'} icon={<HugeiconsIcon icon={FileDiffIcon} />} label="Files changed" count={pr.changedFiles} />
       </TabBar>
 
       {tab === 'conversation' && <ConversationTab pr={pr} repo={repo} queryKey={queryKey} />}
@@ -300,7 +305,7 @@ function PrSkeleton() {
     <div className="mx-auto max-w-[1240px] px-6 pt-8">
       <Skeleton className="h-8 w-[560px] max-w-full" />
       <Skeleton className="mt-4 h-5 w-[420px] max-w-full" />
-      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="mt-8 grid gap-8 @3xl:grid-cols-[minmax(0,1fr)_340px]">
         <Skeleton className="h-64 rounded-xl" />
         <Skeleton className="h-48 rounded-xl" />
       </div>

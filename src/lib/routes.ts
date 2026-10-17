@@ -14,21 +14,27 @@ export type WorkFilter = 'created' | 'assigned' | 'mentioned' | 'review-requeste
 /** Repo views Unmerged renders; the other repo tabs (Actions, Settings…) stay on GitHub. */
 export type RepoView = 'code' | 'commits' | 'issues' | 'pulls';
 
+export type PrRoute = { kind: 'pr'; owner: string; repo: string; number: number; tab: PrTab };
+export type IssueRoute = { kind: 'issue'; owner: string; repo: string; number: number };
+
+/** A pull request or issue open in the side panel next to a list: the list's `?peek=owner/repo/pull/12`. */
+export type Peek = PrRoute | IssueRoute;
+
 export type Route =
   | { kind: 'home' }
-  | { kind: 'work'; type: 'pr' | 'issue'; filter: WorkFilter }
+  | { kind: 'work'; type: 'pr' | 'issue'; filter: WorkFilter; peek?: Peek }
   | { kind: 'notifications' }
   | { kind: 'profile'; login: string; tab: ProfileTab }
-  | { kind: 'pr'; owner: string; repo: string; number: number; tab: PrTab }
-  | { kind: 'issue'; owner: string; repo: string; number: number }
+  | PrRoute
+  | IssueRoute
   /** One commit; `pr` when it was opened from a pull request's commits (/pull/<n>/commits/<sha>). */
   | { kind: 'commit'; owner: string; repo: string; sha: string; pr?: number }
   /**
    * A repo: code browser for /owner/repo, /tree/… and /blob/…, history for /commits/…, and the /issues and
    * /pulls lists. `rest` is "<ref>/<path…>" split on "/" (empty for the lists); branch names can contain
-   * slashes, so it's resolved against the repo later (and whether it's a file or folder).
+   * slashes, so it's resolved against the repo later (and whether it's a file or folder). Only the lists peek.
    */
-  | { kind: 'repo'; owner: string; repo: string; view: RepoView; rest: string[] };
+  | { kind: 'repo'; owner: string; repo: string; view: RepoView; rest: string[]; peek?: Peek };
 
 // Hex only, so /commit/<sha>.patch and .diff stay GitHub's.
 const isSha = (part: string | undefined): part is string => !!part && /^[0-9a-f]{7,40}$/i.test(part);
@@ -65,7 +71,7 @@ export function matchRoute(url: URL): Route | null {
   if (first === 'notifications' && parts.length === 1) return { kind: 'notifications' };
   if ((first === 'pulls' || first === 'issues') && parts.length <= 2) {
     const filter = (first === 'pulls' ? PULL_FILTERS : ISSUE_FILTERS)[second ?? ''];
-    return filter ? { kind: 'work', type: first === 'pulls' ? 'pr' : 'issue', filter } : null;
+    return filter ? { kind: 'work', type: first === 'pulls' ? 'pr' : 'issue', filter, peek: peekOf(url) } : null;
   }
   if (parts.length === 1 && first && !RESERVED.has(first.toLowerCase()) && !isKnownOrg(first)) {
     const tab = url.searchParams.get('tab') || 'overview';
@@ -76,7 +82,7 @@ export function matchRoute(url: URL): Route | null {
     if (parts.length === 2) return { kind: 'repo', owner: first, repo: second, view: 'code', rest: [] };
     if ((third === 'tree' || third === 'blob') && parts.length > 3) return { kind: 'repo', owner: first, repo: second, view: 'code', rest: parts.slice(3) };
     if (third === 'commits') return { kind: 'repo', owner: first, repo: second, view: 'commits', rest: parts.slice(3) };
-    if ((third === 'issues' || third === 'pulls') && parts.length === 3) return { kind: 'repo', owner: first, repo: second, view: third, rest: [] };
+    if ((third === 'issues' || third === 'pulls') && parts.length === 3) return { kind: 'repo', owner: first, repo: second, view: third, rest: [], peek: peekOf(url) };
     if (third === 'issues' && fourth && /^\d+$/.test(fourth) && parts.length === 4) return { kind: 'issue', owner: first, repo: second, number: Number(fourth) };
     if (third === 'commit' && parts.length === 4 && isSha(fourth)) return { kind: 'commit', owner: first, repo: second, sha: fourth };
   }
@@ -88,4 +94,15 @@ export function matchRoute(url: URL): Route | null {
   }
 
   return null;
+}
+
+/** The pull request or issue a list's `?peek=` opens in its side panel; anything else is ignored. */
+function peekOf(url: URL): Peek | undefined {
+  const path = url.searchParams.get('peek');
+  if (!path) return;
+  // Setting the path (never parsing a string) keeps it on github.com, and can't throw.
+  const target = new URL(url.origin);
+  target.pathname = path;
+  const route = matchRoute(target);
+  return route?.kind === 'pr' || route?.kind === 'issue' ? route : undefined;
 }

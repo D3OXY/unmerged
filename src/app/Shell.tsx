@@ -3,12 +3,16 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowRight01Icon } from '@hugeicons/core-free-icons';
 import { Sidebar, type NavSection } from './Sidebar';
 
-/** Linear-style frame shared by every Unmerged page: sticky sidebar + scrolling content. */
-export function Shell({ children, active }: { children: ReactNode; active?: NavSection }) {
+/**
+ * Linear-style frame shared by every Unmerged page: sticky sidebar + scrolling content, and an `aside` on the
+ * right (a list's side panel). The content is a size container, so pages lay out by the room they get.
+ */
+export function Shell({ children, active, aside }: { children: ReactNode; active?: NavSection; aside?: ReactNode }) {
   return (
     <div className="flex min-h-screen">
       <Sidebar active={active} />
-      <main className="min-w-0 flex-1">{children}</main>
+      <main className="@container min-w-0 flex-1">{children}</main>
+      {aside}
     </div>
   );
 }

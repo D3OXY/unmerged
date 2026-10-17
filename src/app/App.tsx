@@ -37,7 +37,7 @@ export function App() {
   return (
     <>
       {route.kind === 'home' && <HomePage />}
-      {route.kind === 'work' && <WorkListPage key={`${route.type}/${route.filter}`} type={route.type} filter={route.filter} />}
+      {route.kind === 'work' && <WorkListPage key={`${route.type}/${route.filter}`} type={route.type} filter={route.filter} peek={route.peek} />}
       {route.kind === 'notifications' && <NotificationsPage />}
       {route.kind === 'profile' && <ProfileRoute key={route.login} login={route.login} tab={route.tab} />}
       {route.kind === 'pr' && <PrPage key={`${route.owner}/${route.repo}#${route.number}`} {...route} />}
@@ -45,7 +45,7 @@ export function App() {
       {route.kind === 'commit' && <CommitPage key={`${route.owner}/${route.repo}@${route.sha}`.toLowerCase()} {...route} />}
       {route.kind === 'repo' &&
         (route.view === 'issues' || route.view === 'pulls' ? (
-          <RepoListPage key={`${route.owner}/${route.repo}/${route.view}`.toLowerCase()} owner={route.owner} repo={route.repo} tab={route.view} />
+          <RepoListPage key={`${route.owner}/${route.repo}/${route.view}`.toLowerCase()} owner={route.owner} repo={route.repo} tab={route.view} peek={route.peek} />
         ) : (
           <RepoPage key={`${route.owner}/${route.repo}`.toLowerCase()} {...route} view={route.view} />
         ))}

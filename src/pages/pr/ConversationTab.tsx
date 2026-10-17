@@ -11,7 +11,7 @@ export function ConversationTab({ pr, repo, queryKey }: { pr: PullRequest; repo:
   const checks = pr.commits.nodes[0]?.commit.statusCheckRollup?.contexts.nodes ?? [];
   const hiddenThreads = pr.reviewThreads.totalCount - pr.reviewThreads.nodes.length;
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="grid gap-8 @3xl:grid-cols-[minmax(0,1fr)_340px]">
       <div className="flex min-w-0 flex-col gap-6">
         <CommentCard author={pr.author} createdAt={pr.createdAt} html={pr.bodyHTML} editable={{ kind: 'pr', node: pr, queryKey }} />
         <Threads threads={pr.reviewThreads.nodes} queryKey={queryKey} />
@@ -19,7 +19,7 @@ export function ConversationTab({ pr, repo, queryKey }: { pr: PullRequest; repo:
         <Timeline items={pr.timelineItems.nodes} hiddenCount={pr.timelineItems.nodes.length === 100 ? pr.timelineItems.totalCount - 100 : 0} queryKey={queryKey} />
         <Composer pr={pr} queryKey={queryKey} />
       </div>
-      <aside className="flex flex-col gap-4 *:shrink-0 lg:sticky lg:top-[108px] lg:max-h-[calc(100vh-124px)] lg:self-start lg:overflow-y-auto">
+      <aside className="flex flex-col gap-4 *:shrink-0 @3xl:sticky @3xl:top-[108px] @3xl:max-h-[calc(100vh-124px)] @3xl:self-start @3xl:overflow-y-auto">
         <MergeBox repo={repo} pr={pr} queryKey={queryKey} />
         <ChecksCard checks={checks} />
         <PeopleCard pr={pr} queryKey={queryKey} />

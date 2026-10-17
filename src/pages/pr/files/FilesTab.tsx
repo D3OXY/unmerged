@@ -227,8 +227,8 @@ export function FilesTab({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey
   if (files.error) return <p className="text-[13px] text-danger">{files.error.message}</p>;
   if (!list) {
     return (
-      <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
-        <Skeleton className="hidden h-80 rounded-xl lg:block" />
+      <div className="grid gap-6 @3xl:grid-cols-[260px_minmax(0,1fr)]">
+        <Skeleton className="hidden h-80 rounded-xl @3xl:block" />
         <Skeleton className="h-96 rounded-xl" />
       </div>
     );
@@ -246,8 +246,8 @@ export function FilesTab({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
-      <aside className="hidden lg:sticky lg:top-[108px] lg:flex lg:max-h-[calc(100vh-124px)] lg:self-start">
+    <div className="grid gap-6 @3xl:grid-cols-[260px_minmax(0,1fr)]">
+      <aside className="hidden @3xl:sticky @3xl:top-[108px] @3xl:flex @3xl:max-h-[calc(100vh-124px)] @3xl:self-start">
         <FileTree files={list} viewState={(path) => viewed.data?.[path]} active={active} onSelect={select} />
       </aside>
 

@@ -146,7 +146,7 @@ export function ChecksTab({ pr, watching, onRerun }: { pr: PullRequest; watching
   const selectedSuite = suites.find((s) => s.runs.includes(selected!));
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
+    <div className="grid gap-6 @3xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
       <div className="flex flex-col gap-4">
         {suites.map((suite) => (
           <SuiteCard key={suite.id} suite={suite} runs={suite.runs} pr={pr} selectedId={selected?.id} onSelect={setSelectedId} onRerun={onRerun} />
@@ -249,7 +249,7 @@ function RunDetail({ run, suite, repoUrl, oid }: { run: CheckRun; suite?: Suite;
   });
   const annotations = data?.node?.annotations.nodes ?? [];
   return (
-    <Panel className="self-start overflow-hidden lg:sticky lg:top-[108px]">
+    <Panel className="self-start overflow-hidden @3xl:sticky @3xl:top-[108px]">
       <div className="flex items-center gap-3 border-b border-line px-5 py-4">
         <OutcomeIcon outcome={outcome} />
         <div className="min-w-0 flex-1">

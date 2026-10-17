@@ -1,10 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowUpRight01Icon, Book02Icon, CheckListIcon, CircleDotIcon, ComputerIcon, GitCommitHorizontalIcon, GitPullRequestIcon, Home01Icon, Key01Icon, Moon02Icon, Notification03Icon, Sun03Icon, UserIcon } from '@hugeicons/core-free-icons';
+import { ArrowUpRight01Icon, Book02Icon, CheckListIcon, CircleDotIcon, ComputerIcon, GitCommitHorizontalIcon, GitPullRequestIcon, Home01Icon, Key01Icon, LayoutRightIcon, Moon02Icon, Notification03Icon, Sun03Icon, UserIcon } from '@hugeicons/core-free-icons';
 import { GitHubError, rest } from '@/github/client';
 import { cx } from '@/lib/cx';
 import { saveToken } from '@/lib/persist';
-import { NEW_TOKEN_URL, openSettingsPage, surfacesItem, themeItem, tokenItem, useStorageItem, type Surface, type Theme } from '@/lib/settings';
+import { NEW_TOKEN_URL, openSettingsPage, sidePanelItem, surfacesItem, themeItem, tokenItem, useStorageItem, type Surface, type Theme } from '@/lib/settings';
 
 const SURFACES: Record<Surface, { label: string; path: string; icon: ReactNode }> = {
   home: { label: 'Home', path: 'github.com', icon: <HugeiconsIcon icon={Home01Icon} /> },
@@ -32,6 +32,7 @@ export function SettingsPanel() {
   const theme = useStorageItem(themeItem);
   const token = useStorageItem(tokenItem);
   const surfaces = useStorageItem(surfacesItem);
+  const sidePanel = useStorageItem(sidePanelItem);
   const keys = Object.keys(SURFACES) as Surface[];
 
   return (
@@ -40,40 +41,57 @@ export function SettingsPanel() {
 
     <Section title="Appearance">{theme && <ThemePicker theme={theme} />}</Section>
 
+    <Section title="Lists">
+      <div className="-mx-1.5 flex flex-col">
+        {sidePanel !== null && (
+          <ToggleRow
+            on={sidePanel}
+            onClick={() => sidePanelItem.setValue(!sidePanel)}
+            icon={<HugeiconsIcon icon={LayoutRightIcon} />}
+            label="Open in a side panel"
+            path="Issues and pull requests open beside the list"
+          />
+        )}
+      </div>
+    </Section>
+
     <Section title="Pages" aside={surfaces && `${keys.filter((key) => surfaces[key] !== false).length} of ${keys.length} on`}>
       <div className="-mx-1.5 flex flex-col">
         {surfaces &&
           keys.map((key) => {
             const on = surfaces[key] !== false;
-            const { label, path, icon } = SURFACES[key];
-            return (
-              <button
-                key={key}
-                type="button"
-                role="switch"
-                aria-checked={on}
-                onClick={() => surfacesItem.setValue({ ...surfaces, [key]: !on })}
-                className="flex h-11 cursor-pointer items-center gap-3 rounded-lg px-1.5 text-left transition-colors hover:bg-hover"
-              >
-                <span
-                  className={cx(
-                    'flex size-7 shrink-0 items-center justify-center rounded-md border border-line transition-colors [&>svg]:size-3.5',
-                    on ? 'bg-elevated text-fg' : 'text-subtle',
-                  )}
-                >
-                  {icon}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className={cx('block text-[13px] font-medium transition-colors', !on && 'text-muted')}>{label}</span>
-                  <span className="block truncate font-mono text-[10.5px] text-subtle">{path}</span>
-                </span>
-                <Switch on={on} />
-              </button>
-            );
+            return <ToggleRow key={key} on={on} onClick={() => surfacesItem.setValue({ ...surfaces, [key]: !on })} {...SURFACES[key]} />;
           })}
       </div>
     </Section>
     </>
+  );
+}
+
+/** A setting that's on or off: icon, label and a detail line, with a switch. */
+function ToggleRow({ on, onClick, icon, label, path }: { on: boolean; onClick: () => void; icon: ReactNode; label: string; path: string }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      onClick={onClick}
+      className="flex h-11 cursor-pointer items-center gap-3 rounded-lg px-1.5 text-left transition-colors hover:bg-hover"
+    >
+      <span
+        className={cx(
+          'flex size-7 shrink-0 items-center justify-center rounded-md border border-line transition-colors [&>svg]:size-3.5',
+          on ? 'bg-elevated text-fg' : 'text-subtle',
+        )}
+      >
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className={cx('block text-[13px] font-medium transition-colors', !on && 'text-muted')}>{label}</span>
+        <span className="block truncate font-mono text-[10.5px] text-subtle">{path}</span>
+      </span>
+      <Switch on={on} />
+    </button>
   );
 }
 

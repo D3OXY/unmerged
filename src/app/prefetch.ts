@@ -24,6 +24,8 @@ import { defaultQuery, prefetchWorkList, repoListQuery, workQueryOf, workTabCoun
  * These are the pages' own query options, so nothing is fetched twice and fresh data isn't refetched.
  */
 export function prefetchRoute(client: QueryClient, route: Route, url: URL) {
+  // A list's side panel loads with it.
+  if ((route.kind === 'work' || route.kind === 'repo') && route.peek) prefetchRoute(client, route.peek, url);
   switch (route.kind) {
     case 'home':
       prefetchHome(client);

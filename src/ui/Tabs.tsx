@@ -20,10 +20,12 @@ export function TabBar({ children, trailing, className }: { children: ReactNode;
   );
 }
 
-export function Tab({ href, active, icon, label, count }: { href: string; active?: boolean; icon: ReactNode; label: string; count?: number }) {
+/** A tab linking to `href`; `peek` opens it in the side panel it sits in (see `data-peek` in the content script). */
+export function Tab({ href, peek, active, icon, label, count }: { href: string; peek?: boolean; active?: boolean; icon: ReactNode; label: string; count?: number }) {
   return (
     <a
       href={href}
+      data-peek={peek || undefined}
       className={cx('relative flex h-11 shrink-0 items-center gap-2 px-3 text-[13px] transition-colors [&_svg]:size-3.5', active ? 'font-medium text-fg' : 'text-muted hover:text-fg')}
     >
       {icon}
