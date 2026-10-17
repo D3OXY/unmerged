@@ -16,7 +16,7 @@
 body {
   width: 340px;
   margin: 0;
-  font-family: var(--font-sans);
+  font-family: var(--u-font);
   font-size: 13px;
   background: var(--u-panel);
   color: var(--u-fg);

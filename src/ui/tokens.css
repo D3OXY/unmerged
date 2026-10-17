@@ -5,7 +5,7 @@
  * border-line…) so light/dark is one switch: `.dark` on the `.u-root` element.
  */
 @theme inline {
-  --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-sans: var(--u-font);
   --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --color-bg: var(--u-bg);
@@ -38,6 +38,20 @@
 }
 @keyframes u-shimmer {
   50% { opacity: 0.45; }
+}
+
+/*
+ * The Font setting: `data-font` on `.u-root` sets the UI's text font; on any element, just that element's (a preview).
+ * Plain CSS reads `var(--u-font)`: `var(--font-sans)` is resolved on :root/:host, outside `.u-root` in the shadow root.
+ */
+.u-root, [data-font='default'] {
+  --u-font: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+[data-font='serif'] {
+  --u-font: ui-serif, 'New York', 'Iowan Old Style', Charter, Georgia, Cambria, serif;
+}
+[data-font='mono'] {
+  --u-font: var(--font-mono);
 }
 
 /* Text colors keep at least 4.5:1 (WCAG AA) against bg, panel and elevated in both themes; subtle is the floor. */

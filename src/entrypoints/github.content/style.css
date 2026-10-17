@@ -3,7 +3,7 @@
 
 @layer base {
   .u-root {
-    font-family: var(--font-sans);
+    font-family: var(--u-font);
     font-size: 13px;
     line-height: 1.5;
     font-feature-settings: 'cv11', 'ss01';
