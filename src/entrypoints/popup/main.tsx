@@ -1,29 +1,21 @@
 import './style.css';
-import { useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ReloadIcon } from '@hugeicons/core-free-icons';
 import { browser } from 'wxt/browser';
-import { localCache } from '@/lib/localCache';
-import { isDark, isUnpacked, themeItem, useStorageItem, type Theme } from '@/lib/settings';
+import { followTheme, isUnpacked } from '@/lib/settings';
+import { paintPalette } from '@/lib/theme';
 import { Logo } from '@/app/Logo';
 import { SettingsPanel } from '@/app/SettingsPanel';
 
-// The popup's own copy of the theme, read before first paint so it doesn't open in the wrong one.
-const themeCache = localCache<Theme>('theme');
-const applyTheme = (theme: Theme) => document.documentElement.classList.toggle('dark', isDark(theme));
-applyTheme(themeCache.get() ?? 'auto');
+// Paints the theme before first render, from the popup's own copy, so it doesn't open in the wrong one.
+followTheme('', (dark, colors) => {
+  document.documentElement.classList.toggle('dark', dark);
+  paintPalette(document.documentElement, colors);
+});
 
 /** Toolbar popup, also served in a tab as the options page: the settings panel under Unmerged's name. */
 function Popup() {
-  const theme = useStorageItem(themeItem);
-
-  useEffect(() => {
-    if (!theme) return;
-    themeCache.set(theme);
-    applyTheme(theme);
-  }, [theme]);
-
   return (
     <div className="flex flex-col">
       <header className="flex items-center gap-2.5 px-4 pt-4 pb-3">

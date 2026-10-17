@@ -54,7 +54,11 @@
   --u-font: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-/* Text colors keep at least 4.5:1 (WCAG AA) against bg, panel and elevated in both themes; subtle is the floor. */
+/*
+ * Unmerged's own theme, and the site's. Other themes set these variables inline on `.u-root` (see `src/lib/theme.ts`,
+ * whose copy of these values a test keeps in step). Text colors keep at least 4.5:1 (WCAG AA) against bg, panel and
+ * elevated in both modes; subtle is the floor.
+ */
 .u-root {
   --u-bg: #fcfcfd;
   --u-panel: #ffffff;

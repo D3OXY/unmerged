@@ -7,7 +7,7 @@ import { openClassic } from '@/lib/classic';
 import { cx } from '@/lib/cx';
 import { isPinned, pin, unpin } from '@/lib/pins';
 import { matchRoute } from '@/lib/routes';
-import { pinsItem, themeItem, useStorageItem, type Theme } from '@/lib/settings';
+import { appearanceItem, pinsItem, useStorageItem, type Appearance } from '@/lib/settings';
 import { useUnreadCount } from '@/pages/notifications/queries';
 import { Avatar, Kbd } from '@/ui/primitives';
 import { paletteOpen } from './commands';
@@ -36,7 +36,7 @@ export function Sidebar({ active }: { active?: NavSection }) {
         <span className="text-[13.5px] font-semibold tracking-tight">Unmerged</span>
         <button
           type="button"
-          onClick={() => settingsOpen.set(true)}
+          onClick={() => settingsOpen.set('general')}
           title="Settings"
           aria-label="Settings"
           className="-mr-1 ml-auto flex size-7 cursor-pointer items-center justify-center rounded-md text-subtle transition-colors hover:bg-hover hover:text-fg"
@@ -116,7 +116,7 @@ export function Sidebar({ active }: { active?: NavSection }) {
             <span className="truncate text-[12.5px] font-medium">{viewer.login}</span>
           </a>
         )}
-        <ThemeButton />
+        <AppearanceButton />
         <button
           type="button"
           onClick={openClassic}
@@ -131,23 +131,23 @@ export function Sidebar({ active }: { active?: NavSection }) {
   );
 }
 
-const THEME_CYCLE: Record<Theme, { next: Theme; label: string; icon: ReactNode }> = {
+const APPEARANCE_CYCLE: Record<Appearance, { next: Appearance; label: string; icon: ReactNode }> = {
   auto: { next: 'light', label: 'Auto (matches GitHub)', icon: <HugeiconsIcon icon={ComputerIcon} /> },
   light: { next: 'dark', label: 'Light', icon: <HugeiconsIcon icon={Sun03Icon} /> },
   dark: { next: 'auto', label: 'Dark', icon: <HugeiconsIcon icon={Moon02Icon} /> },
 };
 
 /** Cycles auto → light → dark. Also in the popup and the ⌘K palette. */
-function ThemeButton() {
-  const theme = useStorageItem(themeItem);
-  if (!theme) return null;
-  const { next, label, icon } = THEME_CYCLE[theme];
+function AppearanceButton() {
+  const appearance = useStorageItem(appearanceItem);
+  if (!appearance) return null;
+  const { next, label, icon } = APPEARANCE_CYCLE[appearance];
   return (
     <button
       type="button"
-      onClick={() => themeItem.setValue(next)}
-      title={`Theme: ${label}`}
-      aria-label={`Theme: ${label}`}
+      onClick={() => appearanceItem.setValue(next)}
+      title={`Appearance: ${label}`}
+      aria-label={`Appearance: ${label}`}
       className="ml-auto flex size-7 cursor-pointer items-center justify-center rounded-md text-subtle hover:bg-hover hover:text-fg [&>svg]:size-3.5"
     >
       {icon}

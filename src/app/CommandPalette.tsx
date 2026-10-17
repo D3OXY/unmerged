@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient, type InfiniteData, type QueryClient } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Book02Icon, CircleDotIcon, ComputerIcon, GitPullRequestIcon, Home01Icon, KeyboardIcon, Moon02Icon, Notification03Icon, Search01Icon, Settings02Icon, StarIcon, Sun03Icon, UserIcon } from '@hugeicons/core-free-icons';
+import { Book02Icon, CircleDotIcon, ComputerIcon, PaintBoardIcon, GitPullRequestIcon, Home01Icon, KeyboardIcon, Moon02Icon, Notification03Icon, Search01Icon, Settings02Icon, StarIcon, Sun03Icon, UserIcon } from '@hugeicons/core-free-icons';
 import { gql } from '@/github/client';
 import { navigate } from '@/lib/navigation';
 import { sessionLogin } from '@/lib/session';
-import { themeItem } from '@/lib/settings';
+import { appearanceItem, themeIdItem } from '@/lib/settings';
+import { PRESETS } from '@/lib/theme';
 import { cx } from '@/lib/cx';
 import { formatCount } from '@/lib/time';
 import { useDebounced } from '@/lib/useDebounced';
@@ -74,10 +75,12 @@ function navigationCommands(unread: string | null): Command[] {
     { id: 'nav:issues', group: 'Navigate', title: 'Issues', icon: <HugeiconsIcon icon={CircleDotIcon} />, perform: go('/issues') },
     { id: 'nav:notifications', group: 'Navigate', title: 'Notifications', icon: <HugeiconsIcon icon={Notification03Icon} />, hint: unread ? `${unread} unread` : undefined, perform: go('/notifications') },
     { id: 'nav:stars', group: 'Navigate', title: 'Your stars', icon: <HugeiconsIcon icon={StarIcon} />, perform: go(login ? `/${login}?tab=stars` : '/stars') },
-    { id: 'settings', group: 'Appearance', title: 'Settings', keywords: 'preferences token pages reload', icon: <HugeiconsIcon icon={Settings02Icon} />, perform: () => settingsOpen.set(true) },
-    { id: 'theme:light', group: 'Appearance', title: 'Light theme', keywords: 'mode', icon: <HugeiconsIcon icon={Sun03Icon} />, perform: () => themeItem.setValue('light') },
-    { id: 'theme:dark', group: 'Appearance', title: 'Dark theme', keywords: 'mode', icon: <HugeiconsIcon icon={Moon02Icon} />, perform: () => themeItem.setValue('dark') },
-    { id: 'theme:auto', group: 'Appearance', title: 'Auto theme (match GitHub)', keywords: 'mode system', icon: <HugeiconsIcon icon={ComputerIcon} />, perform: () => themeItem.setValue('auto') },
+    { id: 'settings', group: 'Appearance', title: 'Settings', keywords: 'preferences token pages reload', icon: <HugeiconsIcon icon={Settings02Icon} />, perform: () => settingsOpen.set('general') },
+    { id: 'appearance:light', group: 'Appearance', title: 'Light mode', keywords: 'theme', icon: <HugeiconsIcon icon={Sun03Icon} />, perform: () => appearanceItem.setValue('light') },
+    { id: 'appearance:dark', group: 'Appearance', title: 'Dark mode', keywords: 'theme', icon: <HugeiconsIcon icon={Moon02Icon} />, perform: () => appearanceItem.setValue('dark') },
+    { id: 'appearance:auto', group: 'Appearance', title: 'Auto mode (match GitHub)', keywords: 'theme system', icon: <HugeiconsIcon icon={ComputerIcon} />, perform: () => appearanceItem.setValue('auto') },
+    { id: 'themes', group: 'Appearance', title: 'Themes…', keywords: 'colors palette customize', icon: <HugeiconsIcon icon={PaintBoardIcon} />, perform: () => settingsOpen.set('appearance') },
+    ...PRESETS.map((theme) => ({ id: `theme:${theme.id}`, group: 'Appearance', title: `${theme.name} theme`, keywords: 'colors palette', icon: <HugeiconsIcon icon={PaintBoardIcon} />, perform: () => themeIdItem.setValue(theme.id) })),
     { id: 'shortcuts', group: 'Help', title: 'Keyboard shortcuts', keywords: 'keys hotkeys', icon: <HugeiconsIcon icon={KeyboardIcon} />, hint: '?', perform: () => shortcutsOpen.set(true) },
   ];
 }

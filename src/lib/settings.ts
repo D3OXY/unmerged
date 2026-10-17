@@ -1,6 +1,8 @@
 import { useEffect, useReducer, useState } from 'react';
 import { browser, storage } from '#imports';
+import { localCache } from './localCache';
 import type { Route } from './routes';
+import { DEFAULT_PALETTE, DEFAULT_THEME_ID, findTheme, paletteOf, type Colors, type Palette, type Theme } from './theme';
 
 /** Surfaces Unmerged can take over. Each can be switched off from the popup. */
 export type Surface = 'home' | 'profile' | 'pr' | 'issue' | 'commit' | 'compare' | 'repo' | 'work' | 'notifications' | 'run' | 'search';
@@ -46,33 +48,87 @@ export const surfacesItem = storage.defineItem<Surfaces>('local:surfaces', { fal
 /** Whether a list opens its pull requests and issues in a side panel instead of in place of the list. */
 export const sidePanelItem = storage.defineItem<boolean>('local:sidePanel', { fallback: true });
 
-/** Color theme. "auto" follows GitHub's own appearance setting, then the OS. */
-export type Theme = 'auto' | 'light' | 'dark';
+/** Light or dark. "auto" follows GitHub's own appearance setting, then the OS. Stored under its old name. */
+export type Appearance = 'auto' | 'light' | 'dark';
 
-export const themeItem = storage.defineItem<Theme>('local:theme', { fallback: 'auto' });
+export const appearanceItem = storage.defineItem<Appearance>('local:theme', { fallback: 'auto' });
+
+/** The color theme: a preset's id or a custom theme's (see theme.ts). */
+export const themeIdItem = storage.defineItem<string>('local:themeId', { fallback: DEFAULT_THEME_ID });
+
+/** Themes made in settings, in the order they were made. */
+export const customThemesItem = storage.defineItem<Theme[]>('local:customThemes', { fallback: [] });
 
 /** Text font of the github.com UI, as in Notion: Geist, the system serif, or JetBrains Mono. Code stays in Geist Mono. */
 export type Font = 'default' | 'serif' | 'mono';
 
 export const fontItem = storage.defineItem<Font>('local:font', { fallback: 'default' });
 
-/** Whether a theme resolves to dark right now. Outside github.com (the popup) "auto" is just the OS. */
-export function isDark(theme: Theme) {
-  if (theme !== 'auto') return theme === 'dark';
+/** Whether an appearance resolves to dark right now. Outside github.com (the popup) "auto" is just the OS. */
+export function isDark(appearance: Appearance) {
+  if (appearance !== 'auto') return appearance === 'dark';
   const mode = document.documentElement.dataset.colorMode;
   return mode === 'dark' || (mode !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
 }
 
 /** Whether the dark theme is showing; follows the setting and, on "auto", the OS. */
 export function useIsDark() {
-  const theme = useStorageItem(themeItem);
+  const appearance = useStorageItem(appearanceItem);
   const [, osChanged] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
     const query = matchMedia('(prefers-color-scheme: dark)');
     query.addEventListener('change', osChanged);
     return () => query.removeEventListener('change', osChanged);
   }, []);
-  return isDark(theme ?? 'auto');
+  return isDark(appearance ?? 'auto');
+}
+
+/**
+ * Keeps a page in the chosen appearance and theme. `apply` runs at once with the values last mirrored in this
+ * page's localStorage under `prefix` (so the first paint is right before extension storage answers), then
+ * whenever the appearance, the theme, a custom theme or the OS changes. Returns a function that runs it again.
+ */
+export function followTheme(prefix: string, apply: (dark: boolean, colors: Colors) => void) {
+  const appearanceCache = localCache<Appearance>(`${prefix}theme`);
+  const paletteCache = localCache<Palette>(`${prefix}palette`);
+  let appearance = appearanceCache.get() ?? 'auto';
+  let palette = paletteCache.get() ?? DEFAULT_PALETTE;
+  let themeId: string | undefined;
+  let custom: Theme[] | undefined;
+
+  const run = () => {
+    const dark = isDark(appearance);
+    apply(dark, palette[dark ? 'dark' : 'light']);
+  };
+  const setAppearance = (value: Appearance) => {
+    appearance = value;
+    appearanceCache.set(value);
+    run();
+  };
+  const update = () => {
+    if (themeId === undefined || custom === undefined) return;
+    palette = paletteOf(findTheme(themeId, custom));
+    paletteCache.set(palette);
+    run();
+  };
+
+  run();
+  appearanceItem.getValue().then(setAppearance);
+  appearanceItem.watch(setAppearance);
+  Promise.all([themeIdItem.getValue(), customThemesItem.getValue()]).then(([id, themes]) => {
+    [themeId, custom] = [id, themes];
+    update();
+  });
+  themeIdItem.watch((id) => {
+    themeId = id;
+    update();
+  });
+  customThemesItem.watch((themes) => {
+    custom = themes;
+    update();
+  });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', run);
+  return run;
 }
 
 /** A local build loaded unpacked, not a store install (the store adds `update_url` to the manifest). */

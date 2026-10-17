@@ -29,12 +29,14 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* As the options page (a whole tab, wider than any popup): the same panel as a centered card. */
+/* As the options page (a whole tab, wider than any popup): the same panel as a wider centered card, which
+   puts its pages in a list down the side. */
 @media (min-width: 480px) {
   html {
     background: var(--u-bg);
   }
   body {
+    width: min(720px, 100vw - 48px);
     margin: 48px auto;
     overflow: hidden;
     border: 1px solid var(--u-border);

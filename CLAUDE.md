@@ -44,7 +44,14 @@ page derives from the URL. If the query keys drift, nothing breaks visibly; navi
 
 - Queries opt in to the extension-storage cache, per query, with `persister: persisted` (`src/lib/persist.ts`):
   the stored result paints at once on the next visit while the request refreshes it. Entries are per account.
-- Settings the first paint needs synchronously are mirrored in github.com's `localStorage` via `localCache`.
+- Settings the first paint needs synchronously are mirrored in github.com's `localStorage` via `localCache`;
+  the appearance and the resolved theme palette via `followTheme` (`src/lib/settings.ts`).
+
+## Themes (`src/lib/theme.ts`)
+
+- A theme is a light and a dark palette of the `--u-*` roles in `src/ui/tokens.css`, painted inline on `.u-root`.
+  Presets and custom themes are derived from two seeds per mode (background, accent) with contrast solving;
+  only Unmerged's own palette is hand-tuned, and it must match tokens.css (a test checks).
 
 ## Aliases in `wxt.config.ts`
 

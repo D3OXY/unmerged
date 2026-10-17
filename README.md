@@ -39,8 +39,11 @@ so you can go from one to the next without losing your place. Double-clicking a 
 button, opens the page full screen; Back closes the panel, and a new tab still gets the page itself. Turn it off
 under Lists in settings.
 
-The theme follows GitHub's appearance setting by default; pick Light or Dark from the popup, the sidebar, or ⌘K.
-Under Appearance in settings, the text font can be Default (Geist), Serif or Mono (JetBrains Mono), as in Notion.
+Settings has three pages: General (token, lists), Appearance and Pages. Light or dark follows GitHub's appearance
+setting by default; pick Light or Dark from settings, the sidebar, or ⌘K. Under Appearance, pick a theme (Unmerged,
+Graphite, Paper, Grove, Ocean, Ember or Iris), or make your own with New theme: choose a background and an accent
+for light and dark, and Unmerged derives the rest, keeping text readable. The text font can be Default (Geist),
+Serif or Mono (JetBrains Mono), as in Notion.
 
 ## Install (dev)
 
