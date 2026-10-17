@@ -1,10 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "outputDirectory": "dist/client",
-  "git": {
-    "deploymentEnabled": {
-      "*": false,
-      "main": true
-    }
-  }
+  "outputDirectory": "dist/client"
 }
