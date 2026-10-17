@@ -18,7 +18,9 @@ TypeScript 7, pnpm. README.md explains the user-facing behaviour; this file cove
   Everything is prerendered; `site/dist/client` is the deployable output. Vercel deploys it from `main` only
   (`site/vercel.json`); other branches get no preview deployments.
 - It reuses the extension's `src/ui/tokens.css`, fonts and logo by relative path, so changing those changes
-  the site too. Its copy makes claims about the extension (pages, speed numbers, privacy): keep them true.
+  the site too. Its hero product shot copies the PR page's markup, and draws its diffs at build time
+  (`site/prerenderDiffs.ts`) with the extension's renderer settings (`src/lib/diffLook.ts`): keep it in step
+  with the UI. Its copy makes claims about the extension (pages, speed numbers, privacy): keep them true.
 - The root tsconfig excludes `site/`; the site has its own tsconfig. ESLint covers both.
 
 ## Content-script lifecycle (`src/entrypoints/github.content/index.tsx`)

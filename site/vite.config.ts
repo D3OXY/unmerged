@@ -2,6 +2,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+import { prerenderDiffs } from './prerenderDiffs.ts';
 import { SITE_URL } from './src/site.ts';
 
 // Every page is prerendered, so `dist/client` is the whole site and any static host can serve it.
@@ -13,5 +14,6 @@ export default defineConfig({
       sitemap: { enabled: true, host: SITE_URL },
     }),
     react(),
+    prerenderDiffs(),
   ],
 });

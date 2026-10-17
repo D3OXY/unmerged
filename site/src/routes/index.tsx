@@ -21,7 +21,7 @@ import {
   Tick02Icon,
   UserIcon,
 } from '@hugeicons/core-free-icons';
-import { ProductShot } from '../components/ProductShot';
+import { ProductShot } from '../components/shot/ProductShot';
 import { Kbd, Logo } from '../components/ui';
 import { REPO_URL, TAGLINE, TOKEN_URL } from '../site';
 

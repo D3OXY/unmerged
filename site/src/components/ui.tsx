@@ -7,9 +7,9 @@ export function Logo({ size = 22 }: { size?: number }) {
   return <img src={size <= 28 ? holdoutSmall : holdout} width={size} height={size} alt="" className="shrink-0" />;
 }
 
-export function Kbd({ children }: { children: ReactNode }) {
+export function Kbd({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <kbd className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded border border-line bg-elevated px-1 font-sans text-[10.5px] font-medium text-muted">
+    <kbd className={`inline-flex h-[18px] min-w-[18px] items-center justify-center rounded border border-line bg-elevated px-1 font-sans text-[10.5px] font-medium text-muted ${className}`}>
       {children}
     </kbd>
   );

@@ -19,6 +19,7 @@
     "react-dom": "^19.3.0"
   },
   "devDependencies": {
+    "@pierre/diffs": "1.5.2",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",

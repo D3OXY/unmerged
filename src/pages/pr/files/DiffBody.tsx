@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import type { FileDiff as DiffInstance, SelectedLineRange } from '@pierre/diffs';
 import { gql, rest } from '@/github/client';
+import { DIFF_LOOK } from '@/lib/diffLook';
 import { loadDiffs } from '@/lib/diffs';
 import { useDraft } from '@/lib/drafts';
 import { useIsDark } from '@/lib/settings';
@@ -30,19 +31,6 @@ const FILE_QUERY = /* GraphQL */ `
     repository(owner: $owner, name: $repo) { object(expression: $expression) { ... on Blob { text } } }
   }
 `;
-
-// Unmerged's surfaces, type and diff colors, applied in the renderer's highest-priority layer.
-const UNSAFE_CSS = `:host {
-  --diffs-light-bg: var(--u-panel);
-  --diffs-dark-bg: var(--u-panel);
-  --diffs-font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  --diffs-header-font-family: 'Geist', ui-sans-serif, system-ui, sans-serif;
-  --diffs-font-size: 12px;
-  --diffs-line-height: 20px;
-  --diffs-addition-color: var(--u-green);
-  --diffs-deletion-color: var(--u-red);
-  --diffs-modified-color: var(--u-blue);
-}`;
 
 const sideOf = (thread: ReviewThread): Side => (thread.diffSide === 'LEFT' ? 'deletions' : 'additions');
 const githubSide = (side: Side) => (side === 'deletions' ? 'LEFT' : 'RIGHT');
@@ -87,17 +75,12 @@ export function DiffBody({ file, patch, source, review, mode, wrap }: {
 
   const options = useMemo(
     () => ({
-      theme: { dark: 'pierre-dark', light: 'pierre-light' },
+      ...DIFF_LOOK,
       themeType: dark ? ('dark' as const) : ('light' as const),
       diffStyle: mode,
       overflow: wrap ? ('wrap' as const) : ('scroll' as const),
-      lineDiffType: 'word-alt' as const,
-      diffIndicators: 'bars' as const,
-      hunkSeparators: 'line-info' as const,
-      disableFileHeader: true,
       enableGutterUtility: commentable,
       enableLineSelection: commentable,
-      unsafeCSS: UNSAFE_CSS,
       onGutterUtilityClick: ({ start, side = 'additions', end, endSide = side }: SelectedLineRange) =>
         setDraft(start <= end ? { start, startSide: side, end, side: endSide } : { start: end, startSide: endSide, end: start, side }),
       // Full files are only fetched when someone expands unchanged lines.
