@@ -6,6 +6,7 @@ import type { ProfileTab } from '@/lib/routes';
 import { formatTime } from '@/lib/time';
 import { RunPage } from '@/pages/actions/RunPage';
 import { CommitPage } from '@/pages/commit/CommitPage';
+import { ComparePage } from '@/pages/compare/ComparePage';
 import { HomePage } from '@/pages/home/HomePage';
 import { NotificationsPage } from '@/pages/notifications/NotificationsPage';
 import { AchievementsPage } from '@/pages/profile/AchievementsPage';
@@ -48,6 +49,7 @@ export function App() {
       {route.kind === 'newIssue' && <NewIssuePage key={`${route.owner}/${route.repo}/new/${route.choose}${route.search}`.toLowerCase()} {...route} />}
       {route.kind === 'commit' && <CommitPage key={`${route.owner}/${route.repo}@${route.sha}`.toLowerCase()} {...route} />}
       {route.kind === 'run' && <RunPage key={`${route.owner}/${route.repo}/${route.runId}/${route.attempt ?? ''}`.toLowerCase()} {...route} />}
+      {route.kind === 'compare' && <ComparePage key={`${route.owner}/${route.repo}`.toLowerCase()} {...route} />}
       {route.kind === 'repo' &&
         (route.view === 'issues' || route.view === 'pulls' ? (
           <RepoListPage key={`${route.owner}/${route.repo}/${route.view}`.toLowerCase()} owner={route.owner} repo={route.repo} tab={route.view} peek={route.peek} />

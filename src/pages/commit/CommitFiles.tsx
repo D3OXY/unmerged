@@ -1,25 +1,25 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { TextWrapIcon } from '@hugeicons/core-free-icons';
 import { cx } from '@/lib/cx';
+import type { DiffSource } from '@/pages/pr/files/DiffBody';
 import { FileDiff, type DiffMode, type PrFile } from '@/pages/pr/files/FileDiff';
 import { BIG_FILE, MODE_KEY, pinScroll, WRAP_KEY } from '@/pages/pr/files/FilesTab';
 import { FileTree } from '@/pages/pr/files/FileTree';
 import { Empty, Panel, Skeleton } from '@/ui/primitives';
-import { commitFilesQuery } from './query';
 
 const notViewed = () => undefined;
 
-/** A commit's changed files: the PR Files tab's tree and diffs, without review (no threads, comments or "Viewed"). */
-export function CommitFiles({ owner, repo, sha }: { owner: string; repo: string; sha: string }) {
-  const files = useQuery(commitFilesQuery(owner, repo, sha));
+/**
+ * A commit's (or a comparison's) changed files: the PR Files tab's tree and diffs, without review (no threads,
+ * comments or "Viewed"). `files` is undefined while loading; `source` is the revision they're read at.
+ */
+export function CommitFiles({ files: list, error, source }: { files: PrFile[] | undefined; error: Error | null; source: DiffSource }) {
   const [mode, setMode] = useState<DiffMode>(() => (localStorage.getItem(MODE_KEY) === 'split' ? 'split' : 'unified'));
   const [wrap, setWrap] = useState(() => localStorage.getItem(WRAP_KEY) !== 'false');
   const [openOverride, setOpenOverride] = useState<Record<string, boolean>>({});
   const [active, setActive] = useState<string>();
   const cards = useRef(new Map<string, HTMLElement>());
-  const source = useMemo(() => ({ nameWithOwner: `${owner}/${repo}`, oid: sha }), [owner, repo, sha]);
   // Stable, so file cards only re-render when their own props change.
   const setOpen = useCallback((path: string, open: boolean) => setOpenOverride((o) => ({ ...o, [path]: open })), []);
   const cardRef = useCallback((path: string, el: HTMLElement | null) => {
@@ -29,13 +29,13 @@ export function CommitFiles({ owner, repo, sha }: { owner: string; repo: string;
 
   // Track the file under the sticky headers to highlight it in the tree.
   useEffect(() => {
-    if (!files.data) return;
+    if (!list) return;
     let frame = 0;
     const onScroll = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         let current: string | undefined;
-        for (const file of files.data) {
+        for (const file of list) {
           const el = cards.current.get(file.filename);
           if (!el || el.getBoundingClientRect().top > 150) break;
           current = file.filename;
@@ -46,10 +46,10 @@ export function CommitFiles({ owner, repo, sha }: { owner: string; repo: string;
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, [files.data]);
+  }, [list]);
 
-  if (files.error) return <p className="text-[13px] text-danger">{files.error.message}</p>;
-  if (files.isPending) {
+  if (error) return <p className="text-[13px] text-danger">{error.message}</p>;
+  if (!list) {
     return (
       <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
         <Skeleton className="hidden h-80 rounded-xl lg:block" />
@@ -58,7 +58,6 @@ export function CommitFiles({ owner, repo, sha }: { owner: string; repo: string;
     );
   }
 
-  const list = files.data;
   if (!list.length) {
     return (
       <Panel>

@@ -17,6 +17,13 @@ export type RepoView = 'code' | 'commits' | 'issues' | 'pulls';
 export type PrRoute = { kind: 'pr'; owner: string; repo: string; number: number; tab: PrTab };
 export type IssueRoute = { kind: 'issue'; owner: string; repo: string; number: number };
 
+/**
+ * Two refs compared (/compare/<base>...<head>), and with `expand` (`?expand=1`) the form that opens a pull
+ * request from them. No `base` is the default branch; no `head`, nothing chosen yet. A head in a fork is
+ * "owner:branch" or "owner:repo:branch".
+ */
+export type CompareRoute = { kind: 'compare'; owner: string; repo: string; base?: string; head?: string; expand: boolean };
+
 /** A pull request or issue open in the side panel next to a list: the list's `?peek=owner/repo/pull/12`. */
 export type Peek = PrRoute | IssueRoute;
 
@@ -32,6 +39,7 @@ export type Route =
    * `/issues/new/choose`. `search` is the URL's query (`?template=`, `?title=`…), read by the page.
    */
   | { kind: 'newIssue'; owner: string; repo: string; choose: boolean; search: string }
+  | CompareRoute
   /** One commit; `pr` when it was opened from a pull request's commits (/pull/<n>/commits/<sha>). */
   | { kind: 'commit'; owner: string; repo: string; sha: string; pr?: number }
   /**
@@ -103,6 +111,7 @@ export function matchRoute(url: URL): Route | null {
       if (parts.length === 7 && id && sixth === 'job') return { ...run, job: id };
       if (parts.length === 7 && id && sixth === 'attempts') return { ...run, attempt: id };
     }
+    if (third === 'compare') return compareRoute(first, second, parts.slice(3).join('/'), url);
   }
 
   if (first && second && third === 'pull' && fourth && /^\d+$/.test(fourth)) {
@@ -112,6 +121,21 @@ export function matchRoute(url: URL): Route | null {
   }
 
   return null;
+}
+
+/**
+ * A compare spec, "<base>...<head>" or "<head>" alone. Refs can hold slashes (rejoined above) but never "..",
+ * so the dots split it unambiguously. Left to GitHub: two-dot specs (the API only diffs from the merge base),
+ * .diff/.patch views, and a base in another repo (GitHub moves to that repo's page).
+ */
+function compareRoute(owner: string, repo: string, spec: string, url: URL): CompareRoute | null {
+  const expand = url.searchParams.get('expand') === '1';
+  if (!spec) return { kind: 'compare', owner, repo, expand };
+  const dots = spec.indexOf('...');
+  const base = dots === -1 ? undefined : spec.slice(0, dots);
+  const head = dots === -1 ? spec : spec.slice(dots + 3);
+  if (base === '' || base?.includes(':') || !head || head.includes('..') || /\.(diff|patch)$/.test(head)) return null;
+  return { kind: 'compare', owner, repo, base, head, expand };
 }
 
 /** The pull request or issue a list's `?peek=` opens in its side panel; anything else is ignored. */

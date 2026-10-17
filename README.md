@@ -22,6 +22,7 @@
 | Pull request | `github.com/<owner>/<repo>/pull/<n>` plus `/commits`, `/checks`, `/files` | |
 | Commit | `github.com/<owner>/<repo>/commit/<sha>`, `…/pull/<n>/commits/<sha>` | `.patch` / `.diff` and the commit's checks page stay on GitHub |
 | Workflow run | `github.com/<owner>/<repo>/actions/runs/<id>` plus `/job/<id>` (steps and logs) and `/attempts/<n>` | The Actions tab and workflow pages stay on GitHub, and so do a running job's live logs |
+| Compare & new pull request | `github.com/<owner>/<repo>/compare`, `…/compare/<base>...<head>` (a fork's head as `<user>:<branch>`), `?expand=1` | Two-dot (`..`) comparisons, `.patch` / `.diff` and a base in another repo stay on GitHub |
 | Repository | `github.com/<owner>/<repo>`, `/tree/…`, `/blob/…`, `/commits/…`, `/issues`, `/pulls` (any `?q=` search) | Actions, Settings, etc. stay on GitHub |
 | Issue | `github.com/<owner>/<repo>/issues/<n>`, `/issues/new` (template chooser, Markdown templates, `?title=`, `?body=`, `?labels=`, `?assignees=`) | Sub-issues and projects are only shown on GitHub; YAML issue forms (`?template=*.yml`) open GitHub's form |
 | Pull requests & issues | `github.com/pulls`, `/pulls/assigned`, `/issues`, … (any `?q=` search) | |
@@ -77,7 +78,7 @@ you want, and pick only the repos and permissions for the features you use:
 |---|---|
 | Browsing repos, PRs, lists, home (always needed) | Repository → Metadata: read, Contents: read, Pull requests: read, Issues: read |
 | Checks tab, workflow runs and job logs | Repository → Checks: read, Commit statuses: read, Actions: read |
-| Comment, review, resolve threads, mark files viewed, close/reopen, draft/ready | Repository → Pull requests: read and write |
+| Open pull requests, comment, review, resolve threads, mark files viewed, close/reopen, draft/ready | Repository → Pull requests: read and write |
 | Merge, auto-merge, merge queue, update branch, delete branch | Repository → Contents: read and write, Pull requests: read and write |
 | Re-run failed checks or jobs | Repository → Actions: read and write |
 | Star / unstar | Account → Starring: read and write |

@@ -31,8 +31,9 @@ export type CommitRowData = {
   messageHeadline: string;
   messageBody: string;
   committedDate: string;
-  additions: number;
-  deletions: number;
+  /** Unknown for commits listed by REST (a comparison's). */
+  additions?: number;
+  deletions?: number;
   author: { name: string | null; user: Actor } | null;
   signature: { isValid: boolean } | null;
   statusCheckRollup: {
@@ -124,9 +125,11 @@ function CommitRow({ commit, nameWithOwner, href }: { commit: CommitRowData; nam
             Verified
           </span>
         )}
-        <span className="hidden font-mono text-[11.5px] tabular-nums sm:block">
-          <span className="text-success">+{commit.additions}</span> <span className="text-danger">−{commit.deletions}</span>
-        </span>
+        {commit.additions !== undefined && (
+          <span className="hidden font-mono text-[11.5px] tabular-nums sm:block">
+            <span className="text-success">+{commit.additions}</span> <span className="text-danger">−{commit.deletions}</span>
+          </span>
+        )}
         <button
           type="button"
           onClick={() => copy(commit.oid, 'commit SHA')}

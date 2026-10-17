@@ -24,6 +24,8 @@ const COMMIT_QUERY = /* GraphQL */ `
 `;
 
 export type Commit = CommitRowData & {
+  additions: number;
+  deletions: number;
   authoredDate: string;
   changedFilesIfAvailable: number | null;
   committer: CommitRowData['author'];

@@ -3,6 +3,7 @@ import { achievementsQuery } from '@/github/achievements';
 import { prefetchRun } from '@/pages/actions/query';
 import type { Route } from '@/lib/routes';
 import { prefetchCommit } from '@/pages/commit/query';
+import { prefetchCompare } from '@/pages/compare/query';
 import { prefetchHome } from '@/pages/home/queries';
 import { newIssueQuery } from '@/pages/issue/newIssue';
 import { issueQuery } from '@/pages/issue/query';
@@ -69,6 +70,9 @@ export function prefetchRoute(client: QueryClient, route: Route, url: URL) {
       return;
     case 'run':
       prefetchRun(client, route.owner, route.repo, route.runId, route.attempt, route.job);
+      return;
+    case 'compare':
+      prefetchCompare(client, route);
       return;
     case 'work':
       prefetchWorkList(client, workQueryOf(url, defaultQuery(route.type, route.filter)));
