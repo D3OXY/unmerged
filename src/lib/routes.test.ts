@@ -71,7 +71,13 @@ describe('matchRoute', () => {
 
     // Issues
     ['https://github.com/o/r/issues/123', { kind: 'issue', owner: 'o', repo: 'r', number: 123 }],
-    ['https://github.com/o/r/issues/new', null],
+    ['https://github.com/o/r/issues/new', { kind: 'newIssue', owner: 'o', repo: 'r', choose: false, search: '' }],
+    ['https://github.com/o/r/issues/new?template=bug.md&title=Hi', { kind: 'newIssue', owner: 'o', repo: 'r', choose: false, search: '?template=bug.md&title=Hi' }],
+    ['https://github.com/o/r/issues/new/choose', { kind: 'newIssue', owner: 'o', repo: 'r', choose: true, search: '' }],
+    // YAML issue forms are GitHub's
+    ['https://github.com/o/r/issues/new?template=bug.yml', null],
+    ['https://github.com/o/r/issues/new?template=Bug.YAML', null],
+    ['https://github.com/o/r/issues/new/other', null],
     ['https://github.com/o/r/issues/12/edit', null],
     // Commits: hex SHAs of 7–40 characters only, so raw views, checks and branch names stay GitHub's
     ['https://github.com/o/r/commit/20adf3c', { kind: 'commit', owner: 'o', repo: 'r', sha: '20adf3c' }],

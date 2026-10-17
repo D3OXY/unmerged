@@ -27,6 +27,11 @@ export type Route =
   | { kind: 'profile'; login: string; tab: ProfileTab }
   | PrRoute
   | IssueRoute
+  /**
+   * A new issue: `/issues/new` (the template chooser or the form, depending on the repo and `search`) and
+   * `/issues/new/choose`. `search` is the URL's query (`?template=`, `?title=`…), read by the page.
+   */
+  | { kind: 'newIssue'; owner: string; repo: string; choose: boolean; search: string }
   /** One commit; `pr` when it was opened from a pull request's commits (/pull/<n>/commits/<sha>). */
   | { kind: 'commit'; owner: string; repo: string; sha: string; pr?: number }
   /**
@@ -86,6 +91,10 @@ export function matchRoute(url: URL): Route | null {
     if (third === 'commits') return { kind: 'repo', owner: first, repo: second, view: 'commits', rest: parts.slice(3) };
     if ((third === 'issues' || third === 'pulls') && parts.length === 3) return { kind: 'repo', owner: first, repo: second, view: third, rest: [], peek: peekOf(url) };
     if (third === 'issues' && fourth && /^\d+$/.test(fourth) && parts.length === 4) return { kind: 'issue', owner: first, repo: second, number: Number(fourth) };
+    // YAML issue forms (`?template=bug.yml`) stay on GitHub, which renders them.
+    if (third === 'issues' && fourth === 'new' && (parts.length === 4 || (parts.length === 5 && fifth === 'choose'))) {
+      return /\.ya?ml$/i.test(url.searchParams.get('template') ?? '') ? null : { kind: 'newIssue', owner: first, repo: second, choose: !!fifth, search: url.search };
+    }
     if (third === 'commit' && parts.length === 4 && isSha(fourth)) return { kind: 'commit', owner: first, repo: second, sha: fourth };
     if (third === 'actions' && fourth === 'runs' && fifth && /^\d+$/.test(fifth)) {
       const run = { kind: 'run', owner: first, repo: second, runId: Number(fifth) } as const;
