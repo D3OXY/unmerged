@@ -225,7 +225,7 @@ function PinnedGroup({ pins, viewerLogin }: { pins: string[] | null; viewerLogin
                       event.preventDefault();
                       unpin(name);
                     }}
-                    className="ml-auto hidden size-5 cursor-pointer items-center justify-center rounded text-subtle group-hover:flex hover:bg-hover hover:text-fg"
+                    className="-mr-1 ml-auto hidden size-5 cursor-pointer items-center justify-center rounded text-subtle group-hover:flex hover:bg-hover hover:text-fg"
                   >
                     <HugeiconsIcon icon={Cancel01Icon} className="size-3" />
                   </button>
