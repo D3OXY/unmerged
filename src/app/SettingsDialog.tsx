@@ -5,9 +5,10 @@ import { createStore } from '@/lib/store';
 import { Button } from '@/ui/Button';
 import { Modal } from '@/ui/Modal';
 import { Logo } from './Logo';
-import { SettingsPanel } from './SettingsPanel';
+import { SettingsPanel, type SettingsPage } from './SettingsPanel';
 
-export const settingsOpen = createStore(false);
+/** The page the Settings dialog is open on, or null while it's closed. */
+export const settingsOpen = createStore<SettingsPage | null>(null);
 
 /**
  * Reloads an unpacked extension after a `pnpm build`, then this page so it runs the new build. The page
@@ -20,17 +21,17 @@ function reloadExtension() {
 
 /** The popup's settings over any Unmerged page; opened from the sidebar's gear or ⌘K. */
 export function SettingsDialog() {
-  const open = settingsOpen.use();
-  if (!open) return null;
-  return <Dialog />;
+  const page = settingsOpen.use();
+  if (!page) return null;
+  return <Dialog page={page} />;
 }
 
-function Dialog() {
-  const close = () => settingsOpen.set(false);
+function Dialog({ page }: { page: SettingsPage }) {
+  const close = () => settingsOpen.set(null);
 
   return (
-    <Modal label="Settings" onClose={close} className="w-[400px]">
-      <header className="flex items-center gap-2.5 px-4 pt-4 pb-3">
+    <Modal label="Settings" onClose={close} className="flex h-[min(600px,80vh)] w-[720px] flex-col">
+      <header className="flex shrink-0 items-center gap-2.5 px-4 pt-4 pb-3">
         <Logo size={22} />
         <span className="flex-1 text-[14px] font-semibold tracking-tight">Settings</span>
         <button
@@ -43,9 +44,9 @@ function Dialog() {
         </button>
       </header>
 
-      <SettingsPanel />
+      <SettingsPanel key={page} initialPage={page} />
 
-      <footer className="flex h-11 items-center justify-between border-t border-line px-4 text-[11.5px] text-subtle">
+      <footer className="flex h-11 shrink-0 items-center justify-between border-t border-line px-4 text-[11.5px] text-subtle">
         <span className="tabular-nums">Unmerged v{browser.runtime.getManifest().version}</span>
         {isUnpacked() && (
           <Button size="sm" variant="ghost" icon={<HugeiconsIcon icon={ReloadIcon} className="size-3.5" />} onClick={reloadExtension}>

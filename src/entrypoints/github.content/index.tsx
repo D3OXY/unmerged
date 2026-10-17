@@ -13,20 +13,21 @@ import { matchRoute, type Route } from '@/lib/routes';
 import { sessionLogin } from '@/lib/session';
 import { localCache, setPageAccount } from '@/lib/localCache';
 import { trimPersisted } from '@/lib/persist';
-import { accountItem, DEFAULT_SURFACES, fontItem, isDark, surfaceOf, surfacesItem, themeItem, type Font, type Surfaces, type Theme } from '@/lib/settings';
+import { accountItem, DEFAULT_SURFACES, followTheme, fontItem, surfaceOf, surfacesItem, type Font, type Surfaces } from '@/lib/settings';
+import { paintPalette } from '@/lib/theme';
 
 const OWNING = 'unmerged-owning';
 
-// Applied to github.com itself: hides GitHub's page while Unmerged owns the URL, before first paint.
-const DOCUMENT_CSS = `
+// Applied to github.com itself: hides GitHub's page while Unmerged owns the URL, before first paint, on the
+// theme's background.
+const documentCss = (background: string) => `
   html.${OWNING} > body { display: none !important; }
-  html.${OWNING} { background: #fcfcfd; overflow-y: auto; scroll-behavior: auto !important; scroll-padding: 0 !important; }
-  html.${OWNING}.unmerged-dark { background: #08090a; }
+  html.${OWNING} { background: ${background}; overflow-y: auto; scroll-behavior: auto !important; scroll-padding: 0 !important; }
   unmerged-app { display: block; }
 `;
 
-// Mirrors of settings in github.com's localStorage, read synchronously before extension storage answers.
-const themeCache = localCache<Theme>('unmerged:theme');
+// Mirrors of settings in github.com's localStorage, read synchronously before extension storage answers
+// (the theme's are kept by `followTheme`).
 const fontCache = localCache<Font>('unmerged:font');
 const surfacesCache = localCache<Surfaces>('unmerged:surfaces');
 const TRIMMED_KEY = 'unmerged:trimmed-at';
@@ -41,25 +42,15 @@ export default defineContentScript({
     // Read now, applied before anything renders: API data cached in the page must be this account's.
     const account = accountItem.getValue();
     const style = document.createElement('style');
-    style.textContent = DOCUMENT_CSS;
     html.append(style);
 
-    let theme = themeCache.get() ?? 'auto';
     let container: HTMLElement | undefined;
-    const applyTheme = () => {
-      const dark = isDark(theme);
-      html.classList.toggle('unmerged-dark', dark);
-      container?.classList.toggle('dark', dark);
-    };
-    const setTheme = (value: Theme) => {
-      theme = value;
-      themeCache.set(value);
-      applyTheme();
-    };
-    applyTheme();
-    themeItem.getValue().then(setTheme);
-    themeItem.watch(setTheme);
-    ctx.addEventListener(matchMedia('(prefers-color-scheme: dark)'), 'change', applyTheme);
+    const applyTheme = followTheme('unmerged:', (dark, colors) => {
+      style.textContent = documentCss(colors.bg);
+      if (!container) return;
+      container.classList.toggle('dark', dark);
+      paintPalette(container, colors);
+    });
 
     let font = fontCache.get() ?? 'default';
     const applyFont = () => {

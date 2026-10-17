@@ -1,10 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowUpRight01Icon, Book02Icon, CheckListIcon, CircleDotIcon, ComputerIcon, GitCommitHorizontalIcon, GitCompareIcon, GitPullRequestIcon, Home01Icon, Key01Icon, LayoutRightIcon, Moon02Icon, Notification03Icon, PlayIcon, Search01Icon, Sun03Icon, UserIcon } from '@hugeicons/core-free-icons';
+import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
+import { ArrowUpRight01Icon, Book02Icon, CheckListIcon, CircleDotIcon, ComputerIcon, DashboardSquare01Icon, GitCommitHorizontalIcon, GitCompareIcon, GitPullRequestIcon, Home01Icon, Key01Icon, LayoutRightIcon, Moon02Icon, Notification03Icon, PaintBoardIcon, PlayIcon, Search01Icon, Settings02Icon, Sun03Icon, UserIcon } from '@hugeicons/core-free-icons';
 import { GitHubError, rest } from '@/github/client';
 import { cx } from '@/lib/cx';
 import { saveToken } from '@/lib/persist';
-import { fontItem, NEW_TOKEN_URL, openSettingsPage, sidePanelItem, surfacesItem, themeItem, tokenItem, useStorageItem, type Font, type Surface, type Theme } from '@/lib/settings';
+import { appearanceItem, customThemesItem, fontItem, NEW_TOKEN_URL, openSettingsPage, sidePanelItem, surfacesItem, themeIdItem, tokenItem, useStorageItem, type Appearance, type Font, type Surface } from '@/lib/settings';
+import { ThemePicker } from './ThemePicker';
 
 const SURFACES: Record<Surface, { label: string; path: string; icon: ReactNode }> = {
   home: { label: 'Home', path: 'github.com', icon: <HugeiconsIcon icon={Home01Icon} /> },
@@ -20,7 +21,7 @@ const SURFACES: Record<Surface, { label: string; path: string; icon: ReactNode }
   search: { label: 'Search', path: 'github.com/search, …/<repo>/search', icon: <HugeiconsIcon icon={Search01Icon} /> },
 };
 
-const THEMES: { value: Theme; label: string; icon: ReactNode }[] = [
+const APPEARANCES: { value: Appearance; label: string; icon: ReactNode }[] = [
   { value: 'auto', label: 'Auto', icon: <HugeiconsIcon icon={ComputerIcon} /> },
   { value: 'light', label: 'Light', icon: <HugeiconsIcon icon={Sun03Icon} /> },
   { value: 'dark', label: 'Dark', icon: <HugeiconsIcon icon={Moon02Icon} /> },
@@ -32,45 +33,102 @@ const FONTS: { value: Font; label: string }[] = [
   { value: 'mono', label: 'Mono' },
 ];
 
+export type SettingsPage = 'general' | 'appearance' | 'pages';
+
+const PAGES: { id: SettingsPage; label: string; icon: IconSvgElement }[] = [
+  { id: 'general', label: 'General', icon: Settings02Icon },
+  { id: 'appearance', label: 'Appearance', icon: PaintBoardIcon },
+  { id: 'pages', label: 'Pages', icon: DashboardSquare01Icon },
+];
+
 /**
- * Unmerged's settings: the connected account, theme and font, and which pages it takes over. Shown in the toolbar
- * popup (and the options page, its copy in a tab) and in the in-page Settings dialog; every change applies to
- * open tabs at once. The token itself is only ever typed into the extension's pages, not into github.com.
+ * Unmerged's settings, on three pages: General (the connected account, lists), Appearance (mode, theme, font)
+ * and Pages (which pages it takes over). Shown in the toolbar popup (and the options page, its copy in a tab)
+ * and in the in-page Settings dialog; every change applies to open tabs at once. Narrow, the pages are tabs
+ * along the top; wide, a list down the side. The token itself is only ever typed into the extension's pages,
+ * not into github.com.
  */
-export function SettingsPanel() {
-  const theme = useStorageItem(themeItem);
-  const font = useStorageItem(fontItem);
+export function SettingsPanel({ initialPage = 'general' }: { initialPage?: SettingsPage }) {
+  const [page, setPage] = useState(initialPage);
+
+  return (
+    <div className="@container flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col @lg:flex-row">
+        <nav
+          role="tablist"
+          aria-label="Settings"
+          className="flex shrink-0 gap-1 border-t border-line px-3 py-2 @lg:w-44 @lg:flex-col @lg:border-r @lg:px-2"
+        >
+          {PAGES.map(({ id, label, icon }) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={page === id}
+              onClick={() => setPage(id)}
+              className={cx(
+                'flex h-8 flex-1 cursor-pointer items-center justify-center gap-2 rounded-md px-2.5 text-[12.5px] font-medium transition-colors @lg:flex-none @lg:justify-start [&>svg]:size-3.5',
+                page === id ? 'bg-line text-fg' : 'text-muted hover:bg-hover hover:text-fg',
+              )}
+            >
+              <HugeiconsIcon icon={icon} />
+              {label}
+            </button>
+          ))}
+        </nav>
+        <div role="tabpanel" aria-label={PAGES.find((p) => p.id === page)?.label} className="@container min-h-0 flex-1 overflow-y-auto">
+          {page === 'general' ? <GeneralPage /> : page === 'appearance' ? <AppearancePage /> : <PagesPage />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GeneralPage() {
   const token = useStorageItem(tokenItem);
-  const surfaces = useStorageItem(surfacesItem);
   const sidePanel = useStorageItem(sidePanelItem);
-  const keys = Object.keys(SURFACES) as Surface[];
 
   return (
     <>
-    <Section>{token !== null && <Account token={token} />}</Section>
+      <Section title="Account">{token !== null && <Account token={token} />}</Section>
+      <Section title="Lists">
+        <div className="-mx-1.5 flex flex-col">
+          {sidePanel !== null && (
+            <ToggleRow
+              on={sidePanel}
+              onClick={() => sidePanelItem.setValue(!sidePanel)}
+              icon={<HugeiconsIcon icon={LayoutRightIcon} />}
+              label="Open in a side panel"
+              path="Issues and pull requests open beside the list"
+            />
+          )}
+        </div>
+      </Section>
+    </>
+  );
+}
 
-    <Section title="Appearance">
-      <div className="flex flex-col gap-2">
-        {theme && <ThemePicker theme={theme} />}
-        {font && <FontPicker font={font} />}
-      </div>
-    </Section>
+function AppearancePage() {
+  const appearance = useStorageItem(appearanceItem);
+  const themeId = useStorageItem(themeIdItem);
+  const custom = useStorageItem(customThemesItem);
+  const font = useStorageItem(fontItem);
 
-    <Section title="Lists">
-      <div className="-mx-1.5 flex flex-col">
-        {sidePanel !== null && (
-          <ToggleRow
-            on={sidePanel}
-            onClick={() => sidePanelItem.setValue(!sidePanel)}
-            icon={<HugeiconsIcon icon={LayoutRightIcon} />}
-            label="Open in a side panel"
-            path="Issues and pull requests open beside the list"
-          />
-        )}
-      </div>
-    </Section>
+  return (
+    <>
+      <Section title="Mode">{appearance && <AppearancePicker appearance={appearance} />}</Section>
+      <Section title="Theme">{themeId !== null && custom && <ThemePicker themeId={themeId} custom={custom} />}</Section>
+      <Section title="Font">{font && <FontPicker font={font} />}</Section>
+    </>
+  );
+}
 
-    <Section title="Pages" aside={surfaces && `${keys.filter((key) => surfaces[key] !== false).length} of ${keys.length} on`}>
+function PagesPage() {
+  const surfaces = useStorageItem(surfacesItem);
+  const keys = Object.keys(SURFACES) as Surface[];
+
+  return (
+    <Section title="Pages Unmerged takes over" aside={surfaces && `${keys.filter((key) => surfaces[key] !== false).length} of ${keys.length} on`}>
       <div className="-mx-1.5 flex flex-col">
         {surfaces &&
           keys.map((key) => {
@@ -79,7 +137,6 @@ export function SettingsPanel() {
           })}
       </div>
     </Section>
-    </>
   );
 }
 
@@ -276,25 +333,25 @@ function TokenForm({ problem, onCancel, onDisconnect, onSaved }: { problem?: str
 }
 
 /** Segmented control; the highlight slides between options. */
-function ThemePicker({ theme }: { theme: Theme }) {
-  const index = THEMES.findIndex((t) => t.value === theme);
+function AppearancePicker({ appearance }: { appearance: Appearance }) {
+  const index = APPEARANCES.findIndex((a) => a.value === appearance);
   return (
-    <div role="radiogroup" aria-label="Theme" className="relative grid grid-cols-3 rounded-lg border border-line bg-bg p-0.5">
+    <div role="radiogroup" aria-label="Mode" className="relative grid grid-cols-3 rounded-lg border border-line bg-bg p-0.5">
       <span
         aria-hidden
         className="absolute inset-y-0.5 left-0.5 w-[calc((100%-4px)/3)] rounded-md border border-line bg-elevated shadow-sm transition-transform duration-200 ease-out motion-reduce:transition-none"
         style={{ transform: `translateX(${index * 100}%)` }}
       />
-      {THEMES.map(({ value, label, icon }) => (
+      {APPEARANCES.map(({ value, label, icon }) => (
         <button
           key={value}
           type="button"
           role="radio"
-          aria-checked={theme === value}
-          onClick={() => themeItem.setValue(value)}
+          aria-checked={appearance === value}
+          onClick={() => appearanceItem.setValue(value)}
           className={cx(
             'relative flex h-7 cursor-pointer items-center justify-center gap-1.5 text-[12.5px] font-medium transition-colors [&>svg]:size-3.5',
-            theme === value ? 'text-fg' : 'text-muted hover:text-fg',
+            appearance === value ? 'text-fg' : 'text-muted hover:text-fg',
           )}
         >
           {icon}
