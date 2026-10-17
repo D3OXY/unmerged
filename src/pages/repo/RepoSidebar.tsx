@@ -25,7 +25,7 @@ export function RepoSidebar({ repo }: { repo: Repo }) {
   const homepage = repo.homepageUrl && (repo.homepageUrl.startsWith('http') ? repo.homepageUrl : `https://${repo.homepageUrl}`);
 
   return (
-    <aside className="flex flex-col gap-7 *:shrink-0 lg:sticky lg:top-[108px] lg:max-h-[calc(100vh-124px)] lg:self-start lg:overflow-y-auto">
+    <aside className="flex flex-col gap-7 *:shrink-0 lg:min-h-0 lg:overflow-y-auto">
       <Section
         title="About"
         action={
