@@ -4,6 +4,7 @@ import { matchRoute, type PrTab, type RepoView, type Route } from './routes';
 
 const repo = (view: RepoView, rest: string[] = []): Route => ({ kind: 'repo', owner: 'o', repo: 'r', view, rest });
 const pr = (tab: PrTab): Route => ({ kind: 'pr', owner: 'o', repo: 'r', number: 12, tab });
+const compare = (spec: { base?: string; head?: string; expand?: boolean }): Route => ({ kind: 'compare', owner: 'o', repo: 'r', expand: false, ...spec });
 
 describe('matchRoute', () => {
   rememberOrgs(['Vercel']);
@@ -99,6 +100,21 @@ describe('matchRoute', () => {
     ['https://github.com/o/r/actions/runs/39012435752/usage', null],
     ['https://github.com/o/r/actions/runs', null],
     ['https://github.com/o/r/actions/workflows/ci.yml', null],
+    // Compare: three dots split base from head; slashes stay in the ref, a fork's head keeps its owner
+    ['https://github.com/o/r/compare', compare({})],
+    ['https://github.com/o/r/compare?expand=1', compare({ expand: true })],
+    ['https://github.com/o/r/compare/main...feature', compare({ base: 'main', head: 'feature' })],
+    ['https://github.com/o/r/compare/release/1.x...fix/a/b?expand=1', compare({ base: 'release/1.x', head: 'fix/a/b', expand: true })],
+    ['https://github.com/o/r/compare/feature/x', compare({ head: 'feature/x' })],
+    ['https://github.com/o/r/compare/main...user:feature/x', compare({ base: 'main', head: 'user:feature/x' })],
+    ['https://github.com/o/r/compare/main...user:fork:feature', compare({ base: 'main', head: 'user:fork:feature' })],
+    ['https://github.com/o/r/compare/v1.2...v1.3', compare({ base: 'v1.2', head: 'v1.3' })],
+    ['https://github.com/o/r/compare/main...a%23b', compare({ base: 'main', head: 'a#b' })],
+    ['https://github.com/o/r/compare/main..feature', null],
+    ['https://github.com/o/r/compare/main...feature.diff', null],
+    ['https://github.com/o/r/compare/upstream:main...feature', null],
+    ['https://github.com/o/r/compare/...feature', null],
+    ['https://github.com/o/r/compare/main...', null],
 
     // Lists with a pull request or issue in the side panel; any other `?peek=` is ignored
     ['https://github.com/o/r/issues?peek=o%2Fr%2Fissues%2F123', { kind: 'repo', owner: 'o', repo: 'r', view: 'issues', rest: [], peek: { kind: 'issue', owner: 'o', repo: 'r', number: 123 } }],

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowLeft01Icon, Copy01Icon, FolderTreeIcon } from '@hugeicons/core-free-icons';
@@ -33,6 +33,8 @@ export function CommitPage({ owner, repo, sha, pr }: Props) {
   }, [queryClient, owner, repo, sha, dark]);
 
   const { data, error } = useQuery(commitQuery(owner, repo, sha, pr));
+  const files = useQuery(commitFilesQuery(owner, repo, sha));
+  const source = useMemo(() => ({ nameWithOwner: `${owner}/${repo}`, oid: sha }), [owner, repo, sha]);
   const commit = data?.repository?.object;
   const nwo = `${owner}/${repo}`;
   useTitle(commit && `${commit.messageHeadline} · ${nwo}@${commit.abbreviatedOid}`);
@@ -56,7 +58,7 @@ export function CommitPage({ owner, repo, sha, pr }: Props) {
       ) : (
         <>
           {commit ? <CommitHeader commit={commit} owner={owner} repo={repo} /> : <HeaderSkeleton />}
-          <CommitFiles owner={owner} repo={repo} sha={sha} />
+          <CommitFiles files={files.data} error={files.error} source={source} />
         </>
       )}
     </RepoFrame>
