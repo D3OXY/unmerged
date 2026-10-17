@@ -101,6 +101,18 @@ export async function restHtml(path: string, signal?: AbortSignal): Promise<stri
   return res.text();
 }
 
+/**
+ * REST GET returning plain text from wherever GitHub redirects (a job's logs live in blob storage).
+ * Resolves to null when there's nothing there: 404 (also the storage's answer before the logs exist) or
+ * 410 (expired). The token stays on api.github.com: fetch drops `Authorization` when a redirect crosses origins.
+ */
+export async function restText(path: string, signal?: AbortSignal): Promise<string | null> {
+  const res = await fetch(`https://api.github.com${path}`, { headers: await authHeaders(), signal });
+  if (res.status === 404 || res.status === 410) return null;
+  if (!res.ok) throw await httpError(res);
+  return res.text();
+}
+
 /** A non-2xx response as a GitHubError, with GitHub's message when the body has one. */
 async function httpError(res: Response) {
   const body = (await res.json().catch(() => null)) as { message?: string } | null;

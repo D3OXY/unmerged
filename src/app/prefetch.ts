@@ -1,5 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { achievementsQuery } from '@/github/achievements';
+import { prefetchRun } from '@/pages/actions/query';
 import type { Route } from '@/lib/routes';
 import { prefetchCommit } from '@/pages/commit/query';
 import { prefetchHome } from '@/pages/home/queries';
@@ -60,6 +61,9 @@ export function prefetchRoute(client: QueryClient, route: Route, url: URL) {
       return;
     case 'commit':
       prefetchCommit(client, route.owner, route.repo, route.sha, route.pr);
+      return;
+    case 'run':
+      prefetchRun(client, route.owner, route.repo, route.runId, route.attempt, route.job);
       return;
     case 'work':
       prefetchWorkList(client, workQueryOf(url, defaultQuery(route.type, route.filter)));

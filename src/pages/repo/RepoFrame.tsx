@@ -19,14 +19,17 @@ import { REPO_MUTATIONS, repoQuery, type Repo, type Subscription } from './query
 /** The repo's metadata. Shared by the frame and the page inside it (one request). */
 export const useRepo = (owner: string, name: string) => useQuery(repoQuery(owner, name));
 
-const LIST_TITLES: Partial<Record<RepoView, string>> = { issues: 'Issues', pulls: 'Pull requests' };
+/** The tab a frame marks active: a repo route's view, or a page of ours under one of GitHub's tabs. */
+type FrameView = RepoView | 'actions';
+
+const LIST_TITLES: Partial<Record<FrameView, string>> = { issues: 'Issues', pulls: 'Pull requests', actions: 'Actions' };
 
 /**
  * Frame for every repo view: breadcrumbs with Watch/Star/Fork, the repo's name, and tabs between views.
  * `item` is the last crumb of a page inside a list (an issue's "#12"); the list's crumb then links back.
  * `aside` goes to the shell's right (a list's side panel).
  */
-export function RepoFrame({ owner, name, view, item, aside, children }: { owner: string; name: string; view: RepoView; item?: string; aside?: ReactNode; children: ReactNode }) {
+export function RepoFrame({ owner, name, view, item, aside, children }: { owner: string; name: string; view: FrameView; item?: string; aside?: ReactNode; children: ReactNode }) {
   const meta = useRepo(owner, name);
   const repo = meta.data?.repository;
   const nwo = repo?.nameWithOwner ?? `${owner}/${name}`;
@@ -102,13 +105,13 @@ function RepoHeader({ repo }: { repo: Repo }) {
  * Optional tabs stay hidden until the repo loads. The list views get a New issue / New pull request link
  * to GitHub's form.
  */
-function RepoTabs({ repo, nwo, view }: { repo?: Repo; nwo: string; view: RepoView }) {
-  const tabs: { label: string; href: string; icon: ReactNode; views?: RepoView[]; count?: number; show?: boolean }[] = [
+function RepoTabs({ repo, nwo, view }: { repo?: Repo; nwo: string; view: FrameView }) {
+  const tabs: { label: string; href: string; icon: ReactNode; views?: FrameView[]; count?: number; show?: boolean }[] = [
     { label: 'Code', href: `/${nwo}`, icon: <HugeiconsIcon icon={CodeIcon} />, views: ['code', 'commits'] },
     { label: 'Issues', href: `/${nwo}/issues`, icon: <HugeiconsIcon icon={CircleDotIcon} />, views: ['issues'], count: repo?.issues.totalCount, show: !!repo?.hasIssuesEnabled },
     { label: 'Pull requests', href: `/${nwo}/pulls`, icon: <HugeiconsIcon icon={GitPullRequestIcon} />, views: ['pulls'], count: repo?.pullRequests.totalCount },
     { label: 'Discussions', href: `/${nwo}/discussions`, icon: <HugeiconsIcon icon={MessageMultiple02Icon} />, show: !!repo?.hasDiscussionsEnabled },
-    { label: 'Actions', href: `/${nwo}/actions`, icon: <HugeiconsIcon icon={PlayIcon} /> },
+    { label: 'Actions', href: `/${nwo}/actions`, icon: <HugeiconsIcon icon={PlayIcon} />, views: ['actions'] },
     { label: 'Wiki', href: `/${nwo}/wiki`, icon: <HugeiconsIcon icon={BookOpen01Icon} />, show: !!repo?.hasWikiEnabled },
     { label: 'Insights', href: `/${nwo}/pulse`, icon: <HugeiconsIcon icon={Analytics01Icon} /> },
     { label: 'Settings', href: `/${nwo}/settings`, icon: <HugeiconsIcon icon={Settings02Icon} />, show: !!repo?.viewerCanAdminister },

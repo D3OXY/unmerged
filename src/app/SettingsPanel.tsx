@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowUpRight01Icon, Book02Icon, CheckListIcon, CircleDotIcon, ComputerIcon, GitCommitHorizontalIcon, GitPullRequestIcon, Home01Icon, Key01Icon, LayoutRightIcon, Moon02Icon, Notification03Icon, Sun03Icon, UserIcon } from '@hugeicons/core-free-icons';
+import { ArrowUpRight01Icon, Book02Icon, CheckListIcon, CircleDotIcon, ComputerIcon, GitCommitHorizontalIcon, GitPullRequestIcon, Home01Icon, Key01Icon, LayoutRightIcon, Moon02Icon, Notification03Icon, PlayIcon, Sun03Icon, UserIcon } from '@hugeicons/core-free-icons';
 import { GitHubError, rest } from '@/github/client';
 import { cx } from '@/lib/cx';
 import { saveToken } from '@/lib/persist';
@@ -15,6 +15,7 @@ const SURFACES: Record<Surface, { label: string; path: string; icon: ReactNode }
   repo: { label: 'Repositories', path: 'github.com/<owner>/<repo>, /issues, /pulls', icon: <HugeiconsIcon icon={Book02Icon} /> },
   work: { label: 'Pull request & issue lists', path: 'github.com/pulls, /issues', icon: <HugeiconsIcon icon={CheckListIcon} /> },
   notifications: { label: 'Notifications', path: 'github.com/notifications', icon: <HugeiconsIcon icon={Notification03Icon} /> },
+  run: { label: 'Workflow runs', path: '…/actions/runs/<id>, …/job/<id>', icon: <HugeiconsIcon icon={PlayIcon} /> },
 };
 
 const THEMES: { value: Theme; label: string; icon: ReactNode }[] = [

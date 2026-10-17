@@ -12,7 +12,7 @@ import { RepoFrame } from '@/pages/repo/RepoFrame';
 import { Button } from '@/ui/Button';
 import { checkCounts, CommitPerson } from '@/ui/CommitList';
 import { Avatar, Panel, Skeleton } from '@/ui/primitives';
-import { CheckIcon } from '@/ui/status';
+import { CommitChecks } from './CommitChecks';
 import { CommitFiles } from './CommitFiles';
 import { commitFilesQuery, commitQuery, type Commit } from './query';
 
@@ -55,7 +55,7 @@ export function CommitPage({ owner, repo, sha, pr }: Props) {
         </Panel>
       ) : (
         <>
-          {commit ? <CommitHeader commit={commit} nameWithOwner={nwo} /> : <HeaderSkeleton />}
+          {commit ? <CommitHeader commit={commit} owner={owner} repo={repo} /> : <HeaderSkeleton />}
           <CommitFiles owner={owner} repo={repo} sha={sha} />
         </>
       )}
@@ -63,9 +63,9 @@ export function CommitPage({ owner, repo, sha, pr }: Props) {
   );
 }
 
-function CommitHeader({ commit, nameWithOwner }: { commit: Commit; nameWithOwner: string }) {
+function CommitHeader({ commit, owner, repo }: { commit: Commit; owner: string; repo: string }) {
+  const nameWithOwner = `${owner}/${repo}`;
   const rollup = commit.statusCheckRollup;
-  const checks = rollup && checkCounts(rollup);
   const author = commit.author?.user?.login ?? commit.author?.name;
   const committer = commit.committer?.user?.login ?? commit.committer?.name;
   const { totalCount, nodes: parents } = commit.parents;
@@ -90,16 +90,7 @@ function CommitHeader({ commit, nameWithOwner }: { commit: Commit; nameWithOwner
             Verified
           </span>
         )}
-        {checks && checks.total > 0 && (
-          <a
-            href={`https://github.com/${nameWithOwner}/commit/${commit.oid}/checks`}
-            title={`${checks.passed} of ${checks.total} checks passed`}
-            className="flex items-center gap-1 tabular-nums hover:text-fg"
-          >
-            <CheckIcon state={rollup.state} className="size-3" />
-            {checks.passed} / {checks.total} checks
-          </a>
-        )}
+        {rollup && checkCounts(rollup).total > 0 && <CommitChecks owner={owner} repo={repo} oid={commit.oid} rollup={rollup} />}
         <span className="font-mono text-[11.5px] tabular-nums">
           <span className="text-success">+{commit.additions}</span> <span className="text-danger">−{commit.deletions}</span>
         </span>

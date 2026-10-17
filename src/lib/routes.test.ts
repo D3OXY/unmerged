@@ -83,6 +83,17 @@ describe('matchRoute', () => {
     ['https://github.com/o/r/commit/main', null],
     ['https://github.com/o/r/pull/12/commits/abc123', null],
 
+    // Workflow runs, their attempts and jobs; the Actions list, workflows and other run views stay GitHub's
+    ['https://github.com/o/r/actions/runs/39012435752', { kind: 'run', owner: 'o', repo: 'r', runId: 39012435752 }],
+    ['https://github.com/o/r/actions/runs/39012435752/job/117337646346', { kind: 'run', owner: 'o', repo: 'r', runId: 39012435752, job: 117337646346 }],
+    ['https://github.com/o/r/actions/runs/39012435752/attempts/2', { kind: 'run', owner: 'o', repo: 'r', runId: 39012435752, attempt: 2 }],
+    ['https://github.com/o/r/actions/runs/39012435752/job/abc', null],
+    ['https://github.com/o/r/actions/runs/39012435752/attempts/2/job/1', null],
+    ['https://github.com/o/r/actions/runs/39012435752/workflow', null],
+    ['https://github.com/o/r/actions/runs/39012435752/usage', null],
+    ['https://github.com/o/r/actions/runs', null],
+    ['https://github.com/o/r/actions/workflows/ci.yml', null],
+
     // Lists with a pull request or issue in the side panel; any other `?peek=` is ignored
     ['https://github.com/o/r/issues?peek=o%2Fr%2Fissues%2F123', { kind: 'repo', owner: 'o', repo: 'r', view: 'issues', rest: [], peek: { kind: 'issue', owner: 'o', repo: 'r', number: 123 } }],
     ['https://github.com/pulls?peek=o/r/pull/12/files', { kind: 'work', type: 'pr', filter: 'created', peek: { kind: 'pr', owner: 'o', repo: 'r', number: 12, tab: 'files' } }],
