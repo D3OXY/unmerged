@@ -6,7 +6,6 @@ import { useRegisterCommands, type Command } from '@/app/commands';
 import { PageHeader, Shell } from '@/app/Shell';
 import { openClassic } from '@/lib/classic';
 import { copy } from '@/lib/clipboard';
-import { cx } from '@/lib/cx';
 import { loadDiffs } from '@/lib/diffs';
 import { useIsDark } from '@/lib/settings';
 import { navigate } from '@/lib/navigation';
@@ -179,7 +178,7 @@ function PrView({ pr, repo, tab, queryKey, poll, panel }: { pr: PullRequest; rep
   const rollup = pr.commits.nodes[0]?.commit.statusCheckRollup;
 
   return (
-    <div className={cx('mx-auto animate-enter px-6 pt-8 pb-8', tab === 'files' ? 'max-w-[1600px]' : 'max-w-[1240px]')}>
+    <div className="mx-auto max-w-[1600px] animate-enter px-6 pt-8 pb-8">
       <div className="max-w-[860px]">
         <PrTitle pr={pr} queryKey={queryKey} />
         <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-2 text-[13px] text-muted">
@@ -302,7 +301,7 @@ function BranchChip({ name }: { name: string }) {
 
 function PrSkeleton() {
   return (
-    <div className="mx-auto max-w-[1240px] px-6 pt-8">
+    <div className="mx-auto max-w-[1600px] px-6 pt-8">
       <Skeleton className="h-8 w-[560px] max-w-full" />
       <Skeleton className="mt-4 h-5 w-[420px] max-w-full" />
       <div className="mt-8 grid gap-8 @3xl:grid-cols-[minmax(0,1fr)_340px]">
