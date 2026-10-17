@@ -83,6 +83,13 @@ describe('matchRoute', () => {
     ['https://github.com/o/r/commit/main', null],
     ['https://github.com/o/r/pull/12/commits/abc123', null],
 
+    // Lists with a pull request or issue in the side panel; any other `?peek=` is ignored
+    ['https://github.com/o/r/issues?peek=o%2Fr%2Fissues%2F123', { kind: 'repo', owner: 'o', repo: 'r', view: 'issues', rest: [], peek: { kind: 'issue', owner: 'o', repo: 'r', number: 123 } }],
+    ['https://github.com/pulls?peek=o/r/pull/12/files', { kind: 'work', type: 'pr', filter: 'created', peek: { kind: 'pr', owner: 'o', repo: 'r', number: 12, tab: 'files' } }],
+    ['https://github.com/o/r/issues?peek=o/r', repo('issues')],
+    ['https://github.com/o/r/issues?peek=//evil.com/o/r/issues/1', repo('issues')],
+    ['https://github.com/o/r/pull/12?peek=o/r/issues/1', pr('conversation')],
+
     // Malformed escapes are left to GitHub instead of throwing
     ['https://github.com/%E0%A4%A', null],
     ['https://github.com/o/r/blob/main/100%', null],

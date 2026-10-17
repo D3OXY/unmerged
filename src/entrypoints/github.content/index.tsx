@@ -8,7 +8,7 @@ import { appState, authRejected, onApiError, type AppState } from '@/app/state';
 import { GitHubError } from '@/github/client';
 import { loadFonts } from '@/lib/fonts';
 import { classicPath, clearClassicUnless } from '@/lib/classic';
-import { emitNavigate, isModifiedClick, navigate, onNavigate, setOwns } from '@/lib/navigation';
+import { emitNavigate, isModifiedClick, navigate, onNavigate, setOwns, withPeek } from '@/lib/navigation';
 import { matchRoute, type Route } from '@/lib/routes';
 import { sessionLogin } from '@/lib/session';
 import { localCache, setPageAccount } from '@/lib/localCache';
@@ -195,12 +195,14 @@ export default defineContentScript({
       { capture: true },
     );
     // GitHub's soft navigations. Only same-document ones: during a full page load the page being left
-    // must stay hidden until the next document replaces it, or it flashes.
+    // must stay hidden until the next document replaces it, or it flashes. Not back/forward, which popstate
+    // handles once the URL has changed: rendering a page before then, while `location` is still the old
+    // one, lets a page's replaceState (a list's ?q=) cancel the traversal.
     if (window.navigation) {
       window.navigation.addEventListener(
         'navigate',
         (event) => {
-          if (event.destination.sameDocument) sync(new URL(event.destination.url));
+          if (event.destination.sameDocument && event.navigationType !== 'traverse') sync(new URL(event.destination.url));
         },
         { signal: ctx.signal },
       );
@@ -240,7 +242,9 @@ export default defineContentScript({
     }
 
     // Link clicks. Ours are always handled here so GitHub's Turbo never soft-navigates (and unhides) the
-    // page underneath; GitHub's own links are taken over only when they lead to a page we own.
+    // page underneath; GitHub's own links are taken over only when they lead to a page we own. A link marked
+    // `data-peek` (a list row, a tab inside the side panel) opens its page in the side panel instead, if
+    // that page is one we own.
     ctx.addEventListener(
       document,
       'click',
@@ -255,7 +259,7 @@ export default defineContentScript({
         if (!path.includes(ui.shadowHost) && !resolve(url)?.owning) return;
         event.preventDefault();
         event.stopImmediatePropagation();
-        navigate(url.href);
+        navigate(anchor.dataset.peek && resolve(url)?.owning ? withPeek(location.href, url.pathname) : url.href);
       },
       { capture: true },
     );

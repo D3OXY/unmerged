@@ -24,11 +24,9 @@ type Props = { owner: string; repo: string; number: number };
 
 /** An issue (`/owner/repo/issues/<n>`) under the repo's header and tabs: description, activity and a sidebar. */
 export function IssuePage({ owner, repo, number }: Props) {
-  const query = issueQuery(owner, repo, number);
-  const { data, error } = useQuery(query);
+  const { data } = useQuery(issueQuery(owner, repo, number));
   const subject = data?.repository?.issueOrPullRequest;
-  const issue = subject?.__typename === 'Issue' ? subject : undefined;
-  useTitle(issue && `${issue.title} · Issue #${number} · ${owner}/${repo}`);
+  useTitle(subject?.__typename === 'Issue' ? `${subject.title} · Issue #${number} · ${owner}/${repo}` : undefined);
 
   // GitHub redirects a pull request's /issues/<n> to its /pull/<n>; do the same, in place of this entry.
   const pullUrl = subject?.__typename === 'PullRequest' ? subject.url : undefined;
@@ -40,19 +38,25 @@ export function IssuePage({ owner, repo, number }: Props) {
 
   return (
     <RepoFrame owner={owner} name={repo} view="issues" item={`#${number}`}>
-      {issue ? (
-        <IssueView issue={issue} queryKey={query.queryKey} />
-      ) : error || (data && !subject) ? (
-        <div className="py-4 text-[13px]">
-          <p className="text-danger">{error?.message ?? 'Issue not found.'}</p>
-          <Button className="mt-4" onClick={openClassic}>
-            Open in classic GitHub
-          </Button>
-        </div>
-      ) : (
-        <IssueSkeleton />
-      )}
+      <IssueContent owner={owner} repo={repo} number={number} />
     </RepoFrame>
+  );
+}
+
+/** The issue without the repo's frame: on its own page and in a list's side panel. */
+export function IssueContent({ owner, repo, number }: Props) {
+  const query = issueQuery(owner, repo, number);
+  const { data, error } = useQuery(query);
+  const subject = data?.repository?.issueOrPullRequest;
+  if (subject?.__typename === 'Issue') return <IssueView issue={subject} queryKey={query.queryKey} />;
+  if (!error && !(data && !subject)) return <IssueSkeleton />;
+  return (
+    <div className="py-4 text-[13px]">
+      <p className="text-danger">{error?.message ?? 'Issue not found.'}</p>
+      <Button className="mt-4" onClick={openClassic}>
+        Open in classic GitHub
+      </Button>
+    </div>
   );
 }
 
@@ -100,13 +104,13 @@ function IssueView({ issue, queryKey }: { issue: Issue; queryKey: QueryKey }) {
         </div>
       </div>
 
-      <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="mt-6 grid gap-8 @3xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex min-w-0 flex-col gap-6">
           <CommentCard author={issue.author} createdAt={issue.createdAt} html={issue.bodyHTML} />
           <IssueTimeline issue={issue} />
           <IssueComposer issue={issue} queryKey={queryKey} />
         </div>
-        <aside className="flex flex-col gap-4 *:shrink-0 lg:sticky lg:top-[108px] lg:max-h-[calc(100vh-124px)] lg:self-start lg:overflow-y-auto">
+        <aside className="flex flex-col gap-4 *:shrink-0 @3xl:sticky @3xl:top-[108px] @3xl:max-h-[calc(100vh-124px)] @3xl:self-start @3xl:overflow-y-auto">
           <IssueSidebar issue={issue} />
         </aside>
       </div>
@@ -135,7 +139,7 @@ function IssueSkeleton() {
     <>
       <Skeleton className="h-8 w-[560px] max-w-full" />
       <Skeleton className="mt-4 h-5 w-[320px] max-w-full" />
-      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="mt-8 grid gap-8 @3xl:grid-cols-[minmax(0,1fr)_340px]">
         <Skeleton className="h-64 rounded-xl" />
         <Skeleton className="h-48 rounded-xl" />
       </div>

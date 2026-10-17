@@ -28,6 +28,9 @@ export const DEFAULT_SURFACES: Surfaces = { home: true, profile: true, pr: true,
 
 export const surfacesItem = storage.defineItem<Surfaces>('local:surfaces', { fallback: DEFAULT_SURFACES });
 
+/** Whether a list opens its pull requests and issues in a side panel instead of in place of the list. */
+export const sidePanelItem = storage.defineItem<boolean>('local:sidePanel', { fallback: true });
+
 /** Color theme. "auto" follows GitHub's own appearance setting, then the OS. */
 export type Theme = 'auto' | 'light' | 'dark';
 

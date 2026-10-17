@@ -4,6 +4,8 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowDown01Icon, ArrowUpDownIcon, CheckmarkCircle02Icon, CircleDotIcon, Search01Icon } from '@hugeicons/core-free-icons';
 import { usePageHotkey } from '@/app/keyboard';
 import { cx } from '@/lib/cx';
+import type { Peek } from '@/lib/routes';
+import { sidePanelItem, useStorageItem } from '@/lib/settings';
 import { Button } from '@/ui/Button';
 import { Menu, type MenuOption } from '@/ui/Menu';
 import { Empty, Kbd, Panel, Skeleton } from '@/ui/primitives';
@@ -47,9 +49,10 @@ const FOR_ISSUES = /(?:^|\s)(?:is|type):issue(?=\s|$)/;
  * A searchable list of pull requests or issues. The GitHub search query is the whole state: Open/Closed, Sort
  * and the filter chips each rewrite one qualifier of it, it can be typed directly, and it lives in `?q=` like
  * GitHub's. `fallback` is the query for a bare URL; `repo` ("owner/name") scopes the search without showing up
- * in the query, as on GitHub.
+ * in the query, as on GitHub. With the side panel setting on, rows open in the list's side panel; `peek` is
+ * the one open there.
  */
-export function WorkList({ fallback, repo }: { fallback: string; repo?: string }) {
+export function WorkList({ fallback, repo, peek }: { fallback: string; repo?: string; peek?: Peek }) {
   const [q, setQ] = useState(() => workQueryOf(new URL(location.href), fallback));
   const [draft, setDraft] = useState(q);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -64,6 +67,7 @@ export function WorkList({ fallback, repo }: { fallback: string; repo?: string }
     history.replaceState(history.state, '', url);
   }, [q, fallback]);
 
+  const sidePanel = useStorageItem(sidePanelItem) ?? false;
   const list = useInfiniteQuery(workListQuery(q, repo));
   const counts = useQueries({ queries: workStateCountQueries(q, repo) });
 
@@ -163,9 +167,10 @@ export function WorkList({ fallback, repo }: { fallback: string; repo?: string }
       ) : (
         <Panel className="mt-4 animate-enter overflow-hidden">
           {items.length === 0 && <Empty>Nothing matches.</Empty>}
-          {items.map((item) =>
-            item.__typename === 'PullRequest' ? <WorkRow key={item.id} kind="pr" item={item} repo={repoLabel} /> : <WorkRow key={item.id} kind="issue" item={item} repo={repoLabel} />,
-          )}
+          {items.map((item) => {
+            const row = { repo: repoLabel, peek: sidePanel, selected: isPeek(item, peek) };
+            return item.__typename === 'PullRequest' ? <WorkRow key={item.id} kind="pr" item={item} {...row} /> : <WorkRow key={item.id} kind="issue" item={item} {...row} />;
+          })}
           {list.hasNextPage && (
             <div className="flex justify-center border-t border-line p-3">
               <Button size="sm" variant="ghost" loading={list.isFetchingNextPage} onClick={() => list.fetchNextPage()}>
@@ -178,6 +183,10 @@ export function WorkList({ fallback, repo }: { fallback: string; repo?: string }
     </>
   );
 }
+
+/** Whether `item` is the pull request or issue open in the side panel. */
+const isPeek = (item: { number: number; repository: { nameWithOwner: string } }, peek: Peek | undefined) =>
+  !!peek && item.number === peek.number && item.repository.nameWithOwner.toLowerCase() === `${peek.owner}/${peek.repo}`.toLowerCase();
 
 /** A filter over one qualifier of the search; `value` is that qualifier as written in it ('' when unset). */
 function Chip({ label, value, options, onChange }: { label: string; value: string; options: MenuOption<string>[]; onChange: (token: string) => void }) {

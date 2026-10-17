@@ -22,16 +22,29 @@ export function emitNavigate(url: URL) {
 /**
  * Navigate to a GitHub URL. Routes Unmerged owns are swapped in place without a reload;
  * everything else is a normal page load so GitHub renders it.
+ *
+ * Opening, switching or closing a list's side panel keeps the list where it was scrolled. Switching from one
+ * pull request or issue to another replaces the history entry, so Back closes the panel.
  */
 export function navigate(href: string) {
   const url = new URL(href, location.href);
   if (url.origin === location.origin && owns(url)) {
-    if (url.href !== location.href) history.pushState(null, '', url);
+    const panelOnly = withPeek(url.href, null) === withPeek(location.href, null);
+    const switching = panelOnly && url.searchParams.has('peek') && new URL(location.href).searchParams.has('peek');
+    if (url.href !== location.href) history[switching ? 'replaceState' : 'pushState'](null, '', url);
     emitNavigate(url);
-    window.scrollTo(0, 0);
+    if (!panelOnly) window.scrollTo(0, 0);
     return;
   }
   location.assign(url);
+}
+
+/** `href` with `path` (a pull request's or issue's page) open in the side panel, or with the panel closed. */
+export function withPeek(href: string, path: string | null) {
+  const url = new URL(href);
+  if (path) url.searchParams.set('peek', path.replace(/^\//, ''));
+  else url.searchParams.delete('peek');
+  return url.href;
 }
 
 /** True when a click should be left to the browser (new tab, download, etc.). */
