@@ -13,7 +13,7 @@ import { matchRoute, type Route } from '@/lib/routes';
 import { sessionLogin } from '@/lib/session';
 import { localCache, setPageAccount } from '@/lib/localCache';
 import { trimPersisted } from '@/lib/persist';
-import { accountItem, DEFAULT_SURFACES, isDark, surfacesItem, themeItem, type Surfaces, type Theme } from '@/lib/settings';
+import { accountItem, DEFAULT_SURFACES, isDark, surfaceOf, surfacesItem, themeItem, type Surfaces, type Theme } from '@/lib/settings';
 
 const OWNING = 'unmerged-owning';
 
@@ -67,9 +67,8 @@ export default defineContentScript({
     /** Decides, for a URL, whether Unmerged owns the page, shows the classic pill, or stays out of the way. */
     const resolve = (url: URL): { owning: boolean; route: Route } | null => {
       const route = matchRoute(url);
-      // `?? true`: settings saved before a surface existed don't list it. New issues go with issues, organizations
-      // with profiles.
-      if (!route || !(surfaces[route.kind === 'newIssue' ? 'issue' : route.kind === 'org' ? 'profile' : route.kind] ?? true)) return null;
+      // `?? true`: settings saved before a surface existed don't list it.
+      if (!route || !(surfaces[surfaceOf(route)] ?? true)) return null;
       // The logged-out homepage is GitHub's marketing site; leave it alone.
       if (route.kind === 'home' && sessionLogin() === '') return null;
       return { owning: classicPath() !== url.pathname, route };

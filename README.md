@@ -25,6 +25,7 @@
 | Workflow run | `github.com/<owner>/<repo>/actions/runs/<id>` plus `/job/<id>` (steps and logs) and `/attempts/<n>` | The Actions tab and workflow pages stay on GitHub, and so do a running job's live logs |
 | Compare & new pull request | `github.com/<owner>/<repo>/compare`, `…/compare/<base>...<head>` (a fork's head as `<user>:<branch>`), `?expand=1` | Two-dot (`..`) comparisons, `.patch` / `.diff` and a base in another repo stay on GitHub |
 | Repository | `github.com/<owner>/<repo>`, `/tree/…`, `/blob/…`, `/commits/…`, `/issues`, `/pulls` (any `?q=` search) | Actions, Settings, etc. stay on GitHub |
+| Branches | `github.com/<owner>/<repo>/branches` plus `/yours`, `/active`, `/stale`, `/all` (`?query=` search) | Rename and branch rules stay on GitHub; past 3,000 branches only the first 3,000 GitHub lists are sorted |
 | Issue | `github.com/<owner>/<repo>/issues/<n>`, `/issues/new` (template chooser, Markdown templates, `?title=`, `?body=`, `?labels=`, `?assignees=`) | Sub-issues and projects are only shown on GitHub; YAML issue forms (`?template=*.yml`) open GitHub's form |
 | Pull requests & issues | `github.com/pulls`, `/pulls/assigned`, `/issues`, … (any `?q=` search) | |
 | Notifications | `github.com/notifications` (inbox, unread, participating) | |
@@ -83,6 +84,7 @@ you want, and pick only the repos and permissions for the features you use:
 | Checks tab, workflow runs and job logs | Repository → Checks: read, Commit statuses: read, Actions: read |
 | Open pull requests, comment, review, resolve threads, mark files viewed, close/reopen, draft/ready | Repository → Pull requests: read and write |
 | Merge, auto-merge, merge queue, update branch, delete branch | Repository → Contents: read and write, Pull requests: read and write |
+| Create, delete and restore branches | Repository → Contents: read and write |
 | Re-run failed checks or jobs | Repository → Actions: read and write |
 | Star / unstar | Account → Starring: read and write |
 | Watch | Account → Watching: read and write |

@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { achievementsQuery } from '@/github/achievements';
 import { prefetchRun } from '@/pages/actions/query';
+import { prefetchBranches } from '@/pages/branches/query';
 import type { Route } from '@/lib/routes';
 import { prefetchCommit } from '@/pages/commit/query';
 import { prefetchCompare } from '@/pages/compare/query';
@@ -84,6 +85,9 @@ export function prefetchRoute(client: QueryClient, route: Route, url: URL) {
       return;
     case 'run':
       prefetchRun(client, route.owner, route.repo, route.runId, route.attempt, route.job);
+      return;
+    case 'branches':
+      prefetchBranches(client, route.owner, route.repo);
       return;
     case 'compare':
       prefetchCompare(client, route);

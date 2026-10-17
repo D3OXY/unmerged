@@ -9,6 +9,12 @@ const isProfileTab = (tab: string): tab is ProfileTab => PROFILE_TABS.includes(t
 /** Organization lists Unmerged renders (/orgs/<org>/…); teams, projects, settings… stay on GitHub. */
 export type OrgTab = 'repositories' | 'people';
 
+/** A repo's branch lists (/branches/<tab>); GitHub's own path segments, `overview` for /branches alone. */
+export type BranchesTab = 'overview' | 'yours' | 'active' | 'stale' | 'all';
+
+const BRANCHES_TABS: readonly string[] = ['yours', 'active', 'stale', 'all'] satisfies BranchesTab[];
+const isBranchesTab = (tab: string): tab is BranchesTab => BRANCHES_TABS.includes(tab);
+
 /** Which of your pull requests or issues a list shows; GitHub's own path segments (`/pulls/assigned`). */
 export type WorkFilter = 'created' | 'assigned' | 'mentioned' | 'review-requested';
 
@@ -59,7 +65,9 @@ export type Route =
    */
   | { kind: 'repo'; owner: string; repo: string; view: RepoView; rest: string[]; peek?: Peek }
   /** A GitHub Actions workflow run (…/actions/runs/<id>), one attempt at it (/attempts/<n>), or one job's logs (/job/<id>). */
-  | { kind: 'run'; owner: string; repo: string; runId: number; attempt?: number; job?: number };
+  | { kind: 'run'; owner: string; repo: string; runId: number; attempt?: number; job?: number }
+  /** A repo's branches: the overview (/branches) or one list (/branches/yours…). `?query=` is read by the page. */
+  | { kind: 'branches'; owner: string; repo: string; tab: BranchesTab };
 
 // Hex only, so /commit/<sha>.patch and .diff stay GitHub's.
 const isSha = (part: string | undefined): part is string => !!part && /^[0-9a-f]{7,40}$/i.test(part);
@@ -123,6 +131,8 @@ export function matchRoute(url: URL): Route | null {
       if (parts.length === 7 && id && sixth === 'job') return { ...run, job: id };
       if (parts.length === 7 && id && sixth === 'attempts') return { ...run, attempt: id };
     }
+    if (third === 'branches' && parts.length === 3) return { kind: 'branches', owner: first, repo: second, tab: 'overview' };
+    if (third === 'branches' && parts.length === 4 && fourth && isBranchesTab(fourth)) return { kind: 'branches', owner: first, repo: second, tab: fourth };
     if (third === 'compare') return compareRoute(first, second, parts.slice(3).join('/'), url);
     if (third === 'search' && parts.length === 3) return searchRoute(url, `${first}/${second}`);
   }

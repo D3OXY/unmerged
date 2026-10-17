@@ -2,6 +2,7 @@ import { queryOptions } from '@tanstack/react-query';
 import { gql } from '@/github/client';
 import type { Label } from '@/github/types';
 import { persisted } from '@/lib/persist';
+import type { Permission } from '@/pages/repo/query';
 
 // Markdown templates and config.yml come parsed from GitHub. YAML issue forms aren't in `issueTemplates`, so
 // the template folder's files come along to list them; GitHub's own page renders them (see matchRoute).
@@ -38,8 +39,6 @@ export type IssueTemplate = {
 
 /** A YAML issue form, listed in the chooser and opened on GitHub. */
 export type IssueForm = { name: string; about: string | null; filename: string };
-
-type Permission = 'ADMIN' | 'MAINTAIN' | 'WRITE' | 'TRIAGE' | 'READ';
 
 type NewIssueData = {
   repository: {
