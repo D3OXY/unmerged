@@ -14,7 +14,7 @@ export const REPO_QUERY = /* GraphQL */ `
       parent { nameWithOwner }
       stargazerCount forkCount
       watchers { totalCount }
-      viewerHasStarred viewerSubscription viewerCanAdminister
+      viewerHasStarred viewerSubscription viewerCanAdminister viewerPermission
       hasIssuesEnabled hasDiscussionsEnabled hasWikiEnabled
       defaultBranchRef { name }
       branches: refs(refPrefix: "refs/heads/", first: 0) { totalCount }
@@ -49,6 +49,8 @@ export type RepoAbout = {
 
 export type Subscription = 'SUBSCRIBED' | 'UNSUBSCRIBED' | 'IGNORED';
 
+export type Permission = 'ADMIN' | 'MAINTAIN' | 'WRITE' | 'TRIAGE' | 'READ';
+
 export type Repo = {
   id: string;
   name: string;
@@ -70,6 +72,8 @@ export type Repo = {
   viewerHasStarred: boolean;
   viewerSubscription: Subscription | null;
   viewerCanAdminister: boolean;
+  /** Missing from a result stored before it was asked for. */
+  viewerPermission?: Permission | null;
   hasIssuesEnabled: boolean;
   hasDiscussionsEnabled: boolean;
   hasWikiEnabled: boolean;

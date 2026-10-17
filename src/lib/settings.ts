@@ -1,10 +1,25 @@
 import { useEffect, useReducer, useState } from 'react';
 import { browser, storage } from '#imports';
+import type { Route } from './routes';
 
 /** Surfaces Unmerged can take over. Each can be switched off from the popup. */
 export type Surface = 'home' | 'profile' | 'pr' | 'issue' | 'commit' | 'compare' | 'repo' | 'work' | 'notifications' | 'run' | 'search';
 
 export type Surfaces = Record<Surface, boolean>;
+
+/** The switch a route's page is turned off with: its own, or that of the pages it belongs with. */
+export function surfaceOf(route: Route): Surface {
+  switch (route.kind) {
+    case 'newIssue':
+      return 'issue';
+    case 'org':
+      return 'profile';
+    case 'branches':
+      return 'repo';
+    default:
+      return route.kind;
+  }
+}
 
 /** GitHub token used for API calls. Kept in extension local storage and sent only to api.github.com. */
 export const tokenItem = storage.defineItem<string>('local:token', { fallback: '' });

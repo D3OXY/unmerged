@@ -1,6 +1,7 @@
 import { QueryClient, type QueryKey } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import { matchRoute } from '@/lib/routes';
+import { branchIndexQuery } from '@/pages/branches/query';
 import { codeSearchQuery, repoSearchQuery, workSearchQuery } from '@/pages/search/queries';
 import { defaultQuery, repoListQuery, workListQuery, workQueryOf } from '@/pages/work/queries';
 import { prefetchRoute } from './prefetch';
@@ -38,5 +39,17 @@ describe('prefetchRoute for search', () => {
     ['https://github.com/search?q=leak&type=issues&s=bogus', workSearchQuery('leak', 'issues', '').queryKey],
   ])('starts the page’s results for %s', (href, key) => {
     expect(prefetchedListKeys(href)).toEqual([key]);
+  });
+});
+
+// Every branches tab sorts and filters one index of the repo's branches, so each starts the same query.
+describe('prefetchRoute for branches', () => {
+  it.each(['https://github.com/O/R/branches', 'https://github.com/o/r/branches/stale?query=fix'])('starts the branch index for %s', (href) => {
+    const client = new QueryClient();
+    const keys: QueryKey[] = [];
+    vi.spyOn(client, 'prefetchQuery').mockImplementation(async (options) => void keys.push(options.queryKey));
+    const url = new URL(href);
+    prefetchRoute(client, matchRoute(url)!, url);
+    expect(keys).toContainEqual(branchIndexQuery('o', 'r').queryKey);
   });
 });

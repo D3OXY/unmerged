@@ -20,9 +20,9 @@ import { REPO_MUTATIONS, repoQuery, type Repo, type Subscription } from './query
 export const useRepo = (owner: string, name: string) => useQuery(repoQuery(owner, name));
 
 /** The tab a frame marks active: a repo route's view, or a page of ours under one of GitHub's tabs. */
-type FrameView = RepoView | 'actions';
+type FrameView = RepoView | 'actions' | 'branches';
 
-const LIST_TITLES: Partial<Record<FrameView, string>> = { issues: 'Issues', pulls: 'Pull requests', actions: 'Actions' };
+const LIST_TITLES: Partial<Record<FrameView, string>> = { issues: 'Issues', pulls: 'Pull requests', actions: 'Actions', branches: 'Branches' };
 
 /**
  * Frame for every repo view: breadcrumbs with Watch/Star/Fork, the repo's name, and tabs between views.
@@ -107,7 +107,7 @@ function RepoHeader({ repo }: { repo: Repo }) {
  */
 function RepoTabs({ repo, nwo, view }: { repo?: Repo; nwo: string; view: FrameView }) {
   const tabs: { label: string; href: string; icon: ReactNode; views?: FrameView[]; count?: number; show?: boolean }[] = [
-    { label: 'Code', href: `/${nwo}`, icon: <HugeiconsIcon icon={CodeIcon} />, views: ['code', 'commits'] },
+    { label: 'Code', href: `/${nwo}`, icon: <HugeiconsIcon icon={CodeIcon} />, views: ['code', 'commits', 'branches'] },
     { label: 'Issues', href: `/${nwo}/issues`, icon: <HugeiconsIcon icon={CircleDotIcon} />, views: ['issues'], count: repo?.issues.totalCount, show: !!repo?.hasIssuesEnabled },
     { label: 'Pull requests', href: `/${nwo}/pulls`, icon: <HugeiconsIcon icon={GitPullRequestIcon} />, views: ['pulls'], count: repo?.pullRequests.totalCount },
     { label: 'Discussions', href: `/${nwo}/discussions`, icon: <HugeiconsIcon icon={MessageMultiple02Icon} />, show: !!repo?.hasDiscussionsEnabled },

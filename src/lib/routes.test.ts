@@ -117,6 +117,15 @@ describe('matchRoute', () => {
     ['https://github.com/o/r/actions/runs/39012435752/usage', null],
     ['https://github.com/o/r/actions/runs', null],
     ['https://github.com/o/r/actions/workflows/ci.yml', null],
+
+    // Branches: the overview and GitHub's four lists; any other segment stays GitHub's
+    ['https://github.com/o/r/branches', { kind: 'branches', owner: 'o', repo: 'r', tab: 'overview' }],
+    ['https://github.com/o/r/branches?query=fix', { kind: 'branches', owner: 'o', repo: 'r', tab: 'overview' }],
+    ['https://github.com/o/r/branches/stale', { kind: 'branches', owner: 'o', repo: 'r', tab: 'stale' }],
+    ['https://github.com/o/r/branches/all', { kind: 'branches', owner: 'o', repo: 'r', tab: 'all' }],
+    ['https://github.com/o/r/branches/overview', null],
+    ['https://github.com/o/r/branches/all/more', null],
+
     // Compare: three dots split base from head; slashes stay in the ref, a fork's head keeps its owner
     ['https://github.com/o/r/compare', compare({})],
     ['https://github.com/o/r/compare?expand=1', compare({ expand: true })],
