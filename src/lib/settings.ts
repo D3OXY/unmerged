@@ -51,6 +51,11 @@ export type Theme = 'auto' | 'light' | 'dark';
 
 export const themeItem = storage.defineItem<Theme>('local:theme', { fallback: 'auto' });
 
+/** Text font of the github.com UI, as in Notion. Code stays monospace in all three. */
+export type Font = 'default' | 'serif' | 'mono';
+
+export const fontItem = storage.defineItem<Font>('local:font', { fallback: 'default' });
+
 /** Whether a theme resolves to dark right now. Outside github.com (the popup) "auto" is just the OS. */
 export function isDark(theme: Theme) {
   if (theme !== 'auto') return theme === 'dark';

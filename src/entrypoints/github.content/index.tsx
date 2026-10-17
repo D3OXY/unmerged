@@ -13,7 +13,7 @@ import { matchRoute, type Route } from '@/lib/routes';
 import { sessionLogin } from '@/lib/session';
 import { localCache, setPageAccount } from '@/lib/localCache';
 import { trimPersisted } from '@/lib/persist';
-import { accountItem, DEFAULT_SURFACES, isDark, surfaceOf, surfacesItem, themeItem, type Surfaces, type Theme } from '@/lib/settings';
+import { accountItem, DEFAULT_SURFACES, fontItem, isDark, surfaceOf, surfacesItem, themeItem, type Font, type Surfaces, type Theme } from '@/lib/settings';
 
 const OWNING = 'unmerged-owning';
 
@@ -27,6 +27,7 @@ const DOCUMENT_CSS = `
 
 // Mirrors of settings in github.com's localStorage, read synchronously before extension storage answers.
 const themeCache = localCache<Theme>('unmerged:theme');
+const fontCache = localCache<Font>('unmerged:font');
 const surfacesCache = localCache<Surfaces>('unmerged:surfaces');
 const TRIMMED_KEY = 'unmerged:trimmed-at';
 
@@ -59,6 +60,18 @@ export default defineContentScript({
     themeItem.getValue().then(setTheme);
     themeItem.watch(setTheme);
     ctx.addEventListener(matchMedia('(prefers-color-scheme: dark)'), 'change', applyTheme);
+
+    let font = fontCache.get() ?? 'default';
+    const applyFont = () => {
+      if (container) container.dataset.font = font;
+    };
+    const setFont = (value: Font) => {
+      font = value;
+      fontCache.set(value);
+      applyFont();
+    };
+    fontItem.getValue().then(setFont);
+    fontItem.watch(setFont);
 
     // Mirrored like the theme: the first decision below has to be right before extension storage answers.
     let surfaces: Surfaces = surfacesCache.get() ?? DEFAULT_SURFACES;
@@ -137,6 +150,7 @@ export default defineContentScript({
         container = element;
         container.classList.add('u-root');
         applyTheme();
+        applyFont();
         const root = createRoot(container);
         root.render(
           <QueryClientProvider client={queryClient}>

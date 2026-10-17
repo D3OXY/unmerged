@@ -23,7 +23,7 @@
   }
   body {
     margin: 0;
-    font-family: var(--font-sans);
+    font-family: var(--u-font);
     font-feature-settings: 'cv11', 'ss01';
     -webkit-font-smoothing: antialiased;
     background: var(--u-bg);

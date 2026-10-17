@@ -4,7 +4,7 @@ import { ArrowUpRight01Icon, Book02Icon, CheckListIcon, CircleDotIcon, ComputerI
 import { GitHubError, rest } from '@/github/client';
 import { cx } from '@/lib/cx';
 import { saveToken } from '@/lib/persist';
-import { NEW_TOKEN_URL, openSettingsPage, sidePanelItem, surfacesItem, themeItem, tokenItem, useStorageItem, type Surface, type Theme } from '@/lib/settings';
+import { fontItem, NEW_TOKEN_URL, openSettingsPage, sidePanelItem, surfacesItem, themeItem, tokenItem, useStorageItem, type Font, type Surface, type Theme } from '@/lib/settings';
 
 const SURFACES: Record<Surface, { label: string; path: string; icon: ReactNode }> = {
   home: { label: 'Home', path: 'github.com', icon: <HugeiconsIcon icon={Home01Icon} /> },
@@ -26,13 +26,20 @@ const THEMES: { value: Theme; label: string; icon: ReactNode }[] = [
   { value: 'dark', label: 'Dark', icon: <HugeiconsIcon icon={Moon02Icon} /> },
 ];
 
+const FONTS: { value: Font; label: string }[] = [
+  { value: 'default', label: 'Default' },
+  { value: 'serif', label: 'Serif' },
+  { value: 'mono', label: 'Mono' },
+];
+
 /**
- * Unmerged's settings: the connected account, theme, and which pages it takes over. Shown in the toolbar
+ * Unmerged's settings: the connected account, theme and font, and which pages it takes over. Shown in the toolbar
  * popup (and the options page, its copy in a tab) and in the in-page Settings dialog; every change applies to
  * open tabs at once. The token itself is only ever typed into the extension's pages, not into github.com.
  */
 export function SettingsPanel() {
   const theme = useStorageItem(themeItem);
+  const font = useStorageItem(fontItem);
   const token = useStorageItem(tokenItem);
   const surfaces = useStorageItem(surfacesItem);
   const sidePanel = useStorageItem(sidePanelItem);
@@ -42,7 +49,12 @@ export function SettingsPanel() {
     <>
     <Section>{token !== null && <Account token={token} />}</Section>
 
-    <Section title="Appearance">{theme && <ThemePicker theme={theme} />}</Section>
+    <Section title="Appearance">
+      <div className="flex flex-col gap-2">
+        {theme && <ThemePicker theme={theme} />}
+        {font && <FontPicker font={font} />}
+      </div>
+    </Section>
 
     <Section title="Lists">
       <div className="-mx-1.5 flex flex-col">
@@ -287,6 +299,32 @@ function ThemePicker({ theme }: { theme: Theme }) {
         >
           {icon}
           {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Notion's font picker: each option shows "Ag" in its own font. */
+function FontPicker({ font }: { font: Font }) {
+  return (
+    <div role="radiogroup" aria-label="Font" className="grid grid-cols-3 gap-2">
+      {FONTS.map(({ value, label }) => (
+        <button
+          key={value}
+          type="button"
+          role="radio"
+          aria-checked={font === value}
+          onClick={() => fontItem.setValue(value)}
+          className={cx(
+            'flex cursor-pointer flex-col items-center gap-0.5 rounded-lg border py-2 transition-colors',
+            font === value ? 'border-accent/60 bg-accent/10 text-fg' : 'border-line text-muted hover:bg-hover hover:text-fg',
+          )}
+        >
+          <span data-font={value} className="font-sans text-[22px] leading-tight">
+            Ag
+          </span>
+          <span className="text-[11.5px] font-medium">{label}</span>
         </button>
       ))}
     </div>
