@@ -1,11 +1,13 @@
-import type { MouseEvent } from 'react';
+import { useEffect, type MouseEvent } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowUpRight01Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
 import { isModifiedClick } from '@/lib/navigation';
+import { isVideoLink, playerUrl, type PlayerMessage } from '@/lib/player';
 import { createStore } from '@/lib/store';
 import { Overlay } from './Modal';
 
-type Media = { kind: 'image' | 'video'; src: string; caption: string; href: string };
+/** `player` is a linked video: `src` is the player page (src/lib/player.ts), `href` the video. */
+type Media = { kind: 'image' | 'video' | 'player'; src: string; caption: string; href: string };
 
 /** What the viewer shows; null while it's closed. */
 const viewedMedia = createStore<Media | null>(null);
@@ -13,17 +15,32 @@ const viewedMedia = createStore<Media | null>(null);
 /** An image or video from Markdown, as large as the window allows, over a dark page (like Discord's). */
 export function MediaViewer() {
   const media = viewedMedia.use();
+  useEffect(() => {
+    const origin = new URL(browser.runtime.getURL('/')).origin;
+    const onMessage = ({ origin: from, data }: MessageEvent<PlayerMessage>) => {
+      if (from !== origin) return;
+      if (data.type === 'close') return viewedMedia.set(null);
+      viewedMedia.set({ kind: 'player', src: playerUrl(data.src, data.title, { time: data.time }), caption: data.title, href: data.src });
+    };
+    addEventListener('message', onMessage);
+    return () => removeEventListener('message', onMessage);
+  }, []);
   if (!media) return null;
   const close = () => viewedMedia.set(null);
   // Images show at most their own size; videos (often small phone recordings) fill the window's height.
   const fit = 'max-h-[calc(100vh-112px)] max-w-[calc(100vw-64px)] rounded-lg shadow-2xl shadow-black/60';
 
   return (
-    <Overlay label={media.caption || (media.kind === 'video' ? 'Video' : 'Image')} onClose={close} className="items-center bg-black/85 p-8" panelClassName="flex animate-pop flex-col items-center gap-3">
-      {media.kind === 'video' ? (
-        <video src={media.src} controls autoPlay className={`${fit} h-[calc(100vh-112px)] bg-black`} />
-      ) : (
-        <img src={media.src} alt={media.caption} className={`${fit} object-contain`} />
+    <Overlay label={media.caption || (media.kind === 'image' ? 'Image' : 'Video')} onClose={close} className="items-center bg-black/85 p-8" panelClassName="flex animate-pop flex-col items-center gap-3">
+      {media.kind === 'image' && <img src={media.src} alt={media.caption} className={`${fit} object-contain`} />}
+      {media.kind === 'video' && <video src={media.src} controls autoPlay className={`${fit} h-[calc(100vh-112px)] bg-black`} />}
+      {media.kind === 'player' && (
+        <iframe
+          src={media.src}
+          title={media.caption || 'Video'}
+          allow="autoplay; fullscreen"
+          className={`${fit} aspect-video w-[min(calc(100vw-64px),calc((100vh-112px)*16/9))] bg-black`}
+        />
       )}
       <div className="flex max-w-[calc(100vw-64px)] items-center gap-3 text-[12.5px] text-white/60">
         {media.caption && <span className="truncate">{media.caption}</span>}
@@ -67,8 +84,21 @@ export function openMedia(event: MouseEvent) {
   viewedMedia.set(media);
 }
 
-/** Wraps each video under `root` in a frame with an expand button, for `openMedia` to catch. */
+/**
+ * Wraps each video under `root` in a frame with an expand button, for `openMedia` to catch, and puts a player
+ * under each link to a video file (below its paragraph, so the text reads as its title).
+ */
 export function frameVideos(root: HTMLElement) {
+  for (const link of root.querySelectorAll('a')) {
+    const url = URL.parse(link.href);
+    if (!url || !isVideoLink(url)) continue;
+    const player = document.createElement('iframe');
+    player.className = 'u-player';
+    player.title = link.textContent.trim() || 'Video';
+    player.allow = 'fullscreen';
+    player.src = playerUrl(url.href, player.title);
+    (link.closest('p') ?? link).after(player);
+  }
   for (const video of root.querySelectorAll('video')) {
     const frame = document.createElement('div');
     frame.className = 'u-video';

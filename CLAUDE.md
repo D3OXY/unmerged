@@ -57,6 +57,8 @@ on demand by `src/lib/diffs.ts`.
 - Don't put new API data in github.com's `localStorage`: GitHub's scripts and other extensions can read it.
   Use `persisted` instead.
 - Only GitHub-sanitized HTML or escaped Shiki output goes into `dangerouslySetInnerHTML`.
+- github.com's CSP blocks media from other hosts, so linked videos play in the extension's own page
+  (`src/entrypoints/player`, framed from `src/lib/player.ts`). It loads nothing until played; keep it that way.
 
 ## Code style
 

@@ -28,3 +28,18 @@ describe('mediaAt', () => {
     expect(clickOn(html, 'video')).toBeNull();
   });
 });
+
+describe('frameVideos', () => {
+  it('puts a player under a paragraph that links to a video file elsewhere', () => {
+    const root = document.createElement('div');
+    root.innerHTML = [
+      '<p>▶ <a href="https://files.example.com/f/1/demo.mp4?t=x">Recording</a></p>',
+      '<p><a href="https://github.com/o/r/blob/main/demo.mp4">demo.mp4</a> <a href="https://example.com/demo">page</a></p>',
+    ].join('');
+    frameVideos(root);
+    expect(root.querySelectorAll('iframe')).toHaveLength(1);
+    const player = root.querySelector('iframe')!;
+    expect(player.previousElementSibling).toBe(root.querySelector('p'));
+    expect(new URL(player.src).searchParams.get('src')).toBe('https://files.example.com/f/1/demo.mp4?t=x');
+  });
+});
