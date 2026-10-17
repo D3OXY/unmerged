@@ -8,9 +8,10 @@ import { RunPage } from '@/pages/actions/RunPage';
 import { CommitPage } from '@/pages/commit/CommitPage';
 import { HomePage } from '@/pages/home/HomePage';
 import { NotificationsPage } from '@/pages/notifications/NotificationsPage';
+import { OrgListPage } from '@/pages/org/OrgListPage';
+import { OwnerPage } from '@/pages/org/OrgPage';
 import { AchievementsPage } from '@/pages/profile/AchievementsPage';
 import { FollowsPage } from '@/pages/profile/FollowsPage';
-import { ProfilePage } from '@/pages/profile/ProfilePage';
 import { RepositoriesPage } from '@/pages/profile/RepositoriesPage';
 import { IssuePage } from '@/pages/issue/IssuePage';
 import { NewIssuePage } from '@/pages/issue/NewIssuePage';
@@ -43,6 +44,7 @@ export function App() {
       {route.kind === 'work' && <WorkListPage key={`${route.type}/${route.filter}`} type={route.type} filter={route.filter} peek={route.peek} />}
       {route.kind === 'notifications' && <NotificationsPage />}
       {route.kind === 'profile' && <ProfileRoute key={route.login} login={route.login} tab={route.tab} />}
+      {route.kind === 'org' && <OrgListPage key={route.login.toLowerCase()} login={route.login} tab={route.tab} />}
       {route.kind === 'pr' && <PrPage key={`${route.owner}/${route.repo}#${route.number}`} {...route} />}
       {route.kind === 'issue' && <IssuePage key={`${route.owner}/${route.repo}#${route.number}`} {...route} />}
       {route.kind === 'newIssue' && <NewIssuePage key={`${route.owner}/${route.repo}/new/${route.choose}${route.search}`.toLowerCase()} {...route} />}
@@ -103,7 +105,7 @@ function GitHubBanner() {
 }
 
 function ProfileRoute({ login, tab }: { login: string; tab: ProfileTab }) {
-  if (tab === 'overview') return <ProfilePage login={login} />;
+  if (tab === 'overview') return <OwnerPage login={login} />;
   if (tab === 'repositories') return <RepositoriesPage login={login} />;
   if (tab === 'achievements') return <AchievementsPage login={login} />;
   return <FollowsPage login={login} tab={tab} />;

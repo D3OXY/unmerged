@@ -41,14 +41,19 @@ type Filters = { q: string; type: RepoType; language: string; sort: Sort };
 
 const isKey = <T extends object>(map: T, key: string | null): key is Extract<keyof T, string> => key !== null && Object.hasOwn(map, key);
 
+// GitHub's organization pages turn `language=` into a `lang:` qualifier in `q` (redirecting to it on load).
+const LANG_QUALIFIER = /(?:^|\s)lang:(?:"([^"]+)"|(\S+))/i;
+
 function readFilters(): Filters {
   const params = new URL(location.href).searchParams;
   const type = params.get('type');
   const sort = params.get('sort');
+  const q = params.get('q') ?? '';
+  const [qualifier, quoted, bare] = q.match(LANG_QUALIFIER) ?? [];
   return {
-    q: params.get('q') ?? '',
+    q: qualifier ? q.replace(qualifier, '').trim() : q,
     type: isKey(TYPES, type) ? type : 'all',
-    language: params.get('language')?.toLowerCase() ?? '',
+    language: (params.get('language') ?? quoted ?? bare ?? '').toLowerCase(),
     sort: isKey(SORTS, sort) ? sort : 'updated',
   };
 }
@@ -63,19 +68,32 @@ function writeFilters({ q, type, language, sort }: Filters) {
   history.replaceState(history.state, '', url);
 }
 
-/**
- * Every repository the user owns, loaded in full (100 per request, in the background) so search,
- * type, language and sort all apply instantly on the client.
- */
+// Background loading stops here: a few orgs own thousands of repositories (Microsoft ~8,000), more than
+// one list should hold. The most recently pushed are kept, matching the default sort.
+const MAX_PAGES = 20;
+
 export function RepositoriesPage({ login }: { login: string }) {
+  return (
+    <ProfileFrame login={login} tab="repositories">
+      <RepositoryList login={login} />
+    </ProfileFrame>
+  );
+}
+
+/**
+ * Every repository a user or organization owns, loaded in full (100 per request, in the background, up to
+ * MAX_PAGES) so search, type, language and sort all apply instantly on the client.
+ */
+export function RepositoryList({ login }: { login: string }) {
   const queryClient = useQueryClient();
   const options = profileReposQuery(login);
   const query = useInfiniteQuery(options);
 
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = query;
+  const capped = hasNextPage && (query.data?.pages.length ?? 0) >= MAX_PAGES;
   useEffect(() => {
-    if (hasNextPage && !isFetchingNextPage) fetchNextPage();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+    if (hasNextPage && !capped && !isFetchingNextPage) fetchNextPage();
+  }, [hasNextPage, capped, isFetchingNextPage, fetchNextPage]);
 
   const [filters, setFilters] = useState(readFilters);
   const update = (changes: Partial<Filters>) => setFilters((f) => ({ ...f, ...changes }));
@@ -127,7 +145,7 @@ export function RepositoriesPage({ login }: { login: string }) {
   const languageName = languages.find(([key]) => key === filters.language)?.[1].name ?? filters.language;
 
   return (
-    <ProfileFrame login={login} tab="repositories">
+    <>
       <div className="mt-6 flex flex-wrap items-center gap-2">
         <label className="flex h-8 min-w-[220px] flex-1 items-center gap-2 rounded-lg border border-line bg-panel px-2.5 transition-colors focus-within:border-accent/60">
           <HugeiconsIcon icon={Search01Icon} className="size-3.5 shrink-0 text-subtle" />
@@ -187,7 +205,14 @@ export function RepositoriesPage({ login }: { login: string }) {
             Clear all
           </button>
         )}
-        {hasNextPage && (
+        {capped ? (
+          <a
+            href={`/search?type=repositories&q=${encodeURIComponent(`user:${login} ${filters.q}`.trim())}`}
+            className="ml-auto text-subtle hover:text-fg"
+          >
+            The {repos.length.toLocaleString()} most recently pushed · search all on GitHub
+          </a>
+        ) : hasNextPage && (
           <span className="ml-auto flex items-center gap-2 text-subtle">
             <span className="size-3 animate-spin rounded-full border-2 border-line-strong border-t-accent" />
             Loading {repos.length.toLocaleString()} of {total.toLocaleString()}
@@ -221,7 +246,7 @@ export function RepositoriesPage({ login }: { login: string }) {
           ))}
         </Panel>
       )}
-    </ProfileFrame>
+    </>
   );
 }
 

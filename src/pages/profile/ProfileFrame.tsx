@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Award01Icon, Book02Icon, BookOpen01Icon, StarIcon, UserGroupIcon, UserIcon } from '@hugeicons/core-free-icons';
@@ -25,6 +25,11 @@ export function ProfileFrame({ login, tab, children }: { login: string; tab: key
   const base = `/${user?.login ?? login}`;
 
   useTitle(`${title} · ${user?.login ?? login}`);
+
+  // Not a user: an organization, whose lists live under /orgs/ (GitHub redirects these tabs for orgs too).
+  useEffect(() => {
+    if (user === null) location.replace(tab === 'repositories' ? `/orgs/${login}/repositories` : `/${login}`);
+  }, [user, login, tab]);
 
   return (
     <Shell active={user?.isViewer ? 'profile' : undefined}>

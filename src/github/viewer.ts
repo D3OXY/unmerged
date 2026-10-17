@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { cachedQuery } from '@/lib/localCache';
-import { rememberOrgs } from '@/lib/orgs';
 import { gql } from './client';
 
 const VIEWER_QUERY = /* GraphQL */ `
@@ -23,9 +22,7 @@ export type Viewer = {
 const cache = cachedQuery<Viewer>('unmerged:viewer');
 
 async function fetchViewer() {
-  const { viewer } = await gql<{ viewer: Viewer }>(VIEWER_QUERY);
-  rememberOrgs(viewer.organizations.nodes.map((org) => org.login));
-  return viewer;
+  return (await gql<{ viewer: Viewer }>(VIEWER_QUERY)).viewer;
 }
 
 export function useViewer() {
