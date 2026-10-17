@@ -31,9 +31,9 @@ export function Sidebar() {
       </div>
 
       <div className="mt-3 flex h-8 items-center gap-2 rounded-lg border border-line bg-bg px-2.5 text-[12.5px] text-subtle">
-        <HugeiconsIcon icon={Search01Icon} className="size-3.5" />
-        Search or jump to…
-        <span className="ml-auto flex gap-0.5">
+        <HugeiconsIcon icon={Search01Icon} className="size-3.5 shrink-0" />
+        <span className="truncate">Search or jump to…</span>
+        <span className="ml-auto flex shrink-0 gap-0.5">
           <Kbd>⌘</Kbd>
           <Kbd>K</Kbd>
         </span>
