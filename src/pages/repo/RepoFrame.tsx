@@ -99,8 +99,8 @@ function RepoHeader({ repo }: { repo: Repo }) {
 
 /**
  * Code (with commits under it), Issues and Pull requests are ours; the other tabs link to GitHub's pages.
- * Optional tabs stay hidden until the repo loads. The list views get a New issue / New pull request link
- * to GitHub's form.
+ * Optional tabs stay hidden until the repo loads. The list views get a New issue link (Unmerged's page) or a
+ * New pull request link (GitHub's compare page).
  */
 function RepoTabs({ repo, nwo, view }: { repo?: Repo; nwo: string; view: RepoView }) {
   const tabs: { label: string; href: string; icon: ReactNode; views?: RepoView[]; count?: number; show?: boolean }[] = [

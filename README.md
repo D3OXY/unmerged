@@ -22,7 +22,7 @@
 | Pull request | `github.com/<owner>/<repo>/pull/<n>` plus `/commits`, `/checks`, `/files` | |
 | Commit | `github.com/<owner>/<repo>/commit/<sha>`, `…/pull/<n>/commits/<sha>` | `.patch` / `.diff` and the commit's checks page stay on GitHub |
 | Repository | `github.com/<owner>/<repo>`, `/tree/…`, `/blob/…`, `/commits/…`, `/issues`, `/pulls` (any `?q=` search) | Actions, Settings, etc. stay on GitHub |
-| Issue | `github.com/<owner>/<repo>/issues/<n>` | Sub-issues and projects are only shown on GitHub |
+| Issue | `github.com/<owner>/<repo>/issues/<n>`, `/issues/new` (template chooser, Markdown templates, `?title=`, `?body=`, `?labels=`, `?assignees=`) | Sub-issues and projects are only shown on GitHub; YAML issue forms (`?template=*.yml`) open GitHub's form |
 | Pull requests & issues | `github.com/pulls`, `/pulls/assigned`, `/issues`, … (any `?q=` search) | |
 | Notifications | `github.com/notifications` (inbox, unread, participating) | |
 
