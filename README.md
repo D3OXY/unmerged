@@ -34,8 +34,9 @@ Every other page is untouched. Each page can be switched off from the toolbar po
 or ⌘K) shows the stock page for the current URL with a pill to come back.
 
 In the issue and pull request lists, a row opens in a side panel next to the list (`?peek=<owner>/<repo>/issues/<n>`),
-so you can go from one to the next without losing your place. The panel's expand button opens the page full
-screen, Back closes it, and a new tab still gets the page itself. Turn it off under Lists in settings.
+so you can go from one to the next without losing your place. Double-clicking a row, or the panel's expand
+button, opens the page full screen; Back closes the panel, and a new tab still gets the page itself. Turn it off
+under Lists in settings.
 
 The theme follows GitHub's appearance setting by default; pick Light or Dark from the popup, the sidebar, or ⌘K.
 
