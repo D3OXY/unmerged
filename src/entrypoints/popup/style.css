@@ -13,6 +13,12 @@
   font-weight: 100 900;
 }
 
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/jetbrains-mono.woff2') format('woff2');
+  font-weight: 100 800;
+}
+
 body {
   width: 340px;
   margin: 0;

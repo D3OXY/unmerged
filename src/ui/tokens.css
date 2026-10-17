@@ -51,7 +51,7 @@
   --u-font: ui-serif, 'New York', 'Iowan Old Style', Charter, Georgia, Cambria, serif;
 }
 [data-font='mono'] {
-  --u-font: var(--font-mono);
+  --u-font: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 /* Text colors keep at least 4.5:1 (WCAG AA) against bg, panel and elevated in both themes; subtle is the floor. */

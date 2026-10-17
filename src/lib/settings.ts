@@ -51,7 +51,7 @@ export type Theme = 'auto' | 'light' | 'dark';
 
 export const themeItem = storage.defineItem<Theme>('local:theme', { fallback: 'auto' });
 
-/** Text font of the github.com UI, as in Notion. Code stays monospace in all three. */
+/** Text font of the github.com UI, as in Notion: Geist, the system serif, or JetBrains Mono. Code stays in Geist Mono. */
 export type Font = 'default' | 'serif' | 'mono';
 
 export const fontItem = storage.defineItem<Font>('local:font', { fallback: 'default' });

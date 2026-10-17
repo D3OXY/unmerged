@@ -40,7 +40,7 @@ button, opens the page full screen; Back closes the panel, and a new tab still g
 under Lists in settings.
 
 The theme follows GitHub's appearance setting by default; pick Light or Dark from the popup, the sidebar, or ⌘K.
-Under Appearance in settings, the text font can be Default (Geist), Serif or Mono, as in Notion.
+Under Appearance in settings, the text font can be Default (Geist), Serif or Mono (JetBrains Mono), as in Notion.
 
 ## Install (dev)
 
