@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { CircleDotIcon, Copy01Icon, FileSearchIcon, GitBranchIcon, GitPullRequestCreateIcon, GitPullRequestIcon, PinIcon, PinOffIcon, PlayIcon, PlusSignIcon, Tag01Icon } from '@hugeicons/core-free-icons';
 import { useRegisterCommands, type Command } from '@/app/commands';
 import { usePageHotkey } from '@/app/keyboard';
 import { copy } from '@/lib/clipboard';
+import { cx } from '@/lib/cx';
 import { loadDiffs } from '@/lib/diffs';
 import { navigate } from '@/lib/navigation';
 import { pin, unpin, useIsPinned } from '@/lib/pins';
@@ -94,9 +95,9 @@ export function RepoPage({ owner, repo: name, view, rest }: Props) {
 }
 
 /**
- * Branch picker, path and the code actions above `children`. With an `aside` (the root's sidebar), the actions
- * head a second column that sticks under the tab bar on wide screens; only the aside scrolls, so the Code menu
- * isn't clipped.
+ * Branch picker, path and the code actions above `children`. With an `aside` (the root's sidebar) it adds a
+ * second column that sticks under the tab bar on wide screens, headed by the actions. Only the aside scrolls, so
+ * the Code menu isn't clipped.
  */
 function Toolbar({ repo, gitRef, path, aside, children }: { repo: Repo; gitRef: string; path: string; aside?: ReactNode; children: ReactNode }) {
   const [owner, name] = repo.nameWithOwner.split('/') as [string, string];
@@ -124,9 +125,10 @@ function Toolbar({ repo, gitRef, path, aside, children }: { repo: Repo; gitRef: 
     [repo, openFinder, pinned],
   );
   useRegisterCommands('repo', commands);
+  const actionsInColumn = useWide() && !!aside;
 
   const actions = (
-    <div className="ml-auto flex items-center justify-end gap-2">
+    <div className={cx('flex items-center justify-end gap-2', !actionsInColumn && 'ml-auto')}>
       <button
         type="button"
         onClick={openFinder}
@@ -176,21 +178,20 @@ function Toolbar({ repo, gitRef, path, aside, children }: { repo: Repo; gitRef: 
           </button>
         </div>
       )}
-      {!aside && actions}
+      {!actionsInColumn && actions}
     </div>
   );
 
   return (
     <>
       {aside ? (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_296px] lg:gap-8">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_296px]">
           <div className="min-w-0">
             {bar}
             {children}
           </div>
-          {/* Below lg this column dissolves into the grid: actions first, the aside last. */}
-          <div className="contents lg:sticky lg:top-[108px] lg:flex lg:max-h-[calc(100vh-124px)] lg:flex-col lg:gap-4 lg:self-start">
-            <div className="max-lg:order-first">{actions}</div>
+          <div className="flex flex-col gap-4 lg:sticky lg:top-[108px] lg:max-h-[calc(100vh-124px)] lg:self-start">
+            {actionsInColumn && actions}
             {aside}
           </div>
         </div>
@@ -202,5 +203,19 @@ function Toolbar({ repo, gitRef, path, aside, children }: { repo: Repo; gitRef: 
       )}
       {finding && <FileFinder nameWithOwner={repo.nameWithOwner} gitRef={gitRef} onClose={() => setFinding(false)} />}
     </>
+  );
+}
+
+const WIDE = '(min-width: 64rem)'; // Tailwind's `lg`
+
+/** Whether the window is at least `lg` wide, following resizes. */
+function useWide() {
+  return useSyncExternalStore(
+    (onChange) => {
+      const query = matchMedia(WIDE);
+      query.addEventListener('change', onChange);
+      return () => query.removeEventListener('change', onChange);
+    },
+    () => matchMedia(WIDE).matches,
   );
 }
