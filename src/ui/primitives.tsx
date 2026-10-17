@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { cx } from '@/lib/cx';
+import { frameVideos, openMedia } from './MediaViewer';
 
 export function Avatar({ src, size = 20, className, square }: { src?: string | null; size?: number; className?: string; square?: boolean }) {
   return (
@@ -65,7 +66,10 @@ export function LanguageDot({ color }: { color: string | null }) {
   return <span className="size-2 shrink-0 rounded-full" style={{ background: color ?? 'var(--u-subtle)' }} />;
 }
 
-/** GitHub-rendered (already sanitized) HTML. */
+/** GitHub-rendered (already sanitized) HTML. Images and videos open in the media viewer. */
 export function Markdown({ html, className }: { html: string; className?: string }) {
-  return <div className={cx('u-markdown', className)} dangerouslySetInnerHTML={{ __html: html }} />;
+  const ref = useRef<HTMLDivElement>(null);
+  // React rewrites the HTML only when it changes, so the videos are framed once per version.
+  useLayoutEffect(() => frameVideos(ref.current!), [html]);
+  return <div ref={ref} className={cx('u-markdown', className)} onClick={openMedia} dangerouslySetInnerHTML={{ __html: html }} />;
 }

@@ -16,6 +16,7 @@ import { PrPage } from '@/pages/pr/PrPage';
 import { RepoListPage } from '@/pages/repo/RepoListPage';
 import { RepoPage } from '@/pages/repo/RepoPage';
 import { WorkListPage } from '@/pages/work/WorkListPage';
+import { MediaViewer } from '@/ui/MediaViewer';
 import { Toaster } from '@/ui/toast';
 import { CommandPalette } from './CommandPalette';
 import { SettingsDialog } from './SettingsDialog';
@@ -52,6 +53,7 @@ export function App() {
       <CommandPalette />
       <SettingsDialog />
       <ShortcutsDialog />
+      <MediaViewer />
       <Toaster />
       <GitHubBanner />
     </>
