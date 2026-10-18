@@ -6,6 +6,7 @@ import type { ProfileTab } from '@/lib/routes';
 import { formatTime } from '@/lib/time';
 import { RunPage } from '@/pages/actions/RunPage';
 import { BranchesPage } from '@/pages/branches/BranchesPage';
+import { ContributorsPage } from '@/pages/contributors/ContributorsPage';
 import { CommitPage } from '@/pages/commit/CommitPage';
 import { ComparePage } from '@/pages/compare/ComparePage';
 import { HomePage } from '@/pages/home/HomePage';
@@ -54,6 +55,7 @@ export function App() {
       {route.kind === 'newIssue' && <NewIssuePage key={`${route.owner}/${route.repo}/new/${route.choose}${route.search}`.toLowerCase()} {...route} />}
       {route.kind === 'commit' && <CommitPage key={`${route.owner}/${route.repo}@${route.sha}`.toLowerCase()} {...route} />}
       {route.kind === 'branches' && <BranchesPage key={`${route.owner}/${route.repo}/${route.tab}`.toLowerCase()} {...route} />}
+      {route.kind === 'contributors' && <ContributorsPage key={`${route.owner}/${route.repo}`.toLowerCase()} {...route} />}
       {route.kind === 'run' && <RunPage key={`${route.owner}/${route.repo}/${route.runId}/${route.attempt ?? ''}`.toLowerCase()} {...route} />}
       {route.kind === 'compare' && <ComparePage key={`${route.owner}/${route.repo}`.toLowerCase()} {...route} />}
       {route.kind === 'repo' &&

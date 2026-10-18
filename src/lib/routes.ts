@@ -67,7 +67,9 @@ export type Route =
   /** A GitHub Actions workflow run (…/actions/runs/<id>), one attempt at it (/attempts/<n>), or one job's logs (/job/<id>). */
   | { kind: 'run'; owner: string; repo: string; runId: number; attempt?: number; job?: number }
   /** A repo's branches: the overview (/branches) or one list (/branches/yours…). `?query=` is read by the page. */
-  | { kind: 'branches'; owner: string; repo: string; tab: BranchesTab };
+  | { kind: 'branches'; owner: string; repo: string; tab: BranchesTab }
+  /** A repo's contributors graph (/graphs/contributors). Other Insights graphs stay on GitHub. */
+  | { kind: 'contributors'; owner: string; repo: string };
 
 // Hex only, so /commit/<sha>.patch and .diff stay GitHub's.
 const isSha = (part: string | undefined): part is string => !!part && /^[0-9a-f]{7,40}$/i.test(part);
@@ -133,6 +135,7 @@ export function matchRoute(url: URL): Route | null {
     }
     if (third === 'branches' && parts.length === 3) return { kind: 'branches', owner: first, repo: second, tab: 'overview' };
     if (third === 'branches' && parts.length === 4 && fourth && isBranchesTab(fourth)) return { kind: 'branches', owner: first, repo: second, tab: fourth };
+    if (third === 'graphs' && fourth === 'contributors' && parts.length === 4) return { kind: 'contributors', owner: first, repo: second };
     if (third === 'compare') return compareRoute(first, second, parts.slice(3).join('/'), url);
     if (third === 'search' && parts.length === 3) return searchRoute(url, `${first}/${second}`);
   }

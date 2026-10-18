@@ -17,6 +17,7 @@ export function surfaceOf(route: Route): Surface {
     case 'org':
       return 'profile';
     case 'branches':
+    case 'contributors':
       return 'repo';
     default:
       return route.kind;

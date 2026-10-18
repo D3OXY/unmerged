@@ -137,8 +137,19 @@ export function churnFor(weeks: number[], stats: [number, number, number][]): Ch
   return { weeks, additions: weeks.map((week) => byWeek.get(week)?.[0] ?? 0), deletions: weeks.map((week) => byWeek.get(week)?.[1] ?? 0) };
 }
 
-/** GitHub answers 202 while it computes a repo's statistics; the query retries until they're ready. */
-class StatsPending extends Error {}
+/** GitHub answers 202 while it computes a repo's statistics; queries retry (`STATS_RETRY`) until they're ready. */
+export class StatsPending extends Error {}
+
+/** For a query of `fetchStats`: retries while GitHub is still counting, every 2 s for up to 16 s. */
+export const STATS_RETRY = { retry: (failures: number, error: Error) => error instanceof StatsPending && failures < 8, retryDelay: 2_000 };
+
+/** A repo's `/stats/<kind>` rows; none for an empty repo. Throws `StatsPending` while GitHub counts. */
+export async function fetchStats<T>(owner: string, name: string, kind: 'code_frequency' | 'contributors', signal: AbortSignal): Promise<T[]> {
+  // An empty body (204) is an empty repo; `{}` (202) means GitHub is still counting.
+  const stats = await rest<T[] | Record<string, never> | undefined>(`/repos/${owner}/${name}/stats/${kind}`, { signal });
+  if (stats && !Array.isArray(stats)) throw new StatsPending('GitHub is still counting');
+  return stats ?? [];
+}
 
 /** Lines added and deleted per week; null when GitHub won't count them (repos with 10,000 commits or more). */
 export const repoChurnQuery = (owner: string, name: string) =>
@@ -146,17 +157,13 @@ export const repoChurnQuery = (owner: string, name: string) =>
     queryKey: ['repo-churn', ...key(owner, name)],
     queryFn: async ({ signal }): Promise<Churn | null> => {
       try {
-        // An empty body (204) is an empty repo; `{}` (202) means GitHub is still counting.
-        const stats = await rest<[number, number, number][] | Record<string, never> | undefined>(`/repos/${owner}/${name}/stats/code_frequency`, { signal });
-        if (stats && !Array.isArray(stats)) throw new StatsPending('GitHub is still counting');
-        return churnFor(pulseWeeks(Date.now()), stats ?? []);
+        return churnFor(pulseWeeks(Date.now()), await fetchStats<[number, number, number]>(owner, name, 'code_frequency', signal));
       } catch (error) {
         if (error instanceof GitHubError && error.status === 422) return null;
         throw error;
       }
     },
-    retry: (failures, error) => error instanceof StatsPending && failures < 8,
-    retryDelay: 2_000,
+    ...STATS_RETRY,
     staleTime: 60 * 60_000,
     persister: persisted,
   });
