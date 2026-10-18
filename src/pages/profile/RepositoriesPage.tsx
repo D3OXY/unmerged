@@ -29,15 +29,17 @@ const TYPES = {
 type RepoType = keyof typeof TYPES;
 
 const SORTS = {
-  updated: { label: 'Last updated', compare: (a, b) => (b.pushedAt ?? '').localeCompare(a.pushedAt ?? '') },
+  updated: { label: 'Updated', compare: (a, b) => (b.pushedAt ?? '').localeCompare(a.pushedAt ?? '') },
   name: { label: 'Name', compare: (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) },
   stargazers: { label: 'Stars', compare: (a, b) => b.stargazerCount - a.stargazerCount },
 } satisfies Record<string, { label: string; compare: (a: Repo, b: Repo) => number }>;
 
 type Sort = keyof typeof SORTS;
 
-/** Filters as GitHub writes them in the URL (`q`, `type`, `language`, `sort`); defaults are left out. */
-type Filters = { q: string; type: RepoType; language: string; sort: Sort };
+/** Filters as GitHub writes them in the URL (`q`, `type`, `language`, `sort`), plus our own `topic`. Defaults are left out. */
+type Filters = { q: string; type: RepoType; language: string; topic: string; sort: Sort };
+
+const NO_FILTERS = { q: '', type: 'all', language: '', topic: '' } satisfies Partial<Filters>;
 
 const isKey = <T extends object>(map: T, key: string | null): key is Extract<keyof T, string> => key !== null && Object.hasOwn(map, key);
 
@@ -54,16 +56,18 @@ function readFilters(): Filters {
     q: qualifier ? q.replace(qualifier, '').trim() : q,
     type: isKey(TYPES, type) ? type : 'all',
     language: (params.get('language') ?? quoted ?? bare ?? '').toLowerCase(),
+    topic: params.get('topic') ?? '',
     sort: isKey(SORTS, sort) ? sort : 'updated',
   };
 }
 
-function writeFilters({ q, type, language, sort }: Filters) {
+function writeFilters({ q, type, language, topic, sort }: Filters) {
   const url = new URL(location.href);
   const set = (key: string, value: string, fallback: string) => (value === fallback ? url.searchParams.delete(key) : url.searchParams.set(key, value));
   set('q', q.trim(), '');
   set('type', type, 'all');
   set('language', language, '');
+  set('topic', topic, '');
   set('sort', sort, 'updated');
   history.replaceState(history.state, '', url);
 }
@@ -71,6 +75,9 @@ function writeFilters({ q, type, language, sort }: Filters) {
 // Background loading stops here: a few orgs own thousands of repositories (Microsoft ~8,000), more than
 // one list should hold. The most recently pushed are kept, matching the default sort.
 const MAX_PAGES = 20;
+
+// The rail lists the most used topics only; the search finds the rest.
+const MAX_TOPICS = 12;
 
 export function RepositoriesPage({ login }: { login: string }) {
   return (
@@ -82,7 +89,8 @@ export function RepositoriesPage({ login }: { login: string }) {
 
 /**
  * Every repository a user or organization owns, loaded in full (100 per request, in the background, up to
- * MAX_PAGES) so search, type, language and sort all apply instantly on the client.
+ * MAX_PAGES) so search, type, language, topic and sort all apply instantly on the client. With room, the
+ * filters are a rail of facets with counts beside the list; narrower, they're dropdowns above it.
  */
 export function RepositoryList({ login }: { login: string }) {
   const queryClient = useQueryClient();
@@ -116,6 +124,12 @@ export function RepositoryList({ login }: { login: string }) {
     return [...counts].sort(([, a], [, b]) => b.count - a.count);
   }, [repos]);
 
+  const topics = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const repo of repos) for (const { topic } of repo.repositoryTopics.nodes) counts.set(topic.name, (counts.get(topic.name) ?? 0) + 1);
+    return [...counts].sort(([, a], [, b]) => b - a).slice(0, MAX_TOPICS);
+  }, [repos]);
+
   const shown = useMemo(() => {
     const words = filters.q.toLowerCase().split(/\s+/).filter(Boolean);
     return repos
@@ -123,6 +137,7 @@ export function RepositoryList({ login }: { login: string }) {
         (repo) =>
           TYPES[filters.type].test(repo) &&
           (!filters.language || repo.primaryLanguage?.name.toLowerCase() === filters.language) &&
+          (!filters.topic || repo.repositoryTopics.nodes.some(({ topic }) => topic.name === filters.topic)) &&
           words.every((word) =>
             [repo.name, repo.description ?? '', ...repo.repositoryTopics.nodes.map((t) => t.topic.name)].join(' ').toLowerCase().includes(word),
           ),
@@ -130,7 +145,10 @@ export function RepositoryList({ login }: { login: string }) {
       .sort(SORTS[filters.sort].compare);
   }, [repos, filters]);
 
-  const countOf = (type: RepoType) => repos.filter(TYPES[type].test).length;
+  // Types with no repositories are left out, except All and the one in use.
+  const types = (Object.keys(TYPES) as RepoType[])
+    .map((key) => ({ key, label: TYPES[key].label, count: repos.filter(TYPES[key].test).length }))
+    .filter(({ key, count }) => key === 'all' || key === filters.type || count > 0);
 
   // A page fetch already in flight would land after the patch and undo it, so it's cancelled first (the
   // background loading above resumes on its own).
@@ -141,112 +159,193 @@ export function RepositoryList({ login }: { login: string }) {
     );
   };
 
-  const filtered = filters.q.trim() !== '' || filters.type !== 'all' || filters.language !== '';
+  const filtered = filters.q.trim() !== '' || filters.type !== 'all' || filters.language !== '' || filters.topic !== '';
   const languageName = languages.find(([key]) => key === filters.language)?.[1].name ?? filters.language;
+  const clear = () => update(NO_FILTERS);
 
   return (
-    <>
-      <div className="mt-6 flex flex-wrap items-center gap-2">
-        <label className="flex h-8 min-w-[220px] flex-1 items-center gap-2 rounded-lg border border-line bg-panel px-2.5 transition-colors focus-within:border-accent/60">
-          <HugeiconsIcon icon={Search01Icon} className="size-3.5 shrink-0 text-subtle" />
-          <input
-            ref={searchRef}
-            value={filters.q}
-            onChange={(e) => update({ q: e.target.value })}
-            onKeyDown={(e) => e.key === 'Escape' && (filters.q ? update({ q: '' }) : e.currentTarget.blur())}
-            placeholder="Find a repository…"
-            className="h-full min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-subtle"
-          />
-          {!filters.q && <Kbd>/</Kbd>}
-        </label>
-        <Filter
-          label="Type"
-          value={filters.type}
-          display={TYPES[filters.type].label}
-          options={(Object.keys(TYPES) as RepoType[])
-            .map((key) => ({ value: key, label: TYPES[key].label, count: countOf(key) }))
-            .filter(({ value, count }) => value === 'all' || value === filters.type || count > 0)
-            .map(({ count, ...option }) => ({ ...option, hint: `${count} repositories` }))}
-          onChange={(type) => update({ type })}
-        />
-        <Filter
-          label="Language"
-          value={filters.language || 'all'}
-          display={filters.language ? languageName : 'All'}
-          options={[
-            { value: 'all', label: 'All languages' },
-            ...languages.map(([key, { name, count }]) => ({ value: key, label: name, hint: `${count} repositories` })),
-          ]}
-          onChange={(language) => update({ language: language === 'all' ? '' : language })}
-        />
-        <Filter
-          label="Sort"
-          value={filters.sort}
-          display={SORTS[filters.sort].label}
-          options={(Object.keys(SORTS) as Sort[]).map((key) => ({ value: key, label: SORTS[key].label }))}
-          onChange={(sort) => update({ sort })}
-        />
-      </div>
-
-      <div className="mt-4 flex min-h-7 flex-wrap items-center gap-2 px-1 text-[12.5px] text-muted">
-        {query.isPending ? (
-          <Skeleton className="h-4 w-40" />
-        ) : (
-          <span>
-            <span className="font-medium text-fg tabular-nums">{shown.length.toLocaleString()}</span>
-            {filtered ? ` of ${total.toLocaleString()}` : ''} {total === 1 ? 'repository' : 'repositories'}
-          </span>
-        )}
-        {filters.type !== 'all' && <Chip onRemove={() => update({ type: 'all' })}>{TYPES[filters.type].label}</Chip>}
-        {filters.language && <Chip onRemove={() => update({ language: '' })}>{languageName}</Chip>}
-        {filters.q.trim() && <Chip onRemove={() => update({ q: '' })}>“{filters.q.trim()}”</Chip>}
-        {filtered && (
-          <button type="button" onClick={() => update({ q: '', type: 'all', language: '' })} className="cursor-pointer text-subtle hover:text-fg">
-            Clear all
-          </button>
-        )}
-        {capped ? (
-          <a
-            href={`/search?type=repositories&q=${encodeURIComponent(`user:${login} ${filters.q}`.trim())}`}
-            className="ml-auto text-subtle hover:text-fg"
-          >
-            The {repos.length.toLocaleString()} most recently pushed · search all on GitHub
-          </a>
-        ) : hasNextPage && (
-          <span className="ml-auto flex items-center gap-2 text-subtle">
-            <span className="size-3 animate-spin rounded-full border-2 border-line-strong border-t-accent" />
-            Loading {repos.length.toLocaleString()} of {total.toLocaleString()}
-          </span>
-        )}
-      </div>
-
-      {query.error ? (
-        <p className="py-10 text-danger">{query.error.message}</p>
-      ) : query.isPending ? (
-        <div className="mt-2 flex flex-col gap-2">
-          {Array.from({ length: 6 }, (_, i) => (
-            <Skeleton key={i} className="h-[92px] rounded-xl" />
+    <div className="mt-6 grid items-start gap-8 @3xl:grid-cols-[200px_minmax(0,1fr)]">
+      <aside className="hidden @3xl:sticky @3xl:top-[108px] @3xl:block @3xl:max-h-[calc(100vh-124px)] @3xl:overflow-y-auto">
+        <FacetGroup title="Type">
+          {types.map(({ key, label, count }) => (
+            <Facet key={key} active={filters.type === key} count={count} onClick={() => update({ type: filters.type === key && key !== 'all' ? 'all' : key })}>
+              {label}
+            </Facet>
           ))}
-        </div>
-      ) : (
-        <Panel className="mt-2 animate-enter overflow-hidden">
-          {shown.length === 0 &&
-            (filtered ? (
-              <Empty>
-                No repositories match.{' '}
-                <button type="button" onClick={() => update({ q: '', type: 'all', language: '' })} className="cursor-pointer text-accent hover:underline">
-                  Clear filters
-                </button>
-              </Empty>
-            ) : (
-              <Empty>No repositories yet.</Empty>
+        </FacetGroup>
+        {languages.length > 0 && (
+          <FacetGroup title="Language">
+            {languages.map(([key, { name, color, count }]) => (
+              <Facet key={key} active={filters.language === key} count={count} share={count / languages[0]![1].count} onClick={() => update({ language: filters.language === key ? '' : key })}>
+                <LanguageDot color={color} />
+                <span className="truncate">{name}</span>
+              </Facet>
             ))}
-          {shown.map((repo) => (
-            <RepoRow key={repo.id} repo={repo} onChange={(changes) => patchRepo(repo.id, changes)} />
-          ))}
-        </Panel>
+          </FacetGroup>
+        )}
+        {topics.length > 0 && (
+          <FacetGroup title="Topics">
+            <div className="flex flex-wrap gap-1.5 px-1.5">
+              {topics.map(([topic, count]) => (
+                <button
+                  key={topic}
+                  type="button"
+                  title={`${count} ${count === 1 ? 'repository' : 'repositories'}`}
+                  onClick={() => update({ topic: filters.topic === topic ? '' : topic })}
+                  className={cx(
+                    'h-6 cursor-pointer rounded-full border px-2.5 text-[11.5px] transition-colors',
+                    filters.topic === topic ? 'border-accent/45 bg-accent/10 font-medium text-accent' : 'border-line text-muted hover:border-line-strong hover:text-fg',
+                  )}
+                >
+                  {topic}
+                </button>
+              ))}
+            </div>
+          </FacetGroup>
+        )}
+      </aside>
+
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex h-8 min-w-[220px] flex-1 items-center gap-2 rounded-lg border border-line bg-panel px-2.5 transition-colors focus-within:border-accent/60">
+            <HugeiconsIcon icon={Search01Icon} className="size-3.5 shrink-0 text-subtle" />
+            <input
+              ref={searchRef}
+              value={filters.q}
+              onChange={(e) => update({ q: e.target.value })}
+              onKeyDown={(e) => e.key === 'Escape' && (filters.q ? update({ q: '' }) : e.currentTarget.blur())}
+              placeholder="Find a repository…"
+              className="h-full min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-subtle"
+            />
+            {!filters.q && <Kbd>/</Kbd>}
+          </label>
+          {/* The rail's filters, when there's no room for the rail. */}
+          <div className="flex gap-2 @3xl:hidden">
+            <Filter
+              label="Type"
+              value={filters.type}
+              display={TYPES[filters.type].label}
+              options={types.map(({ key, label, count }) => ({ value: key, label, hint: `${count} repositories` }))}
+              onChange={(type) => update({ type })}
+            />
+            <Filter
+              label="Language"
+              value={filters.language || 'all'}
+              display={filters.language ? languageName : 'All'}
+              options={[
+                { value: 'all', label: 'All languages' },
+                ...languages.map(([key, { name, count }]) => ({ value: key, label: name, hint: `${count} repositories` })),
+              ]}
+              onChange={(language) => update({ language: language === 'all' ? '' : language })}
+            />
+          </div>
+          <div className="flex rounded-lg border border-line bg-panel p-0.5">
+            {(Object.keys(SORTS) as Sort[]).map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => update({ sort: key })}
+                className={cx('flex h-6 cursor-pointer items-center rounded-md px-2.5 text-[12px]', filters.sort === key ? 'bg-elevated font-medium text-fg shadow-sm' : 'text-muted hover:text-fg')}
+              >
+                {SORTS[key].label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-3 flex min-h-7 flex-wrap items-center gap-2 px-1 text-[12.5px] text-muted">
+          {query.isPending ? (
+            <Skeleton className="h-4 w-40" />
+          ) : (
+            <span>
+              <span className="font-medium text-fg tabular-nums">{shown.length.toLocaleString()}</span>
+              {filtered ? ` of ${total.toLocaleString()}` : ''} {total === 1 ? 'repository' : 'repositories'}
+            </span>
+          )}
+          {filters.type !== 'all' && <Chip onRemove={() => update({ type: 'all' })}>{TYPES[filters.type].label}</Chip>}
+          {filters.language && <Chip onRemove={() => update({ language: '' })}>{languageName}</Chip>}
+          {filters.topic && <Chip onRemove={() => update({ topic: '' })}>#{filters.topic}</Chip>}
+          {filters.q.trim() && <Chip onRemove={() => update({ q: '' })}>“{filters.q.trim()}”</Chip>}
+          {filtered && (
+            <button type="button" onClick={clear} className="cursor-pointer text-subtle hover:text-fg">
+              Clear
+            </button>
+          )}
+          {capped ? (
+            <a
+              href={`/search?type=repositories&q=${encodeURIComponent(`user:${login} ${filters.q}`.trim())}`}
+              className="ml-auto text-subtle hover:text-fg"
+            >
+              The {repos.length.toLocaleString()} most recently pushed · search all on GitHub
+            </a>
+          ) : hasNextPage && (
+            <span className="ml-auto flex items-center gap-2 text-subtle">
+              <span className="size-3 animate-spin rounded-full border-2 border-line-strong border-t-accent" />
+              Loading {repos.length.toLocaleString()} of {total.toLocaleString()}
+            </span>
+          )}
+        </div>
+
+        {query.error ? (
+          <p className="py-10 text-danger">{query.error.message}</p>
+        ) : query.isPending ? (
+          <div className="mt-2 flex flex-col gap-2">
+            {Array.from({ length: 6 }, (_, i) => (
+              <Skeleton key={i} className="h-[78px] rounded-xl" />
+            ))}
+          </div>
+        ) : (
+          <Panel className="mt-2 animate-enter overflow-hidden">
+            {shown.length === 0 &&
+              (filtered ? (
+                <Empty>
+                  No repositories match.{' '}
+                  <button type="button" onClick={clear} className="cursor-pointer text-accent hover:underline">
+                    Clear filters
+                  </button>
+                </Empty>
+              ) : (
+                <Empty>No repositories yet.</Empty>
+              ))}
+            {shown.map((repo) => (
+              <RepoRow key={repo.id} repo={repo} onChange={(changes) => patchRepo(repo.id, changes)} />
+            ))}
+          </Panel>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FacetGroup({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="mb-5">
+      <h3 className="mb-1.5 px-2 text-[11px] font-semibold tracking-wide text-subtle uppercase">{title}</h3>
+      <div className="flex flex-col">{children}</div>
+    </section>
+  );
+}
+
+/** One filter value in the rail with its repository count; `share` (0–1) draws a bar against the largest. */
+function Facet({ active, count, share, onClick, children }: { active: boolean; count: number; share?: number; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={cx(
+        'flex h-7 cursor-pointer items-center gap-2 rounded-md px-2 text-left text-[12.5px] transition-colors',
+        active ? 'bg-elevated font-medium text-fg' : 'text-muted hover:bg-hover hover:text-fg',
       )}
-    </>
+    >
+      <span className="flex min-w-0 flex-1 items-center gap-2">{children}</span>
+      <span className="text-[12px] text-subtle tabular-nums">{count}</span>
+      {share !== undefined && (
+        <span className="h-[3px] w-8 shrink-0 overflow-hidden rounded-full bg-line">
+          <span className={cx('block h-full', active ? 'bg-accent' : 'bg-muted')} style={{ width: `${Math.max(share, 0.04) * 100}%` }} />
+        </span>
+      )}
+    </button>
   );
 }
 
@@ -291,10 +390,11 @@ function Chip({ children, onRemove }: { children: ReactNode; onRemove: () => voi
 }
 
 /**
- * A repository with its description, topics, stats and a star button. `onChange` patches the cached repo:
- * optimistically on star/unstar, and back if GitHub refuses. `fullName` shows "owner/name" (search results).
+ * A repository: name, one line of description, stats, and a star button that shows on hover (or once starred).
+ * `onChange` patches the cached repo: optimistically on star/unstar, and back if GitHub refuses. `fullName`
+ * shows "owner/name" and `topics` the repo's topics, for search results, which have no topic filter beside them.
  */
-export function RepoRow({ repo, onChange, fullName }: { repo: Repo; onChange: (changes: Partial<Repo>) => Promise<void>; fullName?: boolean }) {
+export function RepoRow({ repo, onChange, fullName, topics }: { repo: Repo; onChange: (changes: Partial<Repo>) => Promise<void>; fullName?: boolean; topics?: boolean }) {
   const star = useMutation({
     mutationFn: (starred: boolean) => gql(starred ? REPO_MUTATIONS.unstar : REPO_MUTATIONS.star, { id: repo.id }),
     onMutate: async (starred) => {
@@ -307,37 +407,31 @@ export function RepoRow({ repo, onChange, fullName }: { repo: Repo; onChange: (c
       if (before) onChange(before);
     },
   });
-  const topics = repo.repositoryTopics.nodes;
 
   return (
-    <div className="flex gap-4 border-b border-line px-4 py-4 last:border-b-0">
+    <div className="group flex items-start gap-4 border-b border-line px-4 py-3.5 transition-colors last:border-b-0 hover:bg-hover">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <a href={repo.url} data-row className="truncate rounded text-[14.5px] font-semibold hover:underline focus:outline-none focus-visible:underline">
+          <a
+            href={repo.url}
+            data-row
+            className={cx('truncate rounded text-[14px] font-semibold hover:underline focus:outline-none focus-visible:underline', repo.isArchived && 'text-muted')}
+          >
             {fullName ? repo.nameWithOwner : repo.name}
           </a>
           {repo.isPrivate && (
-            <Pill>
-              <HugeiconsIcon icon={SquareLock02Icon} className="size-2.5" />
-              Private
-            </Pill>
+            <span title="Private" className="flex text-subtle">
+              <HugeiconsIcon icon={SquareLock02Icon} className="size-3" />
+            </span>
           )}
           {repo.isArchived && <Pill className="border-warning/40 text-warning">Archived</Pill>}
           {repo.isTemplate && <Pill>Template</Pill>}
           {repo.isMirror && <Pill>Mirror</Pill>}
         </div>
-        {repo.parent && (
-          <div className="mt-0.5 text-[12px] text-subtle">
-            Forked from{' '}
-            <a href={`/${repo.parent.nameWithOwner}`} className="hover:text-fg hover:underline">
-              {repo.parent.nameWithOwner}
-            </a>
-          </div>
-        )}
-        {repo.description && <p className="mt-1 line-clamp-2 max-w-[720px] text-[13px] leading-snug text-muted">{repo.description}</p>}
-        {topics.length > 0 && (
+        {repo.description && <p className="mt-0.5 truncate text-[13px] text-muted">{repo.description}</p>}
+        {topics && repo.repositoryTopics.nodes.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {topics.map(({ topic }) => (
+            {repo.repositoryTopics.nodes.map(({ topic }) => (
               <a
                 key={topic.name}
                 href={`/topics/${topic.name}`}
@@ -348,7 +442,7 @@ export function RepoRow({ repo, onChange, fullName }: { repo: Repo; onChange: (c
             ))}
           </div>
         )}
-        <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-subtle [&_svg]:size-3">
+        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-subtle [&_svg]:size-3">
           {repo.primaryLanguage && (
             <span className="flex items-center gap-1.5">
               <LanguageDot color={repo.primaryLanguage.color} />
@@ -367,6 +461,12 @@ export function RepoRow({ repo, onChange, fullName }: { repo: Repo; onChange: (c
               {formatCount(repo.forkCount)}
             </a>
           )}
+          {repo.parent && (
+            <a href={`/${repo.parent.nameWithOwner}`} className="flex min-w-0 items-center gap-1 hover:text-fg">
+              <HugeiconsIcon icon={GitForkIcon} />
+              <span className="truncate">Fork of {repo.parent.nameWithOwner}</span>
+            </a>
+          )}
           {repo.licenseInfo && repo.licenseInfo.spdxId !== 'NOASSERTION' && (
             <span className="flex items-center gap-1" title={repo.licenseInfo.name}>
               <HugeiconsIcon icon={JusticeScale01Icon} />
@@ -376,16 +476,15 @@ export function RepoRow({ repo, onChange, fullName }: { repo: Repo; onChange: (c
           {repo.pushedAt && <span>Updated {timeAgo(repo.pushedAt)}</span>}
         </div>
       </div>
-      <div className="shrink-0">
-        <Button
-          size="sm"
-          variant={repo.viewerHasStarred ? 'secondary' : 'ghost'}
-          icon={<HugeiconsIcon icon={StarIcon} className={cx('size-3.5', repo.viewerHasStarred && 'fill-warning text-warning')} />}
-          onClick={() => star.mutate(repo.viewerHasStarred)}
-        >
-          {repo.viewerHasStarred ? 'Starred' : 'Star'}
-        </Button>
-      </div>
+      <Button
+        size="sm"
+        variant="secondary"
+        className={cx(!repo.viewerHasStarred && 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100')}
+        icon={<HugeiconsIcon icon={StarIcon} className={cx('size-3.5', repo.viewerHasStarred && 'fill-warning text-warning')} />}
+        onClick={() => star.mutate(repo.viewerHasStarred)}
+      >
+        {repo.viewerHasStarred ? 'Starred' : 'Star'}
+      </Button>
     </div>
   );
 }

@@ -201,7 +201,7 @@ function RepoResults({ q, sort }: { q: string; sort: string }) {
   const patch = usePatch(options.queryKey);
   return (
     <Results query={query} total={query.data?.pages[0]?.total}>
-      {query.data?.pages.flatMap((page) => page.items).map((repo) => <RepoRow key={repo.id} repo={repo} fullName onChange={(changes) => patch(repo.id, changes)} />)}
+      {query.data?.pages.flatMap((page) => page.items).map((repo) => <RepoRow key={repo.id} repo={repo} fullName topics onChange={(changes) => patch(repo.id, changes)} />)}
     </Results>
   );
 }

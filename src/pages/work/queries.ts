@@ -1,7 +1,8 @@
 import { infiniteQueryOptions, queryOptions, type QueryClient } from '@tanstack/react-query';
 import { gql } from '@/github/client';
+import type { Actor } from '@/github/types';
 import { persisted } from '@/lib/persist';
-import type { WorkFilter } from '@/lib/routes';
+import type { Peek, WorkFilter } from '@/lib/routes';
 import { ISSUE_ROW_FIELDS, PR_ROW_FIELDS, type IssueRowData, type PrRowData } from '@/ui/WorkRow';
 
 export type WorkType = 'pr' | 'issue';
@@ -63,29 +64,73 @@ export const withQualifier = (q: string, name: Qualifier, token: string) => {
   return squash(name === 'state' ? `${token} ${rest}` : `${rest} ${token}`);
 };
 
+/** The orders a list offers, as GitHub's `sort:` values. */
+export const SORTS = {
+  'updated-desc': 'Recently updated',
+  'created-desc': 'Newest',
+  'created-asc': 'Oldest',
+  'comments-desc': 'Most commented',
+} as const;
+export type Sort = keyof typeof SORTS;
+
+const isSort = (value: string): value is Sort => Object.hasOwn(SORTS, value);
+/** The order `q` asks for. Search without a sort qualifier returns newest first. */
+export const sortOf = (q: string): Sort => {
+  const sort = qualifierOf(q, 'sort').slice('sort:'.length);
+  return isSort(sort) ? sort : 'created-desc';
+};
+
+/** Whether `item` is the pull request or issue `peek` opens. */
+export const isPeek = (item: { number: number; repository: { nameWithOwner: string } }, peek: Peek | undefined) =>
+  !!peek && item.number === peek.number && item.repository.nameWithOwner.toLowerCase() === `${peek.owner}/${peek.repo}`.toLowerCase();
+
 const scoped = (q: string, repo?: string) => (repo ? `${q} repo:${repo}` : q);
 
+// Beyond the shared row fragments, the lists show diff size, reviewers, creation time and the repo's owner.
 const LIST_QUERY = /* GraphQL */ `
   query WorkList($q: String!, $after: String) {
     results: search(type: ISSUE, query: $q, first: 50, after: $after) {
       issueCount
       pageInfo { hasNextPage endCursor }
-      nodes { __typename ...PrRow ...IssueRow }
+      nodes {
+        __typename ...PrRow ...IssueRow
+        ... on PullRequest {
+          createdAt additions deletions
+          repository { owner { avatarUrl } }
+          latestOpinionatedReviews(first: 3) { nodes { author { login avatarUrl } } }
+          reviewRequests(first: 3) { nodes { requestedReviewer { ... on User { login avatarUrl } ... on Team { name avatarUrl } } } }
+        }
+        ... on Issue { createdAt repository { owner { avatarUrl } } }
+      }
     }
   }
   ${PR_ROW_FIELDS}
   ${ISSUE_ROW_FIELDS}
 `;
 
-type Item = ({ __typename: 'PullRequest' } & PrRowData) | ({ __typename: 'Issue' } & IssueRowData);
+type ListFields = { createdAt: string; repository: { nameWithOwner: string; owner: { avatarUrl: string } } };
+
+export type PrItem = { __typename: 'PullRequest' } & PrRowData &
+  ListFields & {
+    additions: number;
+    deletions: number;
+    latestOpinionatedReviews: { nodes: { author: Actor }[] };
+    // A user or a team; bots and mannequins come back empty.
+    reviewRequests: { nodes: { requestedReviewer: { login?: string; name?: string; avatarUrl?: string } | null }[] };
+  };
+type IssueItem = { __typename: 'Issue' } & IssueRowData & ListFields;
+/** A list result: a search can mix pull requests and issues whatever the page is for. */
+export type WorkItem = PrItem | IssueItem;
+
 export type ListPage = {
-  results: { issueCount: number; pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: Item[] };
+  results: { issueCount: number; pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: WorkItem[] };
 };
 
 /** One search, 50 results a page. `repo` ("owner/name") scopes the search without being part of `q`, as on GitHub. */
 export const workListQuery = (q: string, repo?: string) =>
   infiniteQueryOptions({
-    queryKey: ['work', repo?.toLowerCase(), q],
+    // Stored results paint before the request returns, so the key changes whenever their shape does.
+    queryKey: ['work-list', repo?.toLowerCase(), q],
     queryFn: ({ pageParam }) => gql<ListPage>(LIST_QUERY, { q: scoped(q, repo), after: pageParam }),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => (last.results.pageInfo.hasNextPage ? last.results.pageInfo.endCursor : null),

@@ -99,7 +99,7 @@ function GeneralPage() {
               onClick={() => sidePanelItem.setValue(!sidePanel)}
               icon={<HugeiconsIcon icon={LayoutRightIcon} />}
               label="Open in a side panel"
-              path="Issues and pull requests open beside the list"
+              path="Pull requests open beside the list (issues always do)"
             />
           )}
         </div>
