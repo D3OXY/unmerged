@@ -38,7 +38,7 @@ and with the privacy policy at https://unmerged.deoxy.dev/privacy (`site/src/rou
 >
 > Not affiliated with GitHub. Source code: https://github.com/D3OXY/unmerged
 
-**Homepage:** https://unmerged.deoxy.dev · **Support:** https://github.com/D3OXY/unmerged/issues ·
+**Homepage:** https://unmerged.deoxy.dev · **Support:** https://unmerged.deoxy.dev/support (hello@deoxy.dev) ·
 **Privacy policy:** https://unmerged.deoxy.dev/privacy
 
 ## Chrome Web Store

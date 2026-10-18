@@ -1,7 +1,6 @@
-import type { ReactNode } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
-import { Logo } from '../components/ui';
-import { REPO_URL } from '../site';
+import { DocPage, Lede, Section } from '../components/doc';
+import { SUPPORT_EMAIL } from '../site';
 
 // The privacy policy the extension stores link to. Keep it true to what the extension does.
 export const Route = createFileRoute('/privacy')({
@@ -11,17 +10,11 @@ export const Route = createFileRoute('/privacy')({
 
 function Privacy() {
   return (
-    <div className="mx-auto max-w-[680px] px-6 pt-10 pb-24">
-      <a href="/" className="flex w-fit items-center gap-2 text-[15px] font-semibold tracking-tight">
-        <Logo />
-        Unmerged
-      </a>
-      <h1 className="mt-16 text-[34px] leading-[1.1] font-semibold tracking-[-0.03em]">Privacy policy</h1>
-      <p className="mt-3 text-[13px] text-subtle">Last updated October 18, 2026</p>
-      <p className="mt-8 text-[15px] leading-relaxed text-muted">
+    <DocPage title="Privacy policy" updated="October 18, 2026">
+      <Lede>
         Unmerged is a browser extension that re-skins github.com. It has no server, no accounts, no analytics and no
         crash reporting. Its developer never receives any of your data, and nothing is sold or shared.
-      </p>
+      </Lede>
 
       <Section title="What Unmerged stores">
         <p>Everything stays in your browser:</p>
@@ -89,19 +82,9 @@ function Privacy() {
       <Section title="Changes and contact">
         <p>
           If this policy changes, the new version appears on this page with a new date. Questions go to{' '}
-          <a href={`${REPO_URL}/issues`}>the issue tracker</a>. Unmerged is not affiliated with GitHub.
+          <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>. Unmerged is not affiliated with GitHub.
         </p>
       </Section>
-    </div>
-  );
-}
-
-/** A heading and its prose; lists, links and code inside are styled here. */
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="mt-12 space-y-4 text-[15px] leading-relaxed text-muted [&_a]:text-fg [&_a]:underline [&_a]:underline-offset-2 [&_b]:font-medium [&_b]:text-fg [&_code]:font-mono [&_code]:text-[13px] [&_code]:text-fg/90 [&_ul]:list-disc [&_ul]:space-y-3 [&_ul]:pl-5">
-      <h2 className="text-[19px] font-semibold tracking-tight text-fg">{title}</h2>
-      {children}
-    </section>
+    </DocPage>
   );
 }
