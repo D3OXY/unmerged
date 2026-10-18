@@ -20,9 +20,9 @@ import { REPO_MUTATIONS, repoQuery, type Repo, type Subscription } from './query
 export const useRepo = (owner: string, name: string) => useQuery(repoQuery(owner, name));
 
 /** The tab a frame marks active: a repo route's view, or a page of ours under one of GitHub's tabs. */
-type FrameView = RepoView | 'actions' | 'branches';
+type FrameView = RepoView | 'actions' | 'branches' | 'contributors';
 
-const LIST_TITLES: Partial<Record<FrameView, string>> = { issues: 'Issues', pulls: 'Pull requests', actions: 'Actions', branches: 'Branches' };
+const LIST_TITLES: Partial<Record<FrameView, string>> = { issues: 'Issues', pulls: 'Pull requests', actions: 'Actions', branches: 'Branches', contributors: 'Contributors' };
 
 /**
  * Frame for every repo view: breadcrumbs with Watch/Star/Fork, the repo's name, and tabs between views.
@@ -101,7 +101,8 @@ function RepoHeader({ repo }: { repo: Repo }) {
 }
 
 /**
- * Code (with commits under it), Issues and Pull requests are ours; the other tabs link to GitHub's pages.
+ * Code (with commits and branches under it), Issues and Pull requests are ours, and so are the contributors under
+ * Insights; the other tabs link to GitHub's pages.
  * Optional tabs stay hidden until the repo loads. The list views get a New issue link (Unmerged's page) or a
  * New pull request link (GitHub's compare page).
  */
@@ -113,7 +114,7 @@ function RepoTabs({ repo, nwo, view }: { repo?: Repo; nwo: string; view: FrameVi
     { label: 'Discussions', href: `/${nwo}/discussions`, icon: <HugeiconsIcon icon={MessageMultiple02Icon} />, show: !!repo?.hasDiscussionsEnabled },
     { label: 'Actions', href: `/${nwo}/actions`, icon: <HugeiconsIcon icon={PlayIcon} />, views: ['actions'] },
     { label: 'Wiki', href: `/${nwo}/wiki`, icon: <HugeiconsIcon icon={BookOpen01Icon} />, show: !!repo?.hasWikiEnabled },
-    { label: 'Insights', href: `/${nwo}/pulse`, icon: <HugeiconsIcon icon={Analytics01Icon} /> },
+    { label: 'Insights', href: `/${nwo}/pulse`, icon: <HugeiconsIcon icon={Analytics01Icon} />, views: ['contributors'] },
     { label: 'Settings', href: `/${nwo}/settings`, icon: <HugeiconsIcon icon={Settings02Icon} />, show: !!repo?.viewerCanAdminister },
   ];
   const create =

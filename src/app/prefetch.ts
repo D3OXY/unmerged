@@ -5,6 +5,7 @@ import { prefetchBranches } from '@/pages/branches/query';
 import type { Route } from '@/lib/routes';
 import { prefetchCommit } from '@/pages/commit/query';
 import { prefetchCompare } from '@/pages/compare/query';
+import { contributorsQuery } from '@/pages/contributors/query';
 import { prefetchHome } from '@/pages/home/queries';
 import { newIssueQuery } from '@/pages/issue/newIssue';
 import { issueQuery } from '@/pages/issue/query';
@@ -88,6 +89,10 @@ export function prefetchRoute(client: QueryClient, route: Route, url: URL) {
       return;
     case 'branches':
       prefetchBranches(client, route.owner, route.repo);
+      return;
+    case 'contributors':
+      client.prefetchQuery(repoQuery(route.owner, route.repo));
+      client.prefetchQuery(contributorsQuery(route.owner, route.repo));
       return;
     case 'compare':
       prefetchCompare(client, route);

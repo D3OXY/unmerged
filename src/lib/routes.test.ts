@@ -126,6 +126,11 @@ describe('matchRoute', () => {
     ['https://github.com/o/r/branches/overview', null],
     ['https://github.com/o/r/branches/all/more', null],
 
+    // Contributors is the one Insights graph we own
+    ['https://github.com/o/r/graphs/contributors', { kind: 'contributors', owner: 'o', repo: 'r' }],
+    ['https://github.com/o/r/graphs/commit-activity', null],
+    ['https://github.com/o/r/graphs/contributors/more', null],
+
     // Compare: three dots split base from head; slashes stay in the ref, a fork's head keeps its owner
     ['https://github.com/o/r/compare', compare({})],
     ['https://github.com/o/r/compare?expand=1', compare({ expand: true })],

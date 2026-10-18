@@ -26,6 +26,7 @@
 | Compare & new pull request | `github.com/<owner>/<repo>/compare`, `…/compare/<base>...<head>` (a fork's head as `<user>:<branch>`), `?expand=1` | Two-dot (`..`) comparisons, `.patch` / `.diff` and a base in another repo stay on GitHub |
 | Repository | `github.com/<owner>/<repo>`, `/tree/…`, `/blob/…`, `/commits/…`, `/issues`, `/pulls` (any `?q=` search) | Actions, Settings, etc. stay on GitHub |
 | Branches | `github.com/<owner>/<repo>/branches` plus `/yours`, `/active`, `/stale`, `/all` (`?query=` search) | Rename and branch rules stay on GitHub; past 3,000 branches only the first 3,000 GitHub lists are sorted |
+| Contributors | `github.com/<owner>/<repo>/graphs/contributors`, private repos included (GitHub's page needs a paid plan for those) | Other Insights pages stay on GitHub; GitHub counts only the 100 authors with the most commits |
 | Issue | `github.com/<owner>/<repo>/issues/<n>`, `/issues/new` (template chooser, Markdown templates, `?title=`, `?body=`, `?labels=`, `?assignees=`) | Sub-issues and projects are only shown on GitHub; YAML issue forms (`?template=*.yml`) open GitHub's form |
 | Pull requests & issues | `github.com/pulls`, `/pulls/assigned`, `/issues`, … (any `?q=` search) | |
 | Notifications | `github.com/notifications` (inbox, unread, participating) | |
