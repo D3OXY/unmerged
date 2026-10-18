@@ -397,8 +397,8 @@ function Privacy() {
           The only requests that carry it go to GitHub's API. It is never in the page, a URL or github.com's storage.
         </Fact>
         <Fact icon={DatabaseIcon} title="Cache stays local">
-          Cached results sit in extension storage per account, expire after 7 days, and are never written where
-          GitHub's scripts can read them.
+          Cached results sit in extension storage per account and expire after 7 days. Only your profile and recent
+          repository names are also kept on github.com, so the sidebar draws instantly.
         </Fact>
       </div>
     </Section>
@@ -489,6 +489,7 @@ function Footer() {
       </span>
       <span>Not affiliated with GitHub.</span>
       <span className="flex gap-5 sm:ml-auto">
+        <a href="/privacy" className="transition-colors hover:text-fg">Privacy policy</a>
         <a href={REPO_URL} className="transition-colors hover:text-fg">Source</a>
         <a href="https://deoxy.dev" className="transition-colors hover:text-fg">Made by DEOXY</a>
       </span>

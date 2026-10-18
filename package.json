@@ -10,6 +10,7 @@
     "build": "wxt build",
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
+    "zip:firefox": "wxt zip -b firefox",
     "release:prepare": "node scripts/release/prepare.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
