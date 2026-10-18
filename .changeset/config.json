@@ -1,0 +1,16 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@4.0.0/schema.json",
+  "changelog": "../scripts/release/changelog.mjs",
+  "commit": false,
+  "format": false,
+  "fixed": [],
+  "linked": [],
+  "access": "restricted",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": ["site"],
+  "privatePackages": {
+    "version": true,
+    "tag": false
+  }
+}

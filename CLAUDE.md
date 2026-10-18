@@ -6,11 +6,19 @@ TypeScript 7, pnpm. README.md explains the user-facing behaviour; this file cove
 ## Commands
 
 - `pnpm install` first: it runs `wxt prepare`, which generates `.wxt/tsconfig.json` (our tsconfig extends it).
-- `pnpm check` before a PR: typecheck, tests, lint, Chrome build, site build. CI runs it plus `pnpm build:firefox`.
+- `pnpm check` before a PR: changeset check, typecheck, tests, lint, Chrome build, site build. CI runs it plus `pnpm build:firefox`.
 - `pnpm test` (Vitest with WXT's plugin and happy-dom; tests sit next to the code as `*.test.ts`), `pnpm lint`
   (ESLint: Hooks rules and typescript-eslint's recommended set; no formatter), `pnpm typecheck`.
 - `typescript` in package.json is an alias for the TypeScript 6 API package, which typescript-eslint needs;
   `tsc` itself is TypeScript 7 (`@typescript/native`). Don't "fix" the alias.
+
+## Changesets and releases
+
+- Add a changeset (`.changeset/README.md`) only when a user could notice the change. Skip it for dependency
+  updates, CI, refactors, tests, tooling and type-only work. One plain line from the user's point of view,
+  `[New|Improved|Fixed][Area] Summary.`, patch only; no file paths or internal names.
+- `.github/workflows/release.yml` turns pending changesets into a draft `d3oxy/release` PR via
+  `scripts/release/prepare.ts`. The version lives only in the root `package.json`; WXT puts it in the manifest.
 
 ## Website (`site/`)
 

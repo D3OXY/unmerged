@@ -1,0 +1,87 @@
+# Runs after Check passes on main. Pending changesets create or refresh one draft d3oxy/release pull
+# request that bumps the version and writes CHANGELOG.md; merging it records the release. Store
+# delivery (Chrome Web Store, Firefox Add-ons) will join this workflow once that version reaches main.
+name: Release
+
+on:
+  workflow_run:
+    workflows: [Check]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  prepare:
+    name: Create or refresh d3oxy/release
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Detect pending changesets
+        id: pending
+        env:
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          git fetch origin main
+          if [ "$RELEASE_SHA" != "$(git rev-parse origin/main)" ]; then
+            echo "A newer main commit superseded $RELEASE_SHA; its Check run will refresh the release pull request."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          elif find .changeset -maxdepth 1 -name '*.md' ! -name README.md -print -quit | grep -q .; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: pnpm/action-setup@v6
+        if: steps.pending.outputs.present == 'true'
+        with:
+          version: 12
+      - uses: actions/setup-node@v7
+        if: steps.pending.outputs.present == 'true'
+        with:
+          node-version: 24
+          cache: pnpm
+      - if: steps.pending.outputs.present == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare release
+        if: steps.pending.outputs.present == 'true'
+        run: pnpm release:prepare
+
+      - name: Push d3oxy/release
+        if: steps.pending.outputs.present == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin d3oxy/release:refs/remotes/origin/d3oxy/release || true
+          git switch -C d3oxy/release
+          git add --all
+          git commit -m "Release Unmerged $(node -p "require('./package.json').version")"
+          git push --force-with-lease origin d3oxy/release
+
+      # Pull requests opened with GITHUB_TOKEN don't trigger Check; marking the draft ready does.
+      - name: Create or refresh release pull request
+        if: steps.pending.outputs.present == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITLE="Release Unmerged $(node -p "require('./package.json').version")"
+          BODY="Generated release. Merging records the version and CHANGELOG.md. Mark it ready for review to run Check."
+          OPEN_PR="$(gh pr list --base main --head d3oxy/release --state open --json number --jq '.[0].number // empty')"
+          if [ -n "$OPEN_PR" ]; then
+            gh pr edit "$OPEN_PR" --title "$TITLE" --body "$BODY"
+          else
+            gh pr create --base main --head d3oxy/release --draft --title "$TITLE" --body "$BODY"
+          fi

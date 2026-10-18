@@ -59,7 +59,9 @@ The token is only ever typed into the extension's own page, never into github.co
 `pnpm dev` runs WXT with hot reload in a separate browser profile. `pnpm build:firefox` builds for Firefox.
 
 `pnpm check` runs everything CI runs except the Firefox build: `pnpm typecheck`, `pnpm test` (Vitest),
-`pnpm lint` (ESLint), `pnpm build`, and the website's typecheck and build.
+`pnpm lint` (ESLint), `pnpm build`, the website's typecheck and build, and a check of pending
+[changesets](.changeset/README.md). User-visible changes get a changeset; releases and `CHANGELOG.md` are
+generated from them.
 
 ## Website
 
