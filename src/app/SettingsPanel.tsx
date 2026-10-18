@@ -5,6 +5,7 @@ import { GitHubError, rest } from '@/github/client';
 import { cx } from '@/lib/cx';
 import { saveToken } from '@/lib/persist';
 import { appearanceItem, customThemesItem, DEFAULT_PRIVACY, fontItem, NEW_TOKEN_URL, openSettingsPage, privacyItem, repoPulseItem, sidePanelItem, slideToMergeItem, surfacesItem, themeIdItem, tokenItem, useStorageItem, type Appearance, type Blur, type Font, type Surface } from '@/lib/settings';
+import { Switch } from '@/ui/Switch';
 import { ThemePicker } from './ThemePicker';
 
 const SURFACES: Record<Surface, { label: string; path: string; icon: ReactNode }> = {
@@ -219,7 +220,7 @@ function ToggleRow({ on, disabled, onClick, icon, label, path }: { on: boolean; 
       aria-checked={on}
       disabled={disabled}
       onClick={onClick}
-      className="flex h-11 cursor-pointer items-center gap-3 rounded-lg px-1.5 text-left transition-[background-color,opacity] hover:bg-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+      className="group flex h-11 cursor-pointer items-center gap-3 rounded-lg px-1.5 text-left transition-[background-color,opacity] hover:bg-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
     >
       <span
         className={cx(
@@ -456,18 +457,5 @@ function FontPicker({ font }: { font: Font }) {
         </button>
       ))}
     </div>
-  );
-}
-
-function Switch({ on }: { on: boolean }) {
-  return (
-    <span className={cx('relative h-[18px] w-[30px] shrink-0 rounded-full transition-colors', on ? 'bg-accent' : 'bg-line-strong')}>
-      <span
-        className={cx(
-          'absolute top-[2px] left-[2px] size-[14px] rounded-full bg-white shadow-sm transition-transform duration-200 ease-out motion-reduce:transition-none',
-          on && 'translate-x-3',
-        )}
-      />
-    </span>
   );
 }
