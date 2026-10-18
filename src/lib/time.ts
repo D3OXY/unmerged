@@ -29,6 +29,13 @@ export const formatMonthYear = (iso: string) => monthYear.format(new Date(iso));
 const compact = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
 export const formatCount = (n: number) => compact.format(n);
 
+/** "812 B", "4.2 KB", "13.0 MB": a file's size. */
+export function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
 const clock = new Intl.DateTimeFormat('en', { timeStyle: 'short' });
 /** "3:42 PM", from ms since the epoch. */
 export const formatTime = (ms: number) => clock.format(ms);

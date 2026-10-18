@@ -12,6 +12,7 @@ import { issueQuery } from '@/pages/issue/query';
 import { notificationsQuery, viewOf } from '@/pages/notifications/queries';
 import { orgPeopleQuery, orgQuery, orgReadmeQuery, orgWorkQuery } from '@/pages/org/queries';
 import { prefetchPr } from '@/pages/pr/query';
+import { prefetchReleases } from '@/pages/releases/query';
 import {
   followsQuery,
   profileActivityQuery,
@@ -97,6 +98,10 @@ export function prefetchRoute(client: QueryClient, route: Route, url: URL) {
     case 'contributors':
       client.prefetchQuery(repoQuery(route.owner, route.repo));
       client.prefetchQuery(contributorsQuery(route.owner, route.repo));
+      return;
+    case 'releases':
+    case 'release':
+      prefetchReleases(client, route);
       return;
     case 'compare':
       prefetchCompare(client, route);

@@ -15,7 +15,7 @@
 
 ## What it covers
 
-Home, profiles, organizations, repositories (files, commits, branches, contributors), pull requests, commits,
+Home, profiles, organizations, repositories (files, commits, branches, releases and tags, contributors), pull requests, commits,
 compare and new pull request, Actions (workflow runs and job logs), issues, your pull request and issue lists,
 notifications and search.
 Every other page stays GitHub's own.

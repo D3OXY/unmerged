@@ -9,6 +9,7 @@ import { cx } from '@/lib/cx';
 import { loadDiffs } from '@/lib/diffs';
 import { useIsDark } from '@/lib/settings';
 import { onNavigate } from '@/lib/navigation';
+import { formatBytes } from '@/lib/time';
 import { Markdown, Panel, Skeleton } from '@/ui/primitives';
 import { LoadError } from './LoadError';
 import { CommitBar } from './TreeView';
@@ -194,10 +195,4 @@ function Action({ href, icon, label }: { href: string; icon: ReactNode; label: s
       {label}
     </a>
   );
-}
-
-function formatBytes(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
