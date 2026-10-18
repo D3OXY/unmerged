@@ -52,6 +52,9 @@ export const sidePanelItem = storage.defineItem<boolean>('local:sidePanel', { fa
 /** Whether a repository's front page shows its last 12 weeks of activity (RepoPulse) above the files. */
 export const repoPulseItem = storage.defineItem<boolean>('local:repoPulse', { fallback: true });
 
+/** Whether a pull request that can merge now shows Slide to merge in the bottom-right corner, on every tab. */
+export const slideToMergeItem = storage.defineItem<boolean>('local:slideToMerge', { fallback: true });
+
 /** Light or dark. "auto" follows GitHub's own appearance setting, then the OS. Stored under its old name. */
 export type Appearance = 'auto' | 'light' | 'dark';
 

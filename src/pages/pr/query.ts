@@ -3,6 +3,7 @@ import { gql, rest } from '@/github/client';
 import type { Actor, CheckState, IssueState, IssueStateReason, Label, PrState, ReviewDecision } from '@/github/types';
 import { persisted } from '@/lib/persist';
 import type { PrTab } from '@/lib/routes';
+import type { Permission } from '@/pages/repo/query';
 import { summarizeChecks } from './checks';
 import type { PrFile } from './files/FileDiff';
 
@@ -36,7 +37,7 @@ export const PR_QUERY = /* GraphQL */ `
     repository(owner: $owner, name: $repo) {
       nameWithOwner
       mergeCommitAllowed squashMergeAllowed rebaseMergeAllowed autoMergeAllowed
-      viewerDefaultMergeMethod
+      viewerDefaultMergeMethod viewerPermission
       pullRequest(number: $number) {
         id number title url state isDraft createdAt mergedAt closedAt bodyHTML body ${REACTIONS}
         author { login avatarUrl }
@@ -315,6 +316,8 @@ export type PrData = {
     rebaseMergeAllowed: boolean;
     autoMergeAllowed: boolean;
     viewerDefaultMergeMethod: MergeMethod;
+    /** Missing from a result stored before it was asked for. */
+    viewerPermission?: Permission | null;
     pullRequest: PullRequest | null;
   } | null;
 };
