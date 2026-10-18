@@ -1,6 +1,8 @@
 /** Where the site is served; canonical and social URLs, and the sitemap, are built from it. */
 export const SITE_URL = 'https://unmerged.deoxy.dev';
 export const REPO_URL = 'https://github.com/D3OXY/unmerged';
+/** Where users write for help; the support page and the privacy policy show it. */
+export const SUPPORT_EMAIL = 'hello@deoxy.dev';
 /** Prefilled classic token with the scopes the extension asks for (same link as the README). */
 export const TOKEN_URL =
   'https://github.com/settings/tokens/new?description=Unmerged&scopes=repo,read:org,read:user,user:follow,notifications';

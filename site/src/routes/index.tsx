@@ -489,6 +489,7 @@ function Footer() {
       </span>
       <span>Not affiliated with GitHub.</span>
       <span className="flex gap-5 sm:ml-auto">
+        <a href="/support" className="transition-colors hover:text-fg">Support</a>
         <a href="/privacy" className="transition-colors hover:text-fg">Privacy policy</a>
         <a href={REPO_URL} className="transition-colors hover:text-fg">Source</a>
         <a href="https://deoxy.dev" className="transition-colors hover:text-fg">Made by DEOXY</a>
