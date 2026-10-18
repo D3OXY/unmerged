@@ -16,7 +16,8 @@
 ## What it covers
 
 Home, profiles, organizations, repositories (files, commits, branches, contributors), pull requests, commits,
-compare and new pull request, workflow runs, issues, your pull request and issue lists, notifications and search.
+compare and new pull request, Actions (workflow runs and job logs), issues, your pull request and issue lists,
+notifications and search.
 Every other page stays GitHub's own.
 
 Switch any page off from the toolbar popup. **Classic** (sidebar or ⌘K) shows GitHub's page for the current URL,

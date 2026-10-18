@@ -4,6 +4,7 @@ import { tokenItem, useStorageItem } from '@/lib/settings';
 import { leaveClassic } from '@/lib/classic';
 import type { ProfileTab } from '@/lib/routes';
 import { formatTime } from '@/lib/time';
+import { ActionsPage } from '@/pages/actions/ActionsPage';
 import { RunPage } from '@/pages/actions/RunPage';
 import { BranchesPage } from '@/pages/branches/BranchesPage';
 import { ContributorsPage } from '@/pages/contributors/ContributorsPage';
@@ -56,6 +57,7 @@ export function App() {
       {route.kind === 'commit' && <CommitPage key={`${route.owner}/${route.repo}@${route.sha}`.toLowerCase()} {...route} />}
       {route.kind === 'branches' && <BranchesPage key={`${route.owner}/${route.repo}/${route.tab}`.toLowerCase()} {...route} />}
       {route.kind === 'contributors' && <ContributorsPage key={`${route.owner}/${route.repo}`.toLowerCase()} {...route} />}
+      {route.kind === 'actions' && <ActionsPage key={`${route.owner}/${route.repo}/${route.workflow ?? ''}`.toLowerCase()} {...route} />}
       {route.kind === 'run' && <RunPage key={`${route.owner}/${route.repo}/${route.runId}/${route.attempt ?? ''}`.toLowerCase()} {...route} />}
       {route.kind === 'compare' && <ComparePage key={`${route.owner}/${route.repo}`.toLowerCase()} {...route} />}
       {route.kind === 'repo' &&

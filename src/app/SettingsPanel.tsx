@@ -18,7 +18,7 @@ const SURFACES: Record<Surface, { label: string; path: string; icon: ReactNode }
   repo: { label: 'Repositories', path: 'github.com/<owner>/<repo>, /issues, /pulls, /branches, /graphs/contributors', icon: <HugeiconsIcon icon={Book02Icon} /> },
   work: { label: 'Pull request & issue lists', path: 'github.com/pulls, /issues', icon: <HugeiconsIcon icon={CheckListIcon} /> },
   notifications: { label: 'Notifications', path: 'github.com/notifications', icon: <HugeiconsIcon icon={Notification03Icon} /> },
-  run: { label: 'Workflow runs', path: '…/actions/runs/<id>, …/job/<id>', icon: <HugeiconsIcon icon={PlayIcon} /> },
+  run: { label: 'Actions', path: '…/actions, …/actions/runs/<id>, …/job/<id>', icon: <HugeiconsIcon icon={PlayIcon} /> },
   search: { label: 'Search', path: 'github.com/search, …/<repo>/search', icon: <HugeiconsIcon icon={Search01Icon} /> },
 };
 

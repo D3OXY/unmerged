@@ -1,6 +1,7 @@
 import { QueryClient, type QueryKey } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import { matchRoute } from '@/lib/routes';
+import { runsQuery } from '@/pages/actions/query';
 import { branchIndexQuery } from '@/pages/branches/query';
 import { codeSearchQuery, repoSearchQuery, workSearchQuery } from '@/pages/search/queries';
 import { defaultQuery, repoListQuery, workListQuery, workQueryOf } from '@/pages/work/queries';
@@ -51,5 +52,18 @@ describe('prefetchRoute for branches', () => {
     const url = new URL(href);
     prefetchRoute(client, matchRoute(url)!, url);
     expect(keys).toContainEqual(branchIndexQuery('o', 'r').queryKey);
+  });
+});
+
+// The Actions page builds its runs query from the route and `?query=`; prefetch must land on the same key, and
+// skip runs it can't ask for yet (a dynamic workflow's id) or at all (words the API can't filter by).
+describe('prefetchRoute for Actions', () => {
+  it.each<[string, QueryKey[]]>([
+    ['https://github.com/O/R/actions', [runsQuery('o', 'r', undefined, {}).queryKey]],
+    ['https://github.com/o/r/actions/workflows/ci.yml?query=is:failure+branch:main', [runsQuery('o', 'r', 'ci.yml', { status: 'failure', branch: 'main' }).queryKey]],
+    ['https://github.com/o/r/actions/workflows/pages/pages-build-deployment', []],
+    ['https://github.com/o/r/actions?query=flaky', []],
+  ])('starts the page’s runs for %s', (href, keys) => {
+    expect(prefetchedListKeys(href)).toEqual(keys);
   });
 });

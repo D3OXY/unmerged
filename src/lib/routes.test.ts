@@ -74,7 +74,6 @@ describe('matchRoute', () => {
     ['https://github.com/o/r/commits/main/src', repo('commits', ['main', 'src'])],
     ['https://github.com/o/r/issues', repo('issues')],
     ['https://github.com/o/r/pulls?q=is:closed', repo('pulls')],
-    ['https://github.com/o/r/actions', null],
     ['https://github.com/Owner/Repo', { kind: 'repo', owner: 'Owner', repo: 'Repo', view: 'code', rest: [] }],
 
     // Pull requests and their tab aliases
@@ -107,7 +106,15 @@ describe('matchRoute', () => {
     ['https://github.com/o/r/commit/main', null],
     ['https://github.com/o/r/pull/12/commits/abc123', null],
 
-    // Workflow runs, their attempts and jobs; the Actions list, workflows and other run views stay GitHub's
+    // The Actions list, one workflow's runs (a dynamic workflow's in two segments), workflow runs, their attempts
+    // and jobs; badges, settings and other run views stay GitHub's
+    ['https://github.com/o/r/actions', { kind: 'actions', owner: 'o', repo: 'r' }],
+    ['https://github.com/o/r/actions?query=is:failure', { kind: 'actions', owner: 'o', repo: 'r' }],
+    ['https://github.com/o/r/actions/workflows/ci.yml', { kind: 'actions', owner: 'o', repo: 'r', workflow: 'ci.yml' }],
+    ['https://github.com/o/r/actions/workflows/pages/pages-build-deployment', { kind: 'actions', owner: 'o', repo: 'r', workflow: 'pages/pages-build-deployment' }],
+    ['https://github.com/o/r/actions/workflows/ci.yml/badge.svg', null],
+    ['https://github.com/o/r/actions/workflows', null],
+    ['https://github.com/o/r/actions/new', null],
     ['https://github.com/o/r/actions/runs/39012435752', { kind: 'run', owner: 'o', repo: 'r', runId: 39012435752 }],
     ['https://github.com/o/r/actions/runs/39012435752/job/117337646346', { kind: 'run', owner: 'o', repo: 'r', runId: 39012435752, job: 117337646346 }],
     ['https://github.com/o/r/actions/runs/39012435752/attempts/2', { kind: 'run', owner: 'o', repo: 'r', runId: 39012435752, attempt: 2 }],
@@ -116,7 +123,6 @@ describe('matchRoute', () => {
     ['https://github.com/o/r/actions/runs/39012435752/workflow', null],
     ['https://github.com/o/r/actions/runs/39012435752/usage', null],
     ['https://github.com/o/r/actions/runs', null],
-    ['https://github.com/o/r/actions/workflows/ci.yml', null],
 
     // Branches: the overview and GitHub's four lists; any other segment stays GitHub's
     ['https://github.com/o/r/branches', { kind: 'branches', owner: 'o', repo: 'r', tab: 'overview' }],
