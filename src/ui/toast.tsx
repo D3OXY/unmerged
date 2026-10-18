@@ -1,5 +1,6 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { AlertCircleIcon, CheckmarkCircle02Icon } from '@hugeicons/core-free-icons';
+import { cx } from '@/lib/cx';
 import { createStore } from '@/lib/store';
 
 /** A button on a toast; it dismisses the toast once run. */
@@ -9,6 +10,9 @@ type Toast = { id: number; tone: 'success' | 'error'; message: string; action?: 
 
 const toasts = createStore<Toast[]>([]);
 let nextId = 0;
+
+/** True while Slide to merge holds the bottom-right corner, so toasts show above it. */
+export const toastsLifted = createStore(false);
 
 const dismiss = (id: number) => toasts.set(toasts.get().filter((x) => x.id !== id));
 
@@ -27,8 +31,9 @@ export const toast = {
 
 export function Toaster() {
   const list = toasts.use();
+  const lifted = toastsLifted.use();
   return (
-    <div className="pointer-events-none fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
+    <div className={cx('pointer-events-none fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2 transition-transform duration-300', lifted && '-translate-y-14')}>
       {list.map(({ id, tone, message, action }) => (
         <div
           key={id}

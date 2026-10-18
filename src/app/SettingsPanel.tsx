@@ -1,10 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
-import { Analytics01Icon, ArrowUpRight01Icon, Book02Icon, CheckListIcon, CircleDotIcon, ComputerIcon, DashboardSquare01Icon, GitCommitHorizontalIcon, GitCompareIcon, GitPullRequestIcon, Home01Icon, Key01Icon, LayoutRightIcon, Moon02Icon, Notification03Icon, PaintBoardIcon, PlayIcon, Search01Icon, Settings02Icon, Sun03Icon, UserIcon } from '@hugeicons/core-free-icons';
+import { Analytics01Icon, ArrowUpRight01Icon, Book02Icon, CheckListIcon, CircleDotIcon, ComputerIcon, DashboardSquare01Icon, GitCommitHorizontalIcon, GitCompareIcon, GitMergeIcon, GitPullRequestIcon, Home01Icon, Key01Icon, LayoutRightIcon, Moon02Icon, Notification03Icon, PaintBoardIcon, PlayIcon, Search01Icon, Settings02Icon, Sun03Icon, UserIcon } from '@hugeicons/core-free-icons';
 import { GitHubError, rest } from '@/github/client';
 import { cx } from '@/lib/cx';
 import { saveToken } from '@/lib/persist';
-import { appearanceItem, customThemesItem, fontItem, NEW_TOKEN_URL, openSettingsPage, repoPulseItem, sidePanelItem, surfacesItem, themeIdItem, tokenItem, useStorageItem, type Appearance, type Font, type Surface } from '@/lib/settings';
+import { appearanceItem, customThemesItem, fontItem, NEW_TOKEN_URL, openSettingsPage, repoPulseItem, sidePanelItem, slideToMergeItem, surfacesItem, themeIdItem, tokenItem, useStorageItem, type Appearance, type Font, type Surface } from '@/lib/settings';
 import { ThemePicker } from './ThemePicker';
 
 const SURFACES: Record<Surface, { label: string; path: string; icon: ReactNode }> = {
@@ -88,6 +88,7 @@ function GeneralPage() {
   const token = useStorageItem(tokenItem);
   const sidePanel = useStorageItem(sidePanelItem);
   const repoPulse = useStorageItem(repoPulseItem);
+  const slideToMerge = useStorageItem(slideToMergeItem);
 
   return (
     <>
@@ -101,6 +102,19 @@ function GeneralPage() {
               icon={<HugeiconsIcon icon={LayoutRightIcon} />}
               label="Open in a side panel"
               path="Pull requests open beside the list (issues always do)"
+            />
+          )}
+        </div>
+      </Section>
+      <Section title="Pull requests">
+        <div className="-mx-1.5 flex flex-col">
+          {slideToMerge !== null && (
+            <ToggleRow
+              on={slideToMerge}
+              onClick={() => slideToMergeItem.setValue(!slideToMerge)}
+              icon={<HugeiconsIcon icon={GitMergeIcon} />}
+              label="Slide to merge"
+              path="A slider in the bottom-right corner merges a ready pull request from any tab"
             />
           )}
         </div>

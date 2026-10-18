@@ -21,6 +21,7 @@ import { CommitsTab } from './CommitsTab';
 import { ConversationTab } from './ConversationTab';
 import { FilesTab } from './files/FilesTab';
 import { EDIT_MUTATIONS, isSettling, MUTATIONS, prFilesQuery, prQuery, prStatusQuery, prViewedQuery, type PullRequest, type Repo } from './query';
+import { SlideToMerge } from './SlideToMerge';
 import { usePrMutation } from './usePrMutation';
 
 type Props = { owner: string; repo: string; number: number; tab: PrTab };
@@ -99,7 +100,13 @@ export function PrContent({ owner, repo, number, tab, panel }: Props & { panel?:
     );
   }
   if (isPending || !pr || !data.repository) return <PrSkeleton />;
-  return <PrView pr={pr} repo={data.repository} tab={tab} queryKey={queryKey} poll={poll} panel={panel} />;
+  return (
+    <>
+      <PrView pr={pr} repo={data.repository} tab={tab} queryKey={queryKey} poll={poll} panel={panel} />
+      {/* Outside PrView: its entry animation's transform would pin the fixed slider to the page, not the window. */}
+      <SlideToMerge pr={pr} repo={data.repository} queryKey={queryKey} />
+    </>
+  );
 }
 
 type StatusPoll = ReturnType<typeof useStatusPoll>;
