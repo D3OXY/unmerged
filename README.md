@@ -57,6 +57,7 @@ Click Unmerged's toolbar icon (or **Open Unmerged settings** on github.com) and 
 The token is only ever typed into the extension's own page, never into github.com.
 
 `pnpm dev` runs WXT with hot reload in a separate browser profile. `pnpm build:firefox` builds for Firefox.
+`pnpm zip` and `pnpm zip:firefox` make the store packages; [STORE.md](STORE.md) has what goes in each store's form.
 
 `pnpm check` runs everything CI runs except the Firefox build: `pnpm typecheck`, `pnpm test` (Vitest),
 `pnpm lint` (ESLint), `pnpm build`, the website's typecheck and build, and a check of pending

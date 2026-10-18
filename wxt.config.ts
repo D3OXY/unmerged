@@ -27,12 +27,19 @@ export default defineConfig({
       }
     },
   },
-  manifest: {
+  manifest: ({ browser }) => ({
     name: 'Unmerged',
     description: 'GitHub, as if it never got acquired. A calmer, faster skin for github.com.',
     // unlimitedStorage: the query cache (src/lib/persist.ts) can outgrow the default 10 MB; it shows no prompt.
     permissions: ['storage', 'unlimitedStorage'],
     host_permissions: ['https://api.github.com/*'],
     web_accessible_resources: [{ resources: ['fonts/*', 'diffs.js', 'shiki-langs/*', 'player.html'], matches: ['https://github.com/*'] }],
-  },
+    // Firefox only: Chrome warns about the key. The id can't change once the add-on is on AMO. Data only goes
+    // to GitHub, so the extension declares no data collection; 140 is the first Firefox that asks.
+    ...(browser === 'firefox' && {
+      browser_specific_settings: {
+        gecko: { id: 'unmerged@deoxy.dev', strict_min_version: '140.0', data_collection_permissions: { required: ['none'] } },
+      },
+    }),
+  }),
 });

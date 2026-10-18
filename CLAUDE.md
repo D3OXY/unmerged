@@ -29,6 +29,8 @@ TypeScript 7, pnpm. README.md explains the user-facing behaviour; this file cove
   the site too. Its hero product shot copies the PR page's markup, and draws its diffs at build time
   (`site/prerenderDiffs.ts`) with the extension's renderer settings (`src/lib/diffLook.ts`): keep it in step
   with the UI. Its copy makes claims about the extension (pages, speed numbers, privacy): keep them true.
+- `/privacy` (`site/src/routes/privacy.tsx`) is the privacy policy the extension stores link to, and `STORE.md`
+  holds the store forms' answers. A change to what the extension stores, sends or asks permission for updates both.
 - The root tsconfig excludes `site/`; the site has its own tsconfig. ESLint covers both.
 
 ## Content-script lifecycle (`src/entrypoints/github.content/index.tsx`)
