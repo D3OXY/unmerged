@@ -23,7 +23,7 @@ export const SEARCH_TYPES = ['repositories', 'code', 'issues', 'pullrequests', '
 export type SearchType = (typeof SEARCH_TYPES)[number];
 const isSearchType = (type: string): type is SearchType => (SEARCH_TYPES as readonly string[]).includes(type);
 
-/** Repo views Unmerged renders; the other repo tabs (Actions, Settings…) stay on GitHub. */
+/** Repo views Unmerged renders; the other repo tabs (Settings…) stay on GitHub. */
 export type RepoView = 'code' | 'commits' | 'issues' | 'pulls';
 
 export type PrRoute = { kind: 'pr'; owner: string; repo: string; number: number; tab: PrTab };
@@ -64,6 +64,12 @@ export type Route =
    * slashes, so it's resolved against the repo later (and whether it's a file or folder). Only the lists peek.
    */
   | { kind: 'repo'; owner: string; repo: string; view: RepoView; rest: string[]; peek?: Peek }
+  /**
+   * A repo's workflow runs (/actions), or one workflow's (/actions/workflows/<file>). `workflow` is GitHub's path
+   * segment: the file name, or for a dynamic workflow (Pages, Dependabot) "pages/pages-build-deployment".
+   * `?query=` is read by the page.
+   */
+  | { kind: 'actions'; owner: string; repo: string; workflow?: string }
   /** A GitHub Actions workflow run (…/actions/runs/<id>), one attempt at it (/attempts/<n>), or one job's logs (/job/<id>). */
   | { kind: 'run'; owner: string; repo: string; runId: number; attempt?: number; job?: number }
   /** A repo's branches: the overview (/branches) or one list (/branches/yours…). `?query=` is read by the page. */
@@ -126,6 +132,11 @@ export function matchRoute(url: URL): Route | null {
       return /\.ya?ml$/i.test(url.searchParams.get('template') ?? '') ? null : { kind: 'newIssue', owner: first, repo: second, choose: !!fifth, search: url.search };
     }
     if (third === 'commit' && parts.length === 4 && isSha(fourth)) return { kind: 'commit', owner: first, repo: second, sha: fourth };
+    if (third === 'actions' && parts.length === 3) return { kind: 'actions', owner: first, repo: second };
+    // A dynamic workflow's folder has no dot, so a file's badge (/workflows/ci.yml/badge.svg) stays GitHub's.
+    if (third === 'actions' && fourth === 'workflows' && fifth && (parts.length === 5 || (parts.length === 6 && !fifth.includes('.')))) {
+      return { kind: 'actions', owner: first, repo: second, workflow: parts.slice(4).join('/') };
+    }
     if (third === 'actions' && fourth === 'runs' && fifth && /^\d+$/.test(fifth)) {
       const run = { kind: 'run', owner: first, repo: second, runId: Number(fifth) } as const;
       const id = parts[6] && /^\d+$/.test(parts[6]) ? Number(parts[6]) : undefined;

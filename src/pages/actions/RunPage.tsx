@@ -16,7 +16,7 @@ import { Menu } from '@/ui/Menu';
 import { Avatar, Empty, Panel, SectionHeader, Skeleton } from '@/ui/primitives';
 import { toast } from '@/ui/toast';
 import { JobView } from './JobView';
-import { elapsed, headPrQuery, outcome, runJobsQuery, runQuery, type Job, type WorkflowRun } from './query';
+import { capitalize, elapsed, headPrQuery, outcome, runJobsQuery, runQuery, type Job, type WorkflowRun } from './query';
 
 type Props = { owner: string; repo: string; runId: number; attempt?: number; job?: number };
 
@@ -65,8 +65,6 @@ const TONE: Record<CheckOutcome, string> = {
   PENDING: 'text-warning bg-warning/10 border-warning/25',
   NEUTRAL: 'text-muted bg-hover border-line',
 };
-
-const capitalize = (word: string) => word.charAt(0).toUpperCase() + word.slice(1).replace(/_/g, ' ');
 
 function RunHeader({ run, owner, repo, base, attempt, onRerun }: { run: WorkflowRun; owner: string; repo: string; base: string; attempt?: number; onRerun: () => void }) {
   const queryClient = useQueryClient();
