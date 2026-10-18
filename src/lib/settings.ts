@@ -48,6 +48,9 @@ export const surfacesItem = storage.defineItem<Surfaces>('local:surfaces', { fal
 /** Whether a list opens its pull requests and issues in a side panel instead of in place of the list. */
 export const sidePanelItem = storage.defineItem<boolean>('local:sidePanel', { fallback: true });
 
+/** Whether a repository's front page shows its last 12 weeks of activity (RepoPulse) above the files. */
+export const repoPulseItem = storage.defineItem<boolean>('local:repoPulse', { fallback: true });
+
 /** Light or dark. "auto" follows GitHub's own appearance setting, then the OS. Stored under its old name. */
 export type Appearance = 'auto' | 'light' | 'dark';
 

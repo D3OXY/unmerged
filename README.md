@@ -37,7 +37,7 @@ or ⌘K) shows the stock page for the current URL with a pill to come back.
 A repository's front page starts with its last 12 weeks above the files: commits, merged pull requests, issues
 opened and closed, and lines changed per week (hover a bar for that week), then CI on the default branch and the
 latest release with how many commits haven't shipped. Lines changed is left out for repositories with 10,000
-commits or more, which GitHub doesn't count.
+commits or more, which GitHub doesn't count. Settings → General → Repositories turns the strip off.
 
 Issue lists keep the open issue beside them (`?peek=<owner>/<repo>/issues/<n>`, the first issue until you pick
 one), and j/k moves through them; on windows narrower than 1280px it opens in a side panel instead. Pull requests
@@ -46,7 +46,7 @@ side panel, so you can go from one to the next without losing your place. Double
 button, opens the page full screen; Back closes the panel, and a new tab still gets the page itself. The side
 panel for pull requests can be turned off under Lists in settings.
 
-Settings has three pages: General (token, lists), Appearance and Pages. Light or dark follows GitHub's appearance
+Settings has three pages: General (token, lists, repositories), Appearance and Pages. Light or dark follows GitHub's appearance
 setting by default; pick Light or Dark from settings, the sidebar, or ⌘K. Under Appearance, pick a theme (Unmerged,
 Graphite, Paper, Grove, Ocean, Ember or Iris), or make your own with New theme: choose a background and an accent
 for light and dark, and Unmerged derives the rest, keeping text readable. The text font can be Default (Geist),
