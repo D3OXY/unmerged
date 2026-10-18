@@ -34,10 +34,12 @@
 Every other page is untouched. Each page can be switched off from the toolbar popup, and **Classic** (sidebar
 or ⌘K) shows the stock page for the current URL with a pill to come back.
 
-In the issue and pull request lists, a row opens in a side panel next to the list (`?peek=<owner>/<repo>/issues/<n>`),
-so you can go from one to the next without losing your place. Double-clicking a row, or the panel's expand
-button, opens the page full screen; Back closes the panel, and a new tab still gets the page itself. Turn it off
-under Lists in settings.
+Issue lists keep the open issue beside them (`?peek=<owner>/<repo>/issues/<n>`, the first issue until you pick
+one), and j/k moves through them; on windows narrower than 1280px it opens in a side panel instead. Pull requests
+are a table whose headers filter (Review, CI) and sort (comments, updated or created); a row opens in the same
+side panel, so you can go from one to the next without losing your place. Double-clicking a row, or the expand
+button, opens the page full screen; Back closes the panel, and a new tab still gets the page itself. The side
+panel for pull requests can be turned off under Lists in settings.
 
 Settings has three pages: General (token, lists), Appearance and Pages. Light or dark follows GitHub's appearance
 setting by default; pick Light or Dark from settings, the sidebar, or ⌘K. Under Appearance, pick a theme (Unmerged,

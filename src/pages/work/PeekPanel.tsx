@@ -9,13 +9,17 @@ import { Button } from '@/ui/Button';
 
 const TAB_PATHS: Record<PrTab, string> = { conversation: '', commits: '/commits', checks: '/checks', files: '/files' };
 
+/** The page a peeked pull request or issue opens full screen. */
+export const peekPage = (peek: Peek) =>
+  peek.kind === 'issue' ? `/${peek.owner}/${peek.repo}/issues/${peek.number}` : `/${peek.owner}/${peek.repo}/pull/${peek.number}${TAB_PATHS[peek.tab]}`;
+
 /**
  * A list's side panel: the pull request or issue in the list's `?peek=`, scrolling on its own, with buttons to
  * open it full screen (its own page) or close it. Below the `lg` breakpoint it covers the list.
  */
 export function PeekPanel({ peek }: { peek: Peek }) {
   const { owner, repo, number } = peek;
-  const page = peek.kind === 'issue' ? `/${owner}/${repo}/issues/${number}` : `/${owner}/${repo}/pull/${number}${TAB_PATHS[peek.tab]}`;
+  const page = peekPage(peek);
   return (
     // Keyed by the page so each one starts at the top, like a navigation.
     <aside
@@ -32,13 +36,19 @@ export function PeekPanel({ peek }: { peek: Peek }) {
           </>
         }
       />
-      {peek.kind === 'issue' ? (
-        <div className="px-6 pt-8 pb-8">
-          <IssueContent owner={owner} repo={repo} number={number} />
-        </div>
-      ) : (
-        <PrContent owner={owner} repo={repo} number={number} tab={peek.tab} panel />
-      )}
+      <PeekContent peek={peek} />
     </aside>
+  );
+}
+
+/** What a side panel (or the issue list's reader) shows for `peek`, without a frame. */
+export function PeekContent({ peek }: { peek: Peek }) {
+  const { owner, repo, number } = peek;
+  return peek.kind === 'issue' ? (
+    <div className="px-6 pt-8 pb-8">
+      <IssueContent owner={owner} repo={repo} number={number} panel />
+    </div>
+  ) : (
+    <PrContent owner={owner} repo={repo} number={number} tab={peek.tab} panel />
   );
 }

@@ -9,50 +9,19 @@ import { sidePanelItem, useStorageItem } from '@/lib/settings';
 import { Button } from '@/ui/Button';
 import { Menu, type MenuOption } from '@/ui/Menu';
 import { Empty, Kbd, Panel, Skeleton } from '@/ui/primitives';
-import { repoLabelFor, WorkRow } from '@/ui/WorkRow';
-import { qualifierOf, squash, withQualifier, workListQuery, workQueryOf, workStateCountQueries, type Qualifier } from './queries';
-
-const SORTS = {
-  'updated-desc': 'Recently updated',
-  'created-desc': 'Newest',
-  'created-asc': 'Oldest',
-  'comments-desc': 'Most commented',
-} as const;
-type Sort = keyof typeof SORTS;
-
-const isSort = (value: string): value is Sort => Object.hasOwn(SORTS, value);
-// Search without a sort qualifier returns newest first.
-const sortOf = (q: string): Sort => {
-  const sort = qualifierOf(q, 'sort').slice('sort:'.length);
-  return isSort(sort) ? sort : 'created-desc';
-};
-
-const REVIEWS: MenuOption<string>[] = [
-  { value: '', label: 'Any' },
-  { value: 'review:required', label: 'Review required' },
-  { value: 'review:approved', label: 'Approved' },
-  { value: 'review:changes_requested', label: 'Changes requested' },
-  { value: 'review:none', label: 'Not reviewed' },
-  { value: 'review-requested:@me', label: 'Requested from you' },
-];
-
-const CHECKS: MenuOption<string>[] = [
-  { value: '', label: 'Any' },
-  { value: 'status:success', label: 'Passing' },
-  { value: 'status:failure', label: 'Failing' },
-  { value: 'status:pending', label: 'Pending' },
-];
-
-const FOR_ISSUES = /(?:^|\s)(?:is|type):issue(?=\s|$)/;
+import { repoLabelFor } from '@/ui/WorkRow';
+import { IssueSplit } from './IssueSplit';
+import { PrTable } from './PrTable';
+import { qualifierOf, sortOf, SORTS, squash, withQualifier, workListQuery, workQueryOf, workStateCountQueries, type Qualifier, type Sort, type WorkType } from './queries';
 
 /**
- * A searchable list of pull requests or issues. The GitHub search query is the whole state: Open/Closed, Sort
- * and the filter chips each rewrite one qualifier of it, it can be typed directly, and it lives in `?q=` like
- * GitHub's. `fallback` is the query for a bare URL; `repo` ("owner/name") scopes the search without showing up
- * in the query, as on GitHub. With the side panel setting on, rows open in the list's side panel; `peek` is
- * the one open there.
+ * A searchable list of pull requests (`kind` 'pr': a table) or issues ('issue': a list beside the open issue).
+ * The GitHub search query is the whole state: Open/Closed, the filters and the sort each rewrite one qualifier
+ * of it, it can be typed directly, and it lives in `?q=` like GitHub's. `fallback` is the query for a bare URL;
+ * `repo` ("owner/name") scopes the search without showing up in the query, as on GitHub. `peek` is the pull
+ * request or issue open beside the list.
  */
-export function WorkList({ fallback, repo, peek }: { fallback: string; repo?: string; peek?: Peek }) {
+export function WorkList({ kind, fallback, repo, peek }: { kind: WorkType; fallback: string; repo?: string; peek?: Peek }) {
   const [q, setQ] = useState(() => workQueryOf(new URL(location.href), fallback));
   const [draft, setDraft] = useState(q);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -86,6 +55,14 @@ export function WorkList({ fallback, repo, peek }: { fallback: string; repo?: st
     setDraft(`${withQualifier(q, name, '')} ${token}`);
   };
 
+  const footer = list.hasNextPage && (
+    <div className="flex justify-center border-t border-line p-3">
+      <Button size="sm" variant="ghost" loading={list.isFetchingNextPage} onClick={() => list.fetchNextPage()}>
+        Load more
+      </Button>
+    </div>
+  );
+
   return (
     <>
       <form
@@ -95,7 +72,7 @@ export function WorkList({ fallback, repo, peek }: { fallback: string; repo?: st
           setQ(squash(draft) || fallback);
         }}
       >
-        <label className="flex h-8 min-w-[280px] flex-1 items-center gap-2 rounded-lg border border-line bg-panel px-2.5 transition-colors focus-within:border-accent/60">
+        <label className="flex h-8 min-w-[260px] flex-1 items-center gap-2 rounded-lg border border-line bg-panel px-2.5 transition-colors focus-within:border-accent/60">
           <HugeiconsIcon icon={Search01Icon} className="size-3.5 shrink-0 text-subtle" />
           <input
             ref={searchRef}
@@ -125,36 +102,31 @@ export function WorkList({ fallback, repo, peek }: { fallback: string; repo?: st
             </button>
           ))}
         </div>
-        <Menu<Sort>
-          value={sort}
-          options={(Object.keys(SORTS) as Sort[]).map((value) => ({ value, label: SORTS[value] }))}
-          onChange={(next) => setQ(withQualifier(q, 'sort', `sort:${next}`))}
-          trigger={(open) => (
-            <Button onClick={open} icon={<HugeiconsIcon icon={ArrowUpDownIcon} className="size-3.5 text-subtle" />}>
-              {SORTS[sort]}
-            </Button>
-          )}
-        />
-      </form>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2">
         <Chip label="Author" value={author} options={suggestions('author', ['@me', ...items.flatMap((item) => (item.author ? [item.author.login] : []))], author)} onChange={filter('author')} />
         <Chip label="Label" value={label} options={suggestions('label', items.flatMap((item) => item.labels.nodes.map((l) => l.name)), label)} onChange={filter('label')} />
-        {!FOR_ISSUES.test(q) && (
-          <>
-            <Chip label="Review" value={qualifierOf(q, 'review')} options={REVIEWS} onChange={filter('review')} />
-            <Chip label="CI" value={qualifierOf(q, 'ci')} options={CHECKS} onChange={filter('ci')} />
-          </>
+        {/* The pull request table sorts from its headers. */}
+        {kind === 'issue' && (
+          <Menu<Sort>
+            value={sort}
+            options={(Object.keys(SORTS) as Sort[]).map((value) => ({ value, label: SORTS[value] }))}
+            onChange={(next) => setQ(withQualifier(q, 'sort', `sort:${next}`))}
+            trigger={(open) => (
+              <Button onClick={open} icon={<HugeiconsIcon icon={ArrowUpDownIcon} className="size-3.5 text-subtle" />}>
+                {SORTS[sort]}
+              </Button>
+            )}
+          />
         )}
-        {q !== fallback && (
-          <span className="ml-auto flex items-center gap-2 px-1 text-[12.5px] text-muted">
-            {list.data && <span>{list.data.pages[0]?.results.issueCount.toLocaleString()} results</span>}
-            <button type="button" onClick={() => setQ(fallback)} className="cursor-pointer text-subtle hover:text-fg">
-              Reset search
-            </button>
-          </span>
-        )}
-      </div>
+      </form>
+
+      {q !== fallback && (
+        <div className="mt-2.5 flex items-center gap-2 px-1 text-[12.5px] text-muted">
+          {list.data && <span>{list.data.pages[0]?.results.issueCount.toLocaleString()} results</span>}
+          <button type="button" onClick={() => setQ(fallback)} className="cursor-pointer text-subtle hover:text-fg">
+            Reset search
+          </button>
+        </div>
+      )}
 
       {list.error ? (
         <p className="py-10 text-[13px] text-danger">{list.error.message}</p>
@@ -164,29 +136,18 @@ export function WorkList({ fallback, repo, peek }: { fallback: string; repo?: st
             <Skeleton key={i} className="h-4" />
           ))}
         </Panel>
-      ) : (
-        <Panel className="mt-4 animate-enter overflow-hidden">
-          {items.length === 0 && <Empty>Nothing matches.</Empty>}
-          {items.map((item) => {
-            const row = { repo: repoLabel, peek: sidePanel, selected: isPeek(item, peek) };
-            return item.__typename === 'PullRequest' ? <WorkRow key={item.id} kind="pr" item={item} {...row} /> : <WorkRow key={item.id} kind="issue" item={item} {...row} />;
-          })}
-          {list.hasNextPage && (
-            <div className="flex justify-center border-t border-line p-3">
-              <Button size="sm" variant="ghost" loading={list.isFetchingNextPage} onClick={() => list.fetchNextPage()}>
-                Load more
-              </Button>
-            </div>
-          )}
+      ) : items.length === 0 ? (
+        <Panel className="mt-4 animate-enter">
+          <Empty>Nothing matches.</Empty>
         </Panel>
+      ) : kind === 'pr' ? (
+        <PrTable items={items} q={q} onQuery={setQ} repoLabel={repoLabel} peek={sidePanel} open={peek} footer={footer} />
+      ) : (
+        <IssueSplit items={items} peek={peek} scoped={!!repo} byCreated={sort.startsWith('created')} footer={footer} />
       )}
     </>
   );
 }
-
-/** Whether `item` is the pull request or issue open in the side panel. */
-const isPeek = (item: { number: number; repository: { nameWithOwner: string } }, peek: Peek | undefined) =>
-  !!peek && item.number === peek.number && item.repository.nameWithOwner.toLowerCase() === `${peek.owner}/${peek.repo}`.toLowerCase();
 
 /** A filter over one qualifier of the search; `value` is that qualifier as written in it ('' when unset). */
 function Chip({ label, value, options, onChange }: { label: string; value: string; options: MenuOption<string>[]; onChange: (token: string) => void }) {
@@ -199,7 +160,7 @@ function Chip({ label, value, options, onChange }: { label: string; value: strin
       onChange={onChange}
       align="left"
       trigger={(open) => (
-        <Button size="sm" onClick={open}>
+        <Button onClick={open}>
           <span className={display ? 'font-normal text-muted' : undefined}>{label}</span>
           {display}
           <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5 text-subtle" />

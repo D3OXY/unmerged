@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useQuery, type QueryKey } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { BrowserIcon, Link02Icon, UndoIcon } from '@hugeicons/core-free-icons';
+import { BrowserIcon, Link02Icon, MilestoneIcon, UndoIcon } from '@hugeicons/core-free-icons';
 import { useRegisterCommands, type Command } from '@/app/commands';
 import { openClassic } from '@/lib/classic';
 import { copy } from '@/lib/clipboard';
@@ -9,6 +9,7 @@ import { cx } from '@/lib/cx';
 import { emitNavigate } from '@/lib/navigation';
 import { timeAgo } from '@/lib/time';
 import { useTitle } from '@/lib/useTitle';
+import { repoPath } from '@/pages/pr/query';
 import { CommentCard } from '@/pages/pr/Timeline';
 import { usePrMutation } from '@/pages/pr/usePrMutation';
 import { RepoFrame } from '@/pages/repo/RepoFrame';
@@ -17,7 +18,7 @@ import { Avatar, Skeleton } from '@/ui/primitives';
 import { IssueIcon } from '@/ui/status';
 import { CLOSE_REASONS, IssueComposer } from './IssueComposer';
 import { IssueSidebar } from './IssueSidebar';
-import { IssueTimeline } from './IssueTimeline';
+import { IssueTimeline, RefLink } from './IssueTimeline';
 import { issueQuery, notPlanned, stateChange, type Issue } from './query';
 
 type Props = { owner: string; repo: string; number: number };
@@ -43,12 +44,15 @@ export function IssuePage({ owner, repo, number }: Props) {
   );
 }
 
-/** The issue without the repo's frame: on its own page and in a list's side panel. */
-export function IssueContent({ owner, repo, number }: Props) {
+/**
+ * The issue without the repo's frame: on its own page, and beside a list (`panel`), where the details sit in a
+ * row under the title instead of a sidebar.
+ */
+export function IssueContent({ owner, repo, number, panel }: Props & { panel?: boolean }) {
   const query = issueQuery(owner, repo, number);
   const { data, error } = useQuery(query);
   const subject = data?.repository?.issueOrPullRequest;
-  if (subject?.__typename === 'Issue') return <IssueView issue={subject} queryKey={query.queryKey} />;
+  if (subject?.__typename === 'Issue') return <IssueView issue={subject} queryKey={query.queryKey} panel={panel} />;
   if (!error && !(data && !subject)) return <IssueSkeleton />;
   return (
     <div className="py-4 text-[13px]">
@@ -60,7 +64,7 @@ export function IssueContent({ owner, repo, number }: Props) {
   );
 }
 
-function IssueView({ issue, queryKey }: { issue: Issue; queryKey: QueryKey }) {
+function IssueView({ issue, queryKey, panel }: { issue: Issue; queryKey: QueryKey; panel?: boolean }) {
   const { mutate } = usePrMutation(queryKey);
 
   const commands = useMemo<Command[]>(() => {
@@ -86,35 +90,84 @@ function IssueView({ issue, queryKey }: { issue: Issue; queryKey: QueryKey }) {
   }, [issue, mutate]);
   useRegisterCommands('issue', commands);
 
+  const thread = (
+    <div className="flex min-w-0 flex-col gap-6">
+      <CommentCard author={issue.author} createdAt={issue.createdAt} html={issue.bodyHTML} />
+      <IssueTimeline issue={issue} />
+      <IssueComposer issue={issue} queryKey={queryKey} />
+    </div>
+  );
+
   return (
     <>
       <div className="max-w-[860px]">
-        <h1 className="text-[24px] leading-tight font-semibold tracking-tight">
+        <h1 className={cx('leading-tight font-semibold tracking-tight', panel ? 'text-[20px]' : 'text-[24px]')}>
           {issue.title} <span className="font-normal text-subtle">#{issue.number}</span>
         </h1>
-        <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-2 text-[13px] text-muted">
-          <IssueStateBadge issue={issue} />
-          {issue.author && (
-            <a href={`/${issue.author.login}`} className="flex items-center gap-1.5 font-medium text-fg hover:underline">
-              <Avatar src={issue.author.avatarUrl} size={18} />
-              {issue.author.login}
-            </a>
-          )}
-          <span>opened this {timeAgo(issue.createdAt)}</span>
-        </div>
+        {panel ? (
+          <IssueDetails issue={issue} />
+        ) : (
+          <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-2 text-[13px] text-muted">
+            <IssueStateBadge issue={issue} />
+            {issue.author && (
+              <a href={`/${issue.author.login}`} className="flex items-center gap-1.5 font-medium text-fg hover:underline">
+                <Avatar src={issue.author.avatarUrl} size={18} />
+                {issue.author.login}
+              </a>
+            )}
+            <span>opened this {timeAgo(issue.createdAt)}</span>
+          </div>
+        )}
       </div>
 
-      <div className="mt-6 grid gap-8 @3xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="flex min-w-0 flex-col gap-6">
-          <CommentCard author={issue.author} createdAt={issue.createdAt} html={issue.bodyHTML} />
-          <IssueTimeline issue={issue} />
-          <IssueComposer issue={issue} queryKey={queryKey} />
+      {panel ? (
+        <div className="mt-6">{thread}</div>
+      ) : (
+        <div className="mt-6 grid gap-8 @3xl:grid-cols-[minmax(0,1fr)_340px]">
+          {thread}
+          <aside className="flex flex-col gap-4 *:shrink-0 @3xl:sticky @3xl:top-[108px] @3xl:max-h-[calc(100vh-124px)] @3xl:self-start @3xl:overflow-y-auto">
+            <IssueSidebar issue={issue} />
+          </aside>
         </div>
-        <aside className="flex flex-col gap-4 *:shrink-0 @3xl:sticky @3xl:top-[108px] @3xl:max-h-[calc(100vh-124px)] @3xl:self-start @3xl:overflow-y-auto">
-          <IssueSidebar issue={issue} />
-        </aside>
-      </div>
+      )}
     </>
+  );
+}
+
+const detail = 'inline-flex h-7 max-w-full items-center gap-1.5 rounded-md border border-line px-2 text-[12px] text-fg';
+
+/** The sidebar's details as one row of chips under the title: state, assignees, labels, milestone, linked PRs. */
+function IssueDetails({ issue }: { issue: Issue }) {
+  const { assignees, labels, milestone } = issue;
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-1.5">
+      <IssueStateBadge issue={issue} />
+      {assignees.nodes.length > 0 && (
+        <span className={detail} title="Assignees">
+          {assignees.nodes.map((a) => (
+            <Avatar key={a.login} src={a.avatarUrl} size={16} />
+          ))}
+          <span className="truncate">{assignees.nodes.map((a) => a.login).join(', ')}</span>
+        </span>
+      )}
+      {labels.nodes.map((label) => (
+        <span key={label.name} className={detail}>
+          <span className="size-2 shrink-0 rounded-full" style={{ background: `#${label.color}` }} />
+          <span className="truncate">{label.name}</span>
+        </span>
+      ))}
+      {milestone && (
+        <a href={milestone.url} className={cx(detail, 'hover:bg-hover')} title="Milestone">
+          <HugeiconsIcon icon={MilestoneIcon} className="size-3.5 shrink-0 text-subtle" />
+          <span className="truncate">{milestone.title}</span>
+        </a>
+      )}
+      {issue.closedByPullRequestsReferences.nodes.map((pr) => (
+        <span key={pr.url} className={cx(detail, 'hover:bg-hover')}>
+          <RefLink subject={pr} here={repoPath(issue)} />
+        </span>
+      ))}
+    </div>
   );
 }
 

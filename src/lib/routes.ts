@@ -181,6 +181,11 @@ function peekOf(url: URL): Peek | undefined {
   // Setting the path (never parsing a string) keeps it on github.com, and can't throw.
   const target = new URL(url.origin);
   target.pathname = path;
-  const route = matchRoute(target);
+  return peekAt(target);
+}
+
+/** The pull request or issue page `url` is, as something a side panel can show; anything else is undefined. */
+export function peekAt(url: URL): Peek | undefined {
+  const route = matchRoute(url);
   return route?.kind === 'pr' || route?.kind === 'issue' ? route : undefined;
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { CircleDotIcon, Copy01Icon, FileSearchIcon, GitBranchIcon, GitPullRequestCreateIcon, GitPullRequestIcon, PinIcon, PinOffIcon, PlayIcon, PlusSignIcon, Tag01Icon } from '@hugeicons/core-free-icons';
@@ -9,6 +9,7 @@ import { cx } from '@/lib/cx';
 import { loadDiffs } from '@/lib/diffs';
 import { navigate } from '@/lib/navigation';
 import { pin, unpin, useIsPinned } from '@/lib/pins';
+import { useMedia } from '@/lib/useMedia';
 import { useTitle } from '@/lib/useTitle';
 import { Button } from '@/ui/Button';
 import { Kbd, Panel } from '@/ui/primitives';
@@ -125,7 +126,8 @@ function Toolbar({ repo, gitRef, path, aside, children }: { repo: Repo; gitRef: 
     [repo, openFinder, pinned],
   );
   useRegisterCommands('repo', commands);
-  const actionsInColumn = useWide() && !!aside;
+  // Tailwind's `lg`.
+  const actionsInColumn = useMedia('(min-width: 64rem)') && !!aside;
 
   const actions = (
     <div className={cx('flex items-center justify-end gap-2', !actionsInColumn && 'ml-auto')}>
@@ -203,19 +205,5 @@ function Toolbar({ repo, gitRef, path, aside, children }: { repo: Repo; gitRef: 
       )}
       {finding && <FileFinder nameWithOwner={repo.nameWithOwner} gitRef={gitRef} onClose={() => setFinding(false)} />}
     </>
-  );
-}
-
-const WIDE = '(min-width: 64rem)'; // Tailwind's `lg`
-
-/** Whether the window is at least `lg` wide, following resizes. */
-function useWide() {
-  return useSyncExternalStore(
-    (onChange) => {
-      const query = matchMedia(WIDE);
-      query.addEventListener('change', onChange);
-      return () => query.removeEventListener('change', onChange);
-    },
-    () => matchMedia(WIDE).matches,
   );
 }
