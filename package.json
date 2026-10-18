@@ -10,10 +10,11 @@
     "build": "wxt build",
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
+    "release:prepare": "node scripts/release/prepare.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "lint": "eslint .",
-    "check": "pnpm typecheck && pnpm test && pnpm lint && pnpm build && pnpm --filter site check",
+    "check": "node scripts/release/prepare.ts --check && pnpm typecheck && pnpm test && pnpm lint && pnpm build && pnpm --filter site check",
     "site": "pnpm --filter site dev",
     "postinstall": "wxt prepare"
   },
@@ -30,6 +31,7 @@
     "shiki": "4.5.0"
   },
   "devDependencies": {
+    "@changesets/cli": "3.0.3",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
