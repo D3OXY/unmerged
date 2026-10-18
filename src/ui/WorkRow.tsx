@@ -9,7 +9,7 @@ import { CheckIcon, IssueIcon, PrStateIcon, ReviewBadge } from './status';
 export const PR_ROW_FIELDS = /* GraphQL */ `
   fragment PrRow on PullRequest {
     id number title url isDraft state updatedAt reviewDecision
-    repository { nameWithOwner }
+    repository { nameWithOwner isPrivate }
     author { login avatarUrl }
     comments { totalCount }
     labels(first: 3) { nodes { name color } }
@@ -20,7 +20,7 @@ export const PR_ROW_FIELDS = /* GraphQL */ `
 export const ISSUE_ROW_FIELDS = /* GraphQL */ `
   fragment IssueRow on Issue {
     id number title url updatedAt state stateReason
-    repository { nameWithOwner }
+    repository { nameWithOwner isPrivate }
     author { login avatarUrl }
     comments { totalCount }
     labels(first: 3) { nodes { name color } }
@@ -33,7 +33,8 @@ type RowBase = {
   title: string;
   url: string;
   updatedAt: string;
-  repository: { nameWithOwner: string };
+  /** `isPrivate` is missing from a result stored before it was asked for; Privacy then blurs the row. */
+  repository: { nameWithOwner: string; isPrivate?: boolean };
   author: Actor;
   comments: { totalCount: number };
   labels: { nodes: Label[] };
@@ -68,6 +69,7 @@ export function WorkRow(row: ({ kind: 'pr'; item: PrRowData } | { kind: 'issue';
       href={item.url}
       data-row
       data-peek={peek || undefined}
+      data-repo-private={item.repository.isPrivate !== false || undefined}
       aria-current={selected || undefined}
       className={cx(
         'group relative flex h-10 items-center gap-3 border-b border-line px-4 transition-colors last:border-b-0 hover:bg-hover focus:bg-hover focus:outline-none',
@@ -76,10 +78,12 @@ export function WorkRow(row: ({ kind: 'pr'; item: PrRowData } | { kind: 'issue';
     >
       {row.kind === 'pr' ? <PrStateIcon state={row.item.state} isDraft={row.item.isDraft} /> : <IssueIcon state={row.item.state} stateReason={row.item.stateReason} />}
       <span className={cx('flex shrink-0 gap-1 text-[12px] text-subtle tabular-nums', repo === 'none' ? 'w-14' : repo === 'name' ? 'w-[150px]' : 'w-[220px]')}>
-        {repo !== 'none' && <span className="truncate">{repo === 'full' ? item.repository.nameWithOwner : item.repository.nameWithOwner.split('/')[1]}</span>}
+        {repo !== 'none' && <span data-private="repos" className="truncate">{repo === 'full' ? item.repository.nameWithOwner : item.repository.nameWithOwner.split('/')[1]}</span>}
         <span className="shrink-0">#{item.number}</span>
       </span>
-      <span className="min-w-0 flex-1 truncate font-medium text-fg/95">{item.title}</span>
+      <span data-private="titles" className="min-w-0 flex-1 truncate font-medium text-fg/95">
+        {item.title}
+      </span>
       <span className="hidden shrink-0 items-center gap-1 @4xl:flex">
         {item.labels.nodes.map((label) => (
           <Pill key={label.name} color={label.color}>

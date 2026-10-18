@@ -127,7 +127,7 @@ function OrgHeader({ org }: { org: Org }) {
             )}
             {org.email && (
               <Meta icon={<HugeiconsIcon icon={Mail01Icon} />}>
-                <a href={`mailto:${org.email}`} className="hover:text-fg">
+                <a href={`mailto:${org.email}`} data-private="emails" className="hover:text-fg">
                   {org.email}
                 </a>
               </Meta>

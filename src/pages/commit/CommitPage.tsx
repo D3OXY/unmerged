@@ -44,7 +44,9 @@ export function CommitPage({ owner, repo, sha, pr }: Props) {
       {pr !== undefined && (
         <a href={`/${nwo}/pull/${pr}/commits`} className="mb-4 flex max-w-full items-center gap-1.5 text-[12.5px] text-muted hover:text-fg">
           <HugeiconsIcon icon={ArrowLeft01Icon} className="size-3.5 shrink-0" />
-          <span className="truncate">{data?.repository?.pullRequest?.title ?? 'Pull request'}</span>
+          <span data-private="titles" className="truncate">
+            {data?.repository?.pullRequest?.title ?? 'Pull request'}
+          </span>
           <span className="shrink-0 text-subtle">#{pr}</span>
         </a>
       )}
@@ -74,8 +76,10 @@ function CommitHeader({ commit, owner, repo }: { commit: Commit; owner: string; 
 
   return (
     <div className="mb-6">
-      <h1 className="text-[20px] leading-snug font-semibold tracking-tight break-words">{commit.messageHeadline}</h1>
-      {commit.messageBody && <pre className="mt-3 font-mono text-[12.5px] leading-relaxed break-words whitespace-pre-wrap text-muted">{commit.messageBody}</pre>}
+      <h1 data-private="commits" className="text-[20px] leading-snug font-semibold tracking-tight break-words">
+        {commit.messageHeadline}
+      </h1>
+      {commit.messageBody && <pre data-private="commits" className="mt-3 font-mono text-[12.5px] leading-relaxed break-words whitespace-pre-wrap text-muted">{commit.messageBody}</pre>}
 
       <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-[12.5px] text-subtle">
         <span className="flex flex-wrap items-center gap-1.5">

@@ -13,6 +13,7 @@ const ISSUE_QUERY = /* GraphQL */ `
 
   query Issue($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner, name: $repo) {
+      isPrivate
       issueOrPullRequest(number: $number) {
         __typename
         ... on PullRequest { url }
@@ -100,7 +101,8 @@ export type Issue = {
   timelineItems: { totalCount: number; nodes: IssueTimelineItem[] };
 };
 
-type IssueData = { repository: { issueOrPullRequest: Issue | { __typename: 'PullRequest'; url: string } | null } | null };
+// `isPrivate` is missing from a result stored before it was asked for.
+type IssueData = { repository: { isPrivate?: boolean; issueOrPullRequest: Issue | { __typename: 'PullRequest'; url: string } | null } | null };
 
 export type ClosedReason = 'COMPLETED' | 'NOT_PLANNED';
 

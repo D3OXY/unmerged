@@ -148,7 +148,7 @@ function CommitRow({ commit, nameWithOwner, href }: { commit: CommitRowData; nam
         </a>
       </div>
       {open && (
-        <pre className="mx-4 mb-3 ml-[50px] animate-enter rounded-lg bg-elevated px-3 py-2 font-mono text-[12px] leading-relaxed whitespace-pre-wrap text-muted">
+        <pre data-private="commits" className="mx-4 mb-3 ml-[50px] animate-enter rounded-lg bg-elevated px-3 py-2 font-mono text-[12px] leading-relaxed whitespace-pre-wrap text-muted">
           {commit.messageBody}
         </pre>
       )}
@@ -173,7 +173,7 @@ function Headline({ text, href, nameWithOwner }: { text: string; href: string; n
   const parts = text.split(/#(\d+)\b/);
   const rowIndex = parts.findIndex((part, i) => i % 2 === 0 && part);
   return (
-    <span className="truncate text-[13px] font-medium">
+    <span data-private="commits" className="truncate text-[13px] font-medium">
       {parts.map((part, i) =>
         i % 2 ? (
           <a key={i} href={`/${nameWithOwner}/issues/${part}`} className="text-accent hover:underline">

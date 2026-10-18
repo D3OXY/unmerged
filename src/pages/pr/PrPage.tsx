@@ -37,13 +37,13 @@ export function PrPage({ owner, repo, number, tab }: Props) {
   const base = `/${owner}/${repo}`;
   const crumbs = [
     { label: owner, href: `/${owner}` },
-    { label: repo, href: base },
+    { label: <span data-private="repos">{repo}</span>, href: base },
     { label: 'Pull requests', href: `${base}/pulls` },
     { label: `#${number}` },
   ];
 
   return (
-    <Shell>
+    <Shell privateRepo={data?.repository?.isPrivate !== false}>
       <PageHeader
         crumbs={crumbs}
         actions={
@@ -249,7 +249,7 @@ function PrTitle({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey }) {
   if (draft === null) {
     return (
       <h1 className="group/title text-[24px] leading-tight font-semibold tracking-tight">
-        {pr.title} <span className="font-normal text-subtle">#{pr.number}</span>
+        <span data-private="titles">{pr.title}</span> <span className="font-normal text-subtle">#{pr.number}</span>
         {pr.viewerCanUpdate && (
           <Button
             size="icon"

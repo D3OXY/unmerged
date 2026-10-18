@@ -36,14 +36,17 @@ export function RepoFrame({ owner, name, view, item, aside, children }: { owner:
   const list = LIST_TITLES[view];
   const crumbs = [
     { label: owner, href: `/${owner}` },
-    { label: name, href: `/${owner}/${name}` },
+    { label: <span data-private="repos">{name}</span>, href: `/${owner}/${name}` },
     ...(list ? [{ label: list, href: item && `/${owner}/${name}/${view}` }] : []),
     ...(item ? [{ label: item }] : []),
   ];
 
+  // Unknown until the repo loads; blurred until then.
+  const privateRepo = repo?.isPrivate !== false;
+
   if (meta.error || (meta.data && !repo)) {
     return (
-      <Shell>
+      <Shell privateRepo={privateRepo}>
         <PageHeader crumbs={crumbs} />
         <div className="p-10 text-[13px]">
           <p className="text-danger">{meta.error?.message ?? "Repository not found, or your token can't see it."}</p>
@@ -56,7 +59,7 @@ export function RepoFrame({ owner, name, view, item, aside, children }: { owner:
   }
 
   return (
-    <Shell aside={aside}>
+    <Shell aside={aside} privateRepo={privateRepo}>
       <PageHeader crumbs={crumbs} actions={repo && <RepoActions repo={repo} queryKey={repoQuery(owner, name).queryKey} />} />
       <div className="mx-auto max-w-[1240px] animate-enter px-6 pt-8 pb-8">
         {repo ? <RepoHeader repo={repo} /> : <div className="h-[34px]" />}
@@ -76,7 +79,7 @@ function RepoHeader({ repo }: { repo: Repo }) {
           {repo.owner.login}
         </a>
         <span className="mx-1.5 font-normal text-subtle">/</span>
-        {repo.name}
+        <span data-private="repos">{repo.name}</span>
       </h1>
       <Pill>
         {repo.isPrivate && <HugeiconsIcon icon={SquareLock02Icon} className="size-3" />}

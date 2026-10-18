@@ -6,10 +6,11 @@ import { Sidebar, type NavSection } from './Sidebar';
 /**
  * Linear-style frame shared by every Unmerged page: sticky sidebar + scrolling content, and an `aside` on the
  * right (a list's side panel). The content is a size container, so pages lay out by the room they get.
+ * `privateRepo` marks a private repository's page, where Privacy blurs its name, commit messages and titles.
  */
-export function Shell({ children, active, aside }: { children: ReactNode; active?: NavSection; aside?: ReactNode }) {
+export function Shell({ children, active, aside, privateRepo }: { children: ReactNode; active?: NavSection; aside?: ReactNode; privateRepo?: boolean }) {
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen" data-repo-private={privateRepo || undefined}>
       <Sidebar active={active} />
       <main className="@container min-w-0 flex-1">{children}</main>
       {aside}

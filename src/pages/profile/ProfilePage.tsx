@@ -135,7 +135,7 @@ export function ProfilePage({ login }: { login: string }) {
                   <SectionHeader title="Organizations" />
                   <div className="flex flex-wrap gap-2">
                     {user.organizations.nodes.map((org) => (
-                      <a key={org.login} href={`/${org.login}`} title={org.login} className="transition-transform hover:scale-105">
+                      <a key={org.login} href={`/${org.login}`} title={org.login} data-private="orgs" className="transition-transform hover:scale-105">
                         <Avatar src={org.avatarUrl} size={32} square />
                       </a>
                     ))}
@@ -237,10 +237,13 @@ export function RepoTile({ repo }: { repo: RepoCard }) {
     <a
       href={repo.url}
       data-row
+      data-repo-private={repo.isPrivate || undefined}
       className="group flex flex-col rounded-xl border border-line bg-panel p-4 transition-colors hover:border-line-strong hover:bg-hover focus:outline-none focus-visible:border-accent/60"
     >
       <div className="flex items-center gap-2">
-        <span className="truncate text-[13.5px] font-semibold">{repo.name}</span>
+        <span data-private="repos" className="truncate text-[13.5px] font-semibold">
+          {repo.name}
+        </span>
         {repo.isPrivate && <HugeiconsIcon icon={SquareLock02Icon} className="size-3 shrink-0 text-subtle" />}
         <HugeiconsIcon icon={ArrowUpRight01Icon} className="ml-auto size-3.5 text-subtle opacity-0 transition-opacity group-hover:opacity-100" />
       </div>
@@ -314,11 +317,14 @@ export function RepoList({ href, repositories }: { href: string; repositories: P
             key={repo.id}
             href={repo.url}
             data-row
+            data-repo-private={repo.isPrivate || undefined}
             className="flex items-center gap-4 border-b border-line px-4 py-3 transition-colors last:border-b-0 hover:bg-hover focus:bg-hover focus:outline-none"
           >
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="truncate text-[13.5px] font-medium">{repo.name}</span>
+                <span data-private="repos" className="truncate text-[13.5px] font-medium">
+                  {repo.name}
+                </span>
                 {repo.isPrivate && <Pill>Private</Pill>}
                 {repo.isArchived && <Pill>Archived</Pill>}
               </div>
@@ -526,9 +532,17 @@ function ContributedTo({ repos }: { repos: ProfileActivity['repositoriesContribu
       <SectionHeader title="Contributed to" />
       <Panel className="p-1.5">
         {top.map((repo) => (
-          <a key={repo.id} href={repo.url} data-row className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 hover:bg-hover focus:bg-hover focus:outline-none">
+          <a
+            key={repo.id}
+            href={repo.url}
+            data-row
+            data-repo-private={repo.isPrivate || undefined}
+            className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 hover:bg-hover focus:bg-hover focus:outline-none"
+          >
             <Avatar src={repo.owner.avatarUrl} size={18} square />
-            <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">{repo.nameWithOwner}</span>
+            <span data-private="repos" className="min-w-0 flex-1 truncate text-[12.5px] font-medium">
+              {repo.nameWithOwner}
+            </span>
             {repo.stargazerCount > 0 && (
               <span className="flex shrink-0 items-center gap-1 text-[11.5px] text-subtle">
                 <HugeiconsIcon icon={StarIcon} className="size-3" />
@@ -544,12 +558,19 @@ function ContributedTo({ repos }: { repos: ProfileActivity['repositoriesContribu
 
 function CompactPr({ pr }: { pr: PrRowData }) {
   return (
-    <a href={pr.url} data-row className="flex items-start gap-2.5 rounded-lg px-2.5 py-2 hover:bg-hover focus:bg-hover focus:outline-none">
+    <a
+      href={pr.url}
+      data-row
+      data-repo-private={pr.repository.isPrivate !== false || undefined}
+      className="flex items-start gap-2.5 rounded-lg px-2.5 py-2 hover:bg-hover focus:bg-hover focus:outline-none"
+    >
       <PrStateIcon state={pr.state} isDraft={pr.isDraft} className="mt-0.5 size-3.5" />
       <span className="min-w-0">
-        <span className="line-clamp-2 text-[12.5px] leading-snug font-medium">{pr.title}</span>
+        <span data-private="titles" className="line-clamp-2 text-[12.5px] leading-snug font-medium">
+          {pr.title}
+        </span>
         <span className="text-[11.5px] text-subtle">
-          {pr.repository.nameWithOwner}#{pr.number} · {timeAgo(pr.updatedAt)}
+          <span data-private="repos">{pr.repository.nameWithOwner}</span>#{pr.number} · {timeAgo(pr.updatedAt)}
         </span>
       </span>
     </a>

@@ -409,12 +409,13 @@ export function RepoRow({ repo, onChange, fullName, topics }: { repo: Repo; onCh
   });
 
   return (
-    <div className="group flex items-start gap-4 border-b border-line px-4 py-3.5 transition-colors last:border-b-0 hover:bg-hover">
+    <div data-repo-private={repo.isPrivate || undefined} className="group flex items-start gap-4 border-b border-line px-4 py-3.5 transition-colors last:border-b-0 hover:bg-hover">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <a
             href={repo.url}
             data-row
+            data-private="repos"
             className={cx('truncate rounded text-[14px] font-semibold hover:underline focus:outline-none focus-visible:underline', repo.isArchived && 'text-muted')}
           >
             {fullName ? repo.nameWithOwner : repo.name}

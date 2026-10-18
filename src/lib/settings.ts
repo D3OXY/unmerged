@@ -55,6 +55,21 @@ export const repoPulseItem = storage.defineItem<boolean>('local:repoPulse', { fa
 /** Whether a pull request that can merge now shows Slide to merge in the bottom-right corner, on every tab. */
 export const slideToMergeItem = storage.defineItem<boolean>('local:slideToMerge', { fallback: true });
 
+/** What Privacy can blur. `repos`, `commits` and `titles` blur only for private repositories. */
+export type Blur = 'orgs' | 'repos' | 'commits' | 'titles' | 'emails';
+
+/** Privacy blurs details on screen (for screen sharing) until the user hovers them. `on` is the master switch. */
+export type Privacy = { on: boolean; blur: Record<Blur, boolean> };
+
+export const DEFAULT_PRIVACY: Privacy = { on: true, blur: { orgs: true, repos: true, commits: true, titles: true, emails: true } };
+
+export const privacyItem = storage.defineItem<Privacy>('local:privacy', { fallback: DEFAULT_PRIVACY });
+
+/** The kinds to blur now. A kind added after the setting was saved is on, as it is by default. */
+export function blurredKinds({ on, blur }: Privacy) {
+  return on ? (Object.keys(DEFAULT_PRIVACY.blur) as Blur[]).filter((kind) => blur[kind] ?? true) : [];
+}
+
 /** Light or dark. "auto" follows GitHub's own appearance setting, then the OS. Stored under its old name. */
 export type Appearance = 'auto' | 'light' | 'dark';
 

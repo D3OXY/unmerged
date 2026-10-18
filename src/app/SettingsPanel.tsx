@@ -1,10 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
-import { Analytics01Icon, ArrowUpRight01Icon, Book02Icon, CheckListIcon, CircleDotIcon, ComputerIcon, DashboardSquare01Icon, GitCommitHorizontalIcon, GitCompareIcon, GitMergeIcon, GitPullRequestIcon, Home01Icon, Key01Icon, LayoutRightIcon, Moon02Icon, Notification03Icon, PaintBoardIcon, PlayIcon, Search01Icon, Settings02Icon, Sun03Icon, UserIcon } from '@hugeicons/core-free-icons';
+import { Analytics01Icon, ArrowUpRight01Icon, Book02Icon, Building03Icon, CheckListIcon, CircleDotIcon, ComputerIcon, DashboardSquare01Icon, GitCommitHorizontalIcon, GitCompareIcon, GitMergeIcon, GitPullRequestIcon, Home01Icon, Key01Icon, LayoutRightIcon, Mail01Icon, Moon02Icon, Notification03Icon, PaintBoardIcon, PlayIcon, Search01Icon, Settings02Icon, SquareLock02Icon, Sun03Icon, UserIcon, ViewOffSlashIcon } from '@hugeicons/core-free-icons';
 import { GitHubError, rest } from '@/github/client';
 import { cx } from '@/lib/cx';
 import { saveToken } from '@/lib/persist';
-import { appearanceItem, customThemesItem, fontItem, NEW_TOKEN_URL, openSettingsPage, repoPulseItem, sidePanelItem, slideToMergeItem, surfacesItem, themeIdItem, tokenItem, useStorageItem, type Appearance, type Font, type Surface } from '@/lib/settings';
+import { appearanceItem, customThemesItem, DEFAULT_PRIVACY, fontItem, NEW_TOKEN_URL, openSettingsPage, privacyItem, repoPulseItem, sidePanelItem, slideToMergeItem, surfacesItem, themeIdItem, tokenItem, useStorageItem, type Appearance, type Blur, type Font, type Surface } from '@/lib/settings';
 import { ThemePicker } from './ThemePicker';
 
 const SURFACES: Record<Surface, { label: string; path: string; icon: ReactNode }> = {
@@ -21,6 +21,14 @@ const SURFACES: Record<Surface, { label: string; path: string; icon: ReactNode }
   search: { label: 'Search', path: 'github.com/search, …/<repo>/search', icon: <HugeiconsIcon icon={Search01Icon} /> },
 };
 
+const BLURS: Record<Blur, { label: string; path: string; icon: ReactNode }> = {
+  orgs: { label: 'Organizations', path: 'Names and logos in the sidebar and on profiles', icon: <HugeiconsIcon icon={Building03Icon} /> },
+  repos: { label: 'Private repository names', path: 'Sidebar, lists, notifications and page headers', icon: <HugeiconsIcon icon={SquareLock02Icon} /> },
+  commits: { label: 'Commit messages', path: 'In private repositories', icon: <HugeiconsIcon icon={GitCommitHorizontalIcon} /> },
+  titles: { label: 'Pull request & issue titles', path: 'In private repositories: lists, notifications and pages', icon: <HugeiconsIcon icon={GitPullRequestIcon} /> },
+  emails: { label: 'Email addresses', path: 'On organization profiles', icon: <HugeiconsIcon icon={Mail01Icon} /> },
+};
+
 const APPEARANCES: { value: Appearance; label: string; icon: ReactNode }[] = [
   { value: 'auto', label: 'Auto', icon: <HugeiconsIcon icon={ComputerIcon} /> },
   { value: 'light', label: 'Light', icon: <HugeiconsIcon icon={Sun03Icon} /> },
@@ -33,19 +41,20 @@ const FONTS: { value: Font; label: string }[] = [
   { value: 'mono', label: 'Mono' },
 ];
 
-export type SettingsPage = 'general' | 'appearance' | 'pages';
+export type SettingsPage = 'general' | 'appearance' | 'pages' | 'privacy';
 
 const PAGES: { id: SettingsPage; label: string; icon: IconSvgElement }[] = [
   { id: 'general', label: 'General', icon: Settings02Icon },
   { id: 'appearance', label: 'Appearance', icon: PaintBoardIcon },
   { id: 'pages', label: 'Pages', icon: DashboardSquare01Icon },
+  { id: 'privacy', label: 'Privacy', icon: ViewOffSlashIcon },
 ];
 
 /**
- * Unmerged's settings, on three pages: General (the connected account, lists), Appearance (mode, theme, font)
- * and Pages (which pages it takes over). Shown in the toolbar popup (and the options page, its copy in a tab)
- * and in the in-page Settings dialog; every change applies to open tabs at once. Narrow, the pages are tabs
- * along the top; wide, a list down the side. The token itself is only ever typed into the extension's pages,
+ * Unmerged's settings, on four pages: General (the connected account, lists), Appearance (mode, theme, font),
+ * Pages (which pages it takes over) and Privacy (what it blurs). Shown in the toolbar popup (and the options
+ * page, its copy in a tab) and in the in-page Settings dialog; every change applies to open tabs at once.
+ * Narrow, the pages are tabs along the top; wide, a list down the side. The token itself is only ever typed into the extension's pages,
  * not into github.com.
  */
 export function SettingsPanel({ initialPage = 'general' }: { initialPage?: SettingsPage }) {
@@ -67,7 +76,8 @@ export function SettingsPanel({ initialPage = 'general' }: { initialPage?: Setti
               aria-selected={page === id}
               onClick={() => setPage(id)}
               className={cx(
-                'flex h-8 flex-1 cursor-pointer items-center justify-center gap-2 rounded-md px-2.5 text-[12.5px] font-medium transition-colors @lg:flex-none @lg:justify-start [&>svg]:size-3.5',
+                // Narrow, four labels only just fit: the icons go and each tab is as wide as its label.
+                'flex h-8 flex-auto cursor-pointer items-center justify-center gap-2 rounded-md px-2.5 text-[12.5px] font-medium transition-colors @lg:flex-none @lg:justify-start [&>svg]:size-3.5 @max-lg:[&>svg]:hidden',
                 page === id ? 'bg-line text-fg' : 'text-muted hover:bg-hover hover:text-fg',
               )}
             >
@@ -77,7 +87,7 @@ export function SettingsPanel({ initialPage = 'general' }: { initialPage?: Setti
           ))}
         </nav>
         <div role="tabpanel" aria-label={PAGES.find((p) => p.id === page)?.label} className="@container min-h-0 flex-1 overflow-y-auto">
-          {page === 'general' ? <GeneralPage /> : page === 'appearance' ? <AppearancePage /> : <PagesPage />}
+          {page === 'general' ? <GeneralPage /> : page === 'appearance' ? <AppearancePage /> : page === 'pages' ? <PagesPage /> : <PrivacyPage />}
         </div>
       </div>
     </div>
@@ -168,15 +178,48 @@ function PagesPage() {
   );
 }
 
+/** The master switch, then a switch per kind of detail; the kinds stay as set while the master is off. */
+function PrivacyPage() {
+  const privacy = useStorageItem(privacyItem);
+  if (!privacy) return null;
+  const keys = Object.keys(BLURS) as Blur[];
+  // A kind added after the setting was saved is on, as in `blurredKinds`.
+  const blur = { ...DEFAULT_PRIVACY.blur, ...privacy.blur };
+
+  return (
+    <>
+      <Section title="Privacy">
+        <div className="-mx-1.5 flex flex-col">
+          <ToggleRow
+            on={privacy.on}
+            onClick={() => privacyItem.setValue({ ...privacy, on: !privacy.on })}
+            icon={<HugeiconsIcon icon={ViewOffSlashIcon} />}
+            label="Blur private details"
+            path="For screen sharing. Hover a detail to show it"
+          />
+        </div>
+      </Section>
+      <Section title="Blur" aside={`${keys.filter((key) => blur[key]).length} of ${keys.length} on`}>
+        <div className="-mx-1.5 flex flex-col">
+          {keys.map((key) => (
+            <ToggleRow key={key} on={blur[key]} disabled={!privacy.on} onClick={() => privacyItem.setValue({ ...privacy, blur: { ...blur, [key]: !blur[key] } })} {...BLURS[key]} />
+          ))}
+        </div>
+      </Section>
+    </>
+  );
+}
+
 /** A setting that's on or off: icon, label and a detail line, with a switch. */
-function ToggleRow({ on, onClick, icon, label, path }: { on: boolean; onClick: () => void; icon: ReactNode; label: string; path: string }) {
+function ToggleRow({ on, disabled, onClick, icon, label, path }: { on: boolean; disabled?: boolean; onClick: () => void; icon: ReactNode; label: string; path: string }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={on}
+      disabled={disabled}
       onClick={onClick}
-      className="flex h-11 cursor-pointer items-center gap-3 rounded-lg px-1.5 text-left transition-colors hover:bg-hover"
+      className="flex h-11 cursor-pointer items-center gap-3 rounded-lg px-1.5 text-left transition-[background-color,opacity] hover:bg-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
     >
       <span
         className={cx(

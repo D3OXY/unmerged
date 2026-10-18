@@ -95,7 +95,9 @@ function RunHeader({ run, owner, repo, base, attempt, onRerun }: { run: Workflow
   return (
     <div className="mb-6">
       <div className="flex items-start gap-4">
-        <h1 className="min-w-0 flex-1 text-[20px] leading-snug font-semibold tracking-tight break-words">{run.display_title}</h1>
+        <h1 data-private="commits" className="min-w-0 flex-1 text-[20px] leading-snug font-semibold tracking-tight break-words">
+          {run.display_title}
+        </h1>
         {attempt === undefined && run.status === 'completed' && result === 'FAILURE' && (
           <Button size="sm" loading={rerun.isPending} icon={<HugeiconsIcon icon={UndoIcon} className="size-3.5" />} onClick={() => rerun.mutate()}>
             Re-run failed jobs

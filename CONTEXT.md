@@ -63,6 +63,11 @@ _Avoid_: Colors, tokens
 One of the two colors per appearance, a background and an accent, from which Unmerged derives a palette.
 _Avoid_: Base color, primary color
 
+**Privacy**:
+The setting that blurs details on screen, such as organization names and private repositories' commit
+messages, until the user hovers them. It has a master switch and a switch for each kind of detail.
+_Avoid_: Streamer mode, incognito, redact
+
 ## Account
 
 **Token**:

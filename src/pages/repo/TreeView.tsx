@@ -52,7 +52,7 @@ export function TreeView({ nameWithOwner, gitRef, revision, path, entries, lastC
                   <Skeleton className="h-3 w-48" />
                 ) : (
                   commit && (
-                    <a href={commit.url} className="hover:text-fg hover:underline">
+                    <a href={commit.url} data-private="commits" className="hover:text-fg hover:underline">
                       {commit.messageHeadline}
                     </a>
                   )
@@ -94,7 +94,7 @@ export function CommitBar({ nameWithOwner, gitRef, path, commit, count }: { name
     <div className="flex h-12 items-center gap-3 border-b border-line bg-elevated/40 px-4 text-[12.5px]">
       <Avatar src={user?.avatarUrl} size={20} />
       <span className="shrink-0 font-medium">{user?.login ?? commit.author?.name}</span>
-      <a href={commit.url} className="min-w-0 truncate text-muted hover:text-fg hover:underline">
+      <a href={commit.url} data-private="commits" className="min-w-0 truncate text-muted hover:text-fg hover:underline">
         {commit.messageHeadline}
       </a>
       <CheckIcon state={commit.statusCheckRollup?.state} />

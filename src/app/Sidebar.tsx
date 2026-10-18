@@ -7,7 +7,7 @@ import { openClassic } from '@/lib/classic';
 import { cx } from '@/lib/cx';
 import { isPinned, pin, unpin } from '@/lib/pins';
 import { matchRoute } from '@/lib/routes';
-import { appearanceItem, pinsItem, useStorageItem, type Appearance } from '@/lib/settings';
+import { appearanceItem, pinsItem, useStorageItem, type Appearance, type Blur } from '@/lib/settings';
 import { useUnreadCount } from '@/pages/notifications/queries';
 import { Avatar, Kbd } from '@/ui/primitives';
 import { paletteOpen } from './commands';
@@ -101,7 +101,7 @@ export function Sidebar({ active }: { active?: NavSection }) {
         {!!viewer?.organizations.nodes.length && (
           <SidebarGroup title="Organizations">
             {viewer.organizations.nodes.map((org) => (
-              <NavItem key={org.login} href={`/${org.login}`} icon={<Avatar src={org.avatarUrl} size={16} square />}>
+              <NavItem key={org.login} href={`/${org.login}`} icon={<Avatar src={org.avatarUrl} size={16} square />} blur="orgs">
                 {org.login}
               </NavItem>
             ))}
@@ -179,7 +179,7 @@ function PinnedGroup({ pins, viewerLogin }: { pins: string[] | null; viewerLogin
   // While dragging over: the pin to insert before, or "end".
   const [dropBefore, setDropBefore] = useState<string | null>(null);
   const meta = usePinnedRepos(pins);
-  const privateRepos = new Set(meta.data?.filter((r) => r.isPrivate).map((r) => r.nameWithOwner.toLowerCase()));
+  const visibility = new Map(meta.data?.map((r) => [r.nameWithOwner.toLowerCase(), r.isPrivate]));
 
   const onDragOver = (event: DragEvent) => {
     if (!acceptsDrop(event)) return;
@@ -214,7 +214,7 @@ function PinnedGroup({ pins, viewerLogin }: { pins: string[] | null; viewerLogin
               {dropBefore === name && <span className="absolute inset-x-2 -top-px h-0.5 rounded-full bg-accent" />}
               <RepoItem
                 name={name}
-                isPrivate={privateRepos.has(name.toLowerCase())}
+                isPrivate={visibility.get(name.toLowerCase())}
                 viewerLogin={viewerLogin}
                 onDragStart={(event) => event.dataTransfer.setData(PIN_TYPE, name)}
                 trailing={
@@ -254,10 +254,12 @@ function SidebarGroup({ title, children }: { title: string; children: ReactNode 
   );
 }
 
-function NavItem({ href, icon, active, children }: { href: string; icon: ReactNode; active?: boolean; children: ReactNode }) {
+/** `blur`: the Privacy kind the whole item is, if any. */
+function NavItem({ href, icon, active, blur, children }: { href: string; icon: ReactNode; active?: boolean; blur?: Blur; children: ReactNode }) {
   return (
     <a
       href={href}
+      data-private={blur}
       className={cx(
         'flex h-7 items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors [&>svg]:size-4 [&>svg]:shrink-0',
         active ? 'bg-hover font-medium text-fg' : 'text-muted hover:bg-hover hover:text-fg',
@@ -269,7 +271,10 @@ function NavItem({ href, icon, active, children }: { href: string; icon: ReactNo
   );
 }
 
-/** A repo link. Your own repos get a letter badge; others show their owner's avatar. */
+/**
+ * A repo link. Your own repos get a letter badge; others show their owner's avatar. `isPrivate` is undefined
+ * until known; Privacy blurs the name until then.
+ */
 function RepoItem({
   name,
   isPrivate,
@@ -278,7 +283,7 @@ function RepoItem({
   onDragStart,
 }: {
   name: string;
-  isPrivate: boolean;
+  isPrivate?: boolean;
   viewerLogin?: string;
   trailing?: ReactNode;
   onDragStart?: (event: DragEvent) => void;
@@ -289,12 +294,13 @@ function RepoItem({
     <a
       href={`/${name}`}
       title={name}
+      data-repo-private={isPrivate !== false || undefined}
       onDragStart={onDragStart}
       className="group flex h-7 items-center gap-2.5 rounded-md px-2 text-[13px] text-muted transition-colors hover:bg-hover hover:text-fg"
     >
       {own ? <RepoGlyph name={name} /> : <Avatar src={`https://avatars.githubusercontent.com/${owner}`} size={16} square />}
       {/* Short on space, the owner truncates first; the repo name only truncates once the owner is down to ~2 characters. */}
-      <span className="flex min-w-0 flex-1">
+      <span data-private="repos" className="flex min-w-0 flex-1">
         <span className="min-w-[2.5ch] truncate text-subtle group-hover:text-muted">{owner}</span>
         <span className="shrink-0 text-subtle group-hover:text-muted">/</span>
         <span className="max-w-[calc(100%-3.5ch)] shrink-0 truncate">{repo}</span>

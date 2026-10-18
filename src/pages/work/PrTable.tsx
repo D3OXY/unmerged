@@ -125,6 +125,7 @@ function PrRow({ item, repoLabel, byCreated, peek, selected }: { item: WorkItem;
       href={item.url}
       data-row
       data-peek={peek || undefined}
+      data-repo-private={item.repository.isPrivate !== false || undefined}
       aria-current={selected || undefined}
       className={cx(
         'relative flex h-10 items-center gap-3 border-b border-line px-4 transition-colors last:border-b-0 hover:bg-hover focus:bg-hover focus:outline-none',
@@ -134,7 +135,9 @@ function PrRow({ item, repoLabel, byCreated, peek, selected }: { item: WorkItem;
       {pr ? <PrStateIcon state={pr.state} isDraft={pr.isDraft} /> : item.__typename === 'Issue' && <IssueIcon state={item.state} stateReason={item.stateReason} />}
       <span className="flex min-w-0 flex-1 items-center gap-2">
         <span className={cx('shrink-0 text-[12px] text-subtle tabular-nums', repoLabel === 'none' ? 'w-10' : 'w-14')}>#{item.number}</span>
-        <span className={cx('min-w-0 truncate', pr?.isDraft ? 'text-muted' : 'font-medium text-fg/95')}>{item.title}</span>
+        <span data-private="titles" className={cx('min-w-0 truncate', pr?.isDraft ? 'text-muted' : 'font-medium text-fg/95')}>
+          {item.title}
+        </span>
         {/*
           Labels give way long before the title does. One that doesn't fit wraps out of sight rather than being cut:
           the empty first item (full height, so the first line is) gives even the first label a line to wrap from.
@@ -155,7 +158,7 @@ function PrRow({ item, repoLabel, byCreated, peek, selected }: { item: WorkItem;
             <span className="truncate">{item.author?.login ?? 'ghost'}</span>
           </>
         ) : (
-          <span className="truncate">{repoLabel === 'full' ? item.repository.nameWithOwner : item.repository.nameWithOwner.split('/')[1]}</span>
+          <span data-private="repos" className="truncate">{repoLabel === 'full' ? item.repository.nameWithOwner : item.repository.nameWithOwner.split('/')[1]}</span>
         )}
       </span>
       <span className={cx(COL.review, 'items-center gap-2')}>{pr && <Review pr={pr} />}</span>
