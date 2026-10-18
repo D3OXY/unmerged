@@ -5,12 +5,10 @@ import { CircleDotIcon, Copy01Icon, FileSearchIcon, GitBranchIcon, GitPullReques
 import { useRegisterCommands, type Command } from '@/app/commands';
 import { usePageHotkey } from '@/app/keyboard';
 import { copy } from '@/lib/clipboard';
-import { cx } from '@/lib/cx';
 import { loadDiffs } from '@/lib/diffs';
 import { navigate } from '@/lib/navigation';
 import { pin, unpin, useIsPinned } from '@/lib/pins';
 import { repoPulseItem, useStorageItem } from '@/lib/settings';
-import { useMedia } from '@/lib/useMedia';
 import { useTitle } from '@/lib/useTitle';
 import { Button } from '@/ui/Button';
 import { Kbd, Panel } from '@/ui/primitives';
@@ -101,8 +99,7 @@ export function RepoPage({ owner, repo: name, view, rest }: Props) {
 
 /**
  * Branch picker, path and the code actions above `children`. With an `aside` (the root's sidebar) it adds a
- * second column that sticks under the tab bar on wide screens, headed by the actions. Only the aside scrolls, so
- * the Code menu isn't clipped.
+ * second column that sticks under the tab bar on wide screens.
  */
 function Toolbar({ repo, gitRef, path, aside, children }: { repo: Repo; gitRef: string; path: string; aside?: ReactNode; children: ReactNode }) {
   const [owner, name] = repo.nameWithOwner.split('/') as [string, string];
@@ -130,23 +127,7 @@ function Toolbar({ repo, gitRef, path, aside, children }: { repo: Repo; gitRef: 
     [repo, openFinder, pinned],
   );
   useRegisterCommands('repo', commands);
-  // Tailwind's `lg`.
-  const actionsInColumn = useMedia('(min-width: 64rem)') && !!aside;
 
-  const actions = (
-    <div className={cx('flex items-center justify-end gap-2', !actionsInColumn && 'ml-auto')}>
-      <button
-        type="button"
-        onClick={openFinder}
-        className="flex h-8 w-52 cursor-pointer items-center gap-2 rounded-lg border border-line bg-panel px-2.5 text-[12.5px] text-subtle hover:border-line-strong hover:text-muted"
-      >
-        <HugeiconsIcon icon={FileSearchIcon} className="size-3.5" />
-        Go to file
-        <Kbd className="ml-auto">T</Kbd>
-      </button>
-      <CloneMenu repo={repo} gitRef={gitRef} />
-    </div>
-  );
   const bar = (
     <div className="mb-4 flex flex-wrap items-center gap-2">
       <BranchPicker owner={owner} name={name} current={gitRef} hrefFor={(ref) => treeUrl(repo.nameWithOwner, ref, path)} />
@@ -184,7 +165,18 @@ function Toolbar({ repo, gitRef, path, aside, children }: { repo: Repo; gitRef: 
           </button>
         </div>
       )}
-      {!actionsInColumn && actions}
+      <div className="ml-auto flex items-center gap-2">
+        <button
+          type="button"
+          onClick={openFinder}
+          className="flex h-8 w-52 cursor-pointer items-center gap-2 rounded-lg border border-line bg-panel px-2.5 text-[12.5px] text-subtle hover:border-line-strong hover:text-muted"
+        >
+          <HugeiconsIcon icon={FileSearchIcon} className="size-3.5" />
+          Go to file
+          <Kbd className="ml-auto">T</Kbd>
+        </button>
+        <CloneMenu repo={repo} gitRef={gitRef} />
+      </div>
     </div>
   );
 
@@ -197,7 +189,6 @@ function Toolbar({ repo, gitRef, path, aside, children }: { repo: Repo; gitRef: 
             {children}
           </div>
           <div className="flex flex-col gap-4 lg:sticky lg:top-[108px] lg:max-h-[calc(100vh-124px)] lg:self-start">
-            {actionsInColumn && actions}
             {aside}
           </div>
         </div>
