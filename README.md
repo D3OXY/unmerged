@@ -13,128 +13,66 @@
   <img src=".github/screenshot.png" alt="A repository page in Unmerged, split diagonally between dark and light mode">
 </p>
 
-## What it takes over
+## What it covers
 
-| Page | URL | Fallback |
-|---|---|---|
-| Home | `github.com/` (signed in) | Logged-out marketing page is left alone |
-| Profile | `github.com/<user>`, `?tab=repositories`, `?tab=achievements`, `?tab=followers`, `?tab=following` | Stars and other `?tab=` views stay on GitHub |
-| Organization | `github.com/<org>`, `/orgs/<org>/repositories`, `/orgs/<org>/people` | Teams, projects, packages and settings stay on GitHub |
-| Pull request | `github.com/<owner>/<repo>/pull/<n>` plus `/commits`, `/checks`, `/files` | |
-| Commit | `github.com/<owner>/<repo>/commit/<sha>`, `…/pull/<n>/commits/<sha>` | `.patch` / `.diff` and the commit's checks page stay on GitHub |
-| Workflow run | `github.com/<owner>/<repo>/actions/runs/<id>` plus `/job/<id>` (steps and logs) and `/attempts/<n>` | The Actions tab and workflow pages stay on GitHub, and so do a running job's live logs |
-| Compare & new pull request | `github.com/<owner>/<repo>/compare`, `…/compare/<base>...<head>` (a fork's head as `<user>:<branch>`), `?expand=1` | Two-dot (`..`) comparisons, `.patch` / `.diff` and a base in another repo stay on GitHub |
-| Repository | `github.com/<owner>/<repo>`, `/tree/…`, `/blob/…`, `/commits/…`, `/issues`, `/pulls` (any `?q=` search) | Actions, Settings, etc. stay on GitHub |
-| Branches | `github.com/<owner>/<repo>/branches` plus `/yours`, `/active`, `/stale`, `/all` (`?query=` search) | Rename and branch rules stay on GitHub; past 3,000 branches only the first 3,000 GitHub lists are sorted |
-| Contributors | `github.com/<owner>/<repo>/graphs/contributors`, private repos included (GitHub's page needs a paid plan for those) | Other Insights pages stay on GitHub; GitHub counts only the 100 authors with the most commits |
-| Issue | `github.com/<owner>/<repo>/issues/<n>`, `/issues/new` (template chooser, Markdown templates, `?title=`, `?body=`, `?labels=`, `?assignees=`) | Sub-issues and projects are only shown on GitHub; YAML issue forms (`?template=*.yml`) open GitHub's form |
-| Pull requests & issues | `github.com/pulls`, `/pulls/assigned`, `/issues`, … (any `?q=` search) | |
-| Notifications | `github.com/notifications` (inbox, unread, participating) | |
-| Search | `github.com/search?q=…` with `type=` repositories, code, issues, pullrequests, users or commits; `…/<repo>/search` | Discussions, topics, wikis and other types stay on GitHub |
+Home, profiles, organizations, repositories (files, commits, branches, contributors), pull requests, commits,
+compare and new pull request, workflow runs, issues, your pull request and issue lists, notifications and search.
+Every other page stays GitHub's own.
 
-Every other page is untouched. Each page can be switched off from the toolbar popup, and **Classic** (sidebar
-or ⌘K) shows the stock page for the current URL with a pill to come back.
+Switch any page off from the toolbar popup. **Classic** (sidebar or ⌘K) shows GitHub's page for the current URL,
+with a pill to come back.
 
-A repository's front page starts with its last 12 weeks above the files: commits, merged pull requests, issues
-opened and closed, and lines changed per week (hover a bar for that week), then CI on the default branch and the
-latest release with how many commits haven't shipped. Lines changed is left out for repositories with 10,000
-commits or more, which GitHub doesn't count. Settings → General → Repositories turns the strip off.
+## Install
 
-Issue lists keep the open issue beside them (`?peek=<owner>/<repo>/issues/<n>`, the first issue until you pick
-one), and j/k moves through them; on windows narrower than 1280px it opens in a side panel instead. Pull requests
-are a table whose headers filter (Review, CI) and sort (comments, updated or created); a row opens in the same
-side panel, so you can go from one to the next without losing your place. Double-clicking a row, or the expand
-button, opens the page full screen; Back closes the panel, and a new tab still gets the page itself. The side
-panel for pull requests can be turned off under Lists in settings.
-
-Settings has three pages: General (token, lists, repositories), Appearance and Pages. Light or dark follows GitHub's appearance
-setting by default; pick Light or Dark from settings, the sidebar, or ⌘K. Under Appearance, pick a theme (Unmerged,
-Graphite, Paper, Grove, Ocean, Ember or Iris), or make your own with New theme: choose a background and an accent
-for light and dark, and Unmerged derives the rest, keeping text readable. The text font can be Default (Geist),
-Serif or Mono (JetBrains Mono), as in Notion.
-
-## Install (dev)
+Unmerged is not in the browser stores yet. Build it and load it unpacked:
 
 ```sh
 pnpm install
-pnpm build            # → .output/chrome-mv3
+pnpm build            # Chrome → .output/chrome-mv3
+pnpm build:firefox    # Firefox → .output/firefox-mv2
 ```
 
-Chrome → `chrome://extensions` → Developer mode → **Load unpacked** → `.output/chrome-mv3`.
-Click Unmerged's toolbar icon (or **Open Unmerged settings** on github.com) and paste a token (see below).
-The token is only ever typed into the extension's own page, never into github.com.
-
-`pnpm dev` runs WXT with hot reload in a separate browser profile. `pnpm build:firefox` builds for Firefox.
-`pnpm zip` and `pnpm zip:firefox` make the store packages; [STORE.md](STORE.md) has what goes in each store's form.
-
-`pnpm check` runs everything CI runs except the Firefox build: `pnpm typecheck`, `pnpm test` (Vitest),
-`pnpm lint` (ESLint), `pnpm build`, the website's typecheck and build, and a check of pending
-[changesets](.changeset/README.md). User-visible changes get a changeset; releases and `CHANGELOG.md` are
-generated from them.
-
-## Website
-
-[unmerged.deoxy.dev](https://unmerged.deoxy.dev) lives in `site/`, a TanStack Start app in the same pnpm
-workspace. `pnpm site` runs it on port 3000. `pnpm --filter site build` prerenders every page, so
-`site/dist/client` is the whole site and can go on any static host.
+In Chrome, open `chrome://extensions`, turn on Developer mode, click **Load unpacked** and pick
+`.output/chrome-mv3`. Then click the Unmerged toolbar icon and paste a token.
 
 ## Token
 
-The token is kept in the extension's storage (`chrome.storage.local`) and sent only to `api.github.com`.
-Changing it or pressing **Disconnect** (popup → Change token) also deletes everything cached for the previous one.
+Unmerged keeps the token in extension storage and sends it only to `api.github.com`. You type it into the
+extension's own page, never into github.com. Changing the token, or **Disconnect**, deletes everything cached
+for the old one.
 
 **Classic token** (simplest, everything works):
 [create one](https://github.com/settings/tokens/new?description=Unmerged&scopes=repo,read:org,read:user,user:follow,notifications)
-with `repo`, `read:org`, `read:user`, `user:follow` and `notifications`. Classic tokens have no read-only scope
-for private repos, so `repo` means full write access to them; if you only browse public code, `public_repo` in
-its place is enough.
+with `repo`, `read:org`, `read:user`, `user:follow` and `notifications`. `repo` gives write access to private
+repos (classic tokens have no read-only scope for them). If you only read public code, use `public_repo`.
 
 **Fine-grained token** (least privilege):
-[create one](https://github.com/settings/personal-access-tokens/new) for the account or organization whose repos
-you want, and pick only the repos and permissions for the features you use:
+[create one](https://github.com/settings/personal-access-tokens/new) and give it only what you use:
 
 | Feature | Permission |
 |---|---|
-| Browsing repos, PRs, lists, home (always needed) | Repository → Metadata: read, Contents: read, Pull requests: read, Issues: read |
-| Checks tab, workflow runs and job logs | Repository → Checks: read, Commit statuses: read, Actions: read |
-| Open pull requests, comment, review, resolve threads, mark files viewed, close/reopen, draft/ready | Repository → Pull requests: read and write |
-| Merge, auto-merge, merge queue, update branch, delete branch | Repository → Contents: read and write, Pull requests: read and write |
-| Create, delete and restore branches | Repository → Contents: read and write |
-| Re-run failed checks or jobs | Repository → Actions: read and write |
-| Star / unstar | Account → Starring: read and write |
-| Watch | Account → Watching: read and write |
-| Follow | Account → Followers: read and write |
+| Read repos, pull requests, issues and lists (always needed) | Repository → Metadata, Contents, Pull requests, Issues: read |
+| Checks, workflow runs and job logs | Repository → Checks, Commit statuses, Actions: read |
+| Comment, review, open, close or edit pull requests | Repository → Pull requests: read and write |
+| Merge, update or delete a branch | Repository → Contents and Pull requests: read and write |
+| Re-run checks or jobs | Repository → Actions: read and write |
+| Star, watch, follow | Account → Starring, Watching, Followers: read and write |
 
-Limits of fine-grained tokens: each covers one owner (your account or one organization; an organization may
-need to approve it), so repos outside it don't show up; and the **Notifications** page doesn't work with them
-(GitHub's notifications API only accepts classic tokens). Switch Notifications off in the popup if you use one.
-
-## How it works
-
-- A `document_start` content script hides GitHub's `<body>` for owned URLs before first paint and mounts a
-  React app in a shadow root on `<html>` (so Turbo's body swaps can't remove it). Once GitHub's `<head>` has
-  arrived (it says who's signed in), the rest of its page is stopped: none of its HTML body (~1 MB on a repo
-  page) or scripts load underneath ours.
-- Data comes from GitHub's GraphQL and REST APIs with your token.
-- Links between owned pages swap in place (`pushState`), and so do GitHub links that point at them.
-  Everything else is a normal page load. Back/forward onto owned pages is claimed before GitHub's router
-  sees it.
-- Keys aimed at GitHub's hidden page are swallowed so its hotkeys don't fire.
-- A page's requests start as the script starts, before React or styles, and again when a link to it is
-  hovered, focused or pressed, so most in-app navigations find their data already there. Slow GitHub queries
-  are split into parallel requests (GitHub resolves one query's fields one after another).
-- Results are cached in extension storage, per account, and shown at once on the next visit while the same
-  request refreshes them. A result that comes back unchanged isn't written again, and a small index keeps the
-  cache under 50 MB and a week old without reading the cache itself.
-- Code is drawn by [`@pierre/diffs`](https://diffs.com) with Shiki (diffs and the file view). It lives in a
-  separate script that pull request and repo pages load while idle, and each language's grammar loads on
-  first use, so every other page pays nothing for it.
+A fine-grained token covers one owner, so repos outside it don't show up. The Notifications page needs a
+classic token: switch it off in the popup if you use a fine-grained one.
 
 ## Shortcuts
 
-`⌘K` palette (commands, repo/people search, your PRs and issues by title, `owner/repo#123` jumps, or
-just `#123` inside a repo) · `j`/`k` move between rows · `g h` home · `g p` your profile · `t` go to file
-(repo pages) · `⌘↵` send comment · `?` every shortcut on the current page
+`⌘K` palette (commands, repos, people, `owner/repo#123`, or `#123` inside a repo) · `j`/`k` move between rows ·
+`g h` home · `g p` your profile · `t` go to file · `⌘↵` send comment · `?` every shortcut on the current page
+
+## Development
+
+`pnpm dev` runs the extension with hot reload in a separate browser profile. `pnpm site` runs the website
+([unmerged.deoxy.dev](https://unmerged.deoxy.dev), in `site/`) on port 3000. `pnpm check` runs what CI runs.
+
+User-visible changes need a [changeset](.changeset/README.md). Rules for AI agents are in
+[AGENTS.md](AGENTS.md), and the project's terms are in [CONTEXT.md](CONTEXT.md).
 
 ## License
 
