@@ -1,4 +1,23 @@
+import { useMemo } from 'react';
+import { createStore } from '@/lib/store';
+import type { MenuOption } from '@/ui/Menu';
 import type { MergeMethod, PullRequest, Repo } from './query';
+
+export const METHOD_LABEL: Record<MergeMethod, string> = {
+  SQUASH: 'Squash and merge',
+  MERGE: 'Create a merge commit',
+  REBASE: 'Rebase and merge',
+};
+
+const METHOD_HINT: Record<MergeMethod, string> = {
+  SQUASH: 'Combine all commits into one on the base branch',
+  MERGE: 'Keep every commit and add a merge commit',
+  REBASE: 'Replay commits onto the base branch',
+};
+
+/** The merge method menu's options. */
+export const methodOptions = (methods: readonly MergeMethod[]) =>
+  methods.map((m): MenuOption<MergeMethod> => ({ value: m, label: METHOD_LABEL[m], hint: METHOD_HINT[m] }));
 
 /** The merge methods the repository allows, in GitHub's order. */
 export const mergeMethods = (repo: Repo) =>
@@ -7,6 +26,21 @@ export const mergeMethods = (repo: Repo) =>
 /** The method a merge starts with: the viewer's last one while the repository still allows it. */
 export function defaultMergeMethod(repo: Repo, methods: readonly MergeMethod[] = mergeMethods(repo)): MergeMethod {
   return methods.includes(repo.viewerDefaultMergeMethod) ? repo.viewerDefaultMergeMethod : (methods[0] ?? 'MERGE');
+}
+
+/** The method the user picked for each PR (by id) in this tab. */
+const picked = createStore<Record<string, MergeMethod>>({});
+
+/**
+ * The PR's merge method: the one the user picked for it, else the default. The merge box and Slide to merge
+ * share it, so they always merge the same way.
+ */
+export function useMergeMethod(pr: PullRequest, repo: Repo) {
+  const methods = useMemo(() => mergeMethods(repo), [repo]);
+  const choice = picked.use()[pr.id];
+  const method = choice && methods.includes(choice) ? choice : defaultMergeMethod(repo, methods);
+  const setMethod = (m: MergeMethod) => picked.set({ ...picked.get(), [pr.id]: m });
+  return { methods, method, setMethod };
 }
 
 /** GitHub's commit message for a merge with `method`. A rebase makes no commit of its own. */

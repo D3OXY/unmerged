@@ -6,24 +6,12 @@ import { useRegisterCommands } from '@/app/commands';
 import { cx } from '@/lib/cx';
 import { timeAgo } from '@/lib/time';
 import { Button } from '@/ui/Button';
-import { Menu, type MenuOption } from '@/ui/Menu';
+import { Menu } from '@/ui/Menu';
 import { Panel } from '@/ui/primitives';
 import { summarizeChecks } from './checks';
-import { defaultCommitMessage, defaultMergeMethod, isMergeReady, mergeMethods } from './merge';
+import { defaultCommitMessage, isMergeReady, METHOD_LABEL, methodOptions, useMergeMethod } from './merge';
 import { MUTATIONS, type MergeMethod, type PullRequest, type Repo } from './query';
 import { usePrMutation } from './usePrMutation';
-
-const METHOD_LABEL: Record<MergeMethod, string> = {
-  SQUASH: 'Squash and merge',
-  MERGE: 'Create a merge commit',
-  REBASE: 'Rebase and merge',
-};
-
-const METHOD_HINT: Record<MergeMethod, string> = {
-  SQUASH: 'Combine all commits into one on the base branch',
-  MERGE: 'Keep every commit and add a merge commit',
-  REBASE: 'Replay commits onto the base branch',
-};
 
 /** Always-visible merge panel: requirements as a checklist, one obvious primary action. */
 export function MergeBox({ repo, pr, queryKey }: { repo: Repo; pr: PullRequest; queryKey: QueryKey }) {
@@ -87,8 +75,7 @@ function ClosedBox({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey }) {
 type Tone = 'ok' | 'fail' | 'wait' | 'neutral';
 
 function OpenBox({ repo, pr, queryKey }: { repo: Repo; pr: PullRequest; queryKey: QueryKey }) {
-  const methods = useMemo(() => mergeMethods(repo), [repo]);
-  const [method, setMethod] = useState(() => defaultMergeMethod(repo, methods));
+  const { methods, method, setMethod } = useMergeMethod(pr, repo);
   const [confirming, setConfirming] = useState(false);
   const [headline, setHeadline] = useState('');
   const [body, setBody] = useState('');
@@ -199,7 +186,7 @@ function OpenBox({ repo, pr, queryKey }: { repo: Repo; pr: PullRequest; queryKey
   const methodMenu = methods.length > 1 && (
     <Menu<MergeMethod>
       value={method}
-      options={methods.map((m): MenuOption<MergeMethod> => ({ value: m, label: METHOD_LABEL[m], hint: METHOD_HINT[m] }))}
+      options={methodOptions(methods)}
       onChange={(m) => {
         setMethod(m);
         if (confirming) startConfirm(m);
