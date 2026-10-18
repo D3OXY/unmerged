@@ -21,6 +21,7 @@ import { FileFinder } from './FileFinder';
 import { DEFAULT_REVISION, repoContentQuery, repoResolveQuery, type Repo } from './query';
 import { RecentPushes } from './RecentPushes';
 import { RepoFrame, useRepo } from './RepoFrame';
+import { RepoPulse } from './RepoPulse';
 import { RepoSidebar } from './RepoSidebar';
 import { TreeSkeleton, TreeView } from './TreeView';
 import { treeUrl } from './urls';
@@ -76,6 +77,7 @@ export function RepoPage({ owner, repo: name, view, rest }: Props) {
       ) : (
         <>
           {repo && !rest.length && <RecentPushes repo={repo} />}
+          {repo && !rest.length && <RepoPulse repo={repo} />}
           {!repo || !target ? (
             <TreeSkeleton />
           ) : (

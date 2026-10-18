@@ -34,6 +34,11 @@
 Every other page is untouched. Each page can be switched off from the toolbar popup, and **Classic** (sidebar
 or ⌘K) shows the stock page for the current URL with a pill to come back.
 
+A repository's front page starts with its last 12 weeks above the files: commits, merged pull requests, issues
+opened and closed, and lines changed per week (hover a bar for that week), then CI on the default branch and the
+latest release with how many commits haven't shipped. Lines changed is left out for repositories with 10,000
+commits or more, which GitHub doesn't count.
+
 Issue lists keep the open issue beside them (`?peek=<owner>/<repo>/issues/<n>`, the first issue until you pick
 one), and j/k moves through them; on windows narrower than 1280px it opens in a side panel instead. Pull requests
 are a table whose headers filter (Review, CI) and sort (comments, updated or created); a row opens in the same
