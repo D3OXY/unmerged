@@ -38,6 +38,24 @@
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--u-accent) 70%, transparent);
 }
 
+/*
+ * Privacy. `data-blur` on `.u-root` lists the kinds to blur (see `privacyItem`); the UI marks each detail with
+ * `data-private="<kind>"`. Repos, commits and titles blur only inside `data-repo-private`: a private repository's
+ * page or row. Hover or keyboard focus on the detail, or on a link around it, shows it. The blur selectors sit
+ * in :where() so the reveal below wins.
+ */
+:where(.u-root[data-blur~='orgs']) [data-private='orgs'],
+:where(.u-root[data-blur~='emails']) [data-private='emails'],
+:where(.u-root[data-blur~='repos'] [data-repo-private]) [data-private='repos'],
+:where(.u-root[data-blur~='commits'] [data-repo-private]) [data-private='commits'],
+:where(.u-root[data-blur~='titles'] [data-repo-private]) [data-private='titles'] {
+  filter: blur(0.4em);
+  transition: filter 0.15s ease-out;
+}
+.u-root :is([data-private]:hover, a:hover [data-private], [data-private]:focus-within, :focus-visible [data-private]) {
+  filter: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .u-root *, .u-root *::before, .u-root *::after {
     animation-duration: 1ms !important;

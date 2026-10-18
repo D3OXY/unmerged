@@ -102,7 +102,7 @@ function IssueView({ issue, queryKey, panel }: { issue: Issue; queryKey: QueryKe
     <>
       <div className="max-w-[860px]">
         <h1 className={cx('leading-tight font-semibold tracking-tight', panel ? 'text-[20px]' : 'text-[24px]')}>
-          {issue.title} <span className="font-normal text-subtle">#{issue.number}</span>
+          <span data-private="titles">{issue.title}</span> <span className="font-normal text-subtle">#{issue.number}</span>
         </h1>
         {panel ? (
           <IssueDetails issue={issue} />

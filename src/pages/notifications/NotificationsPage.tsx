@@ -144,10 +144,10 @@ export function NotificationsPage() {
 
   // Unread counts per repository and per reason, for the filters.
   const groups = useMemo(() => {
-    const repos = new Map<string, { avatar: string; total: number; unread: number }>();
+    const repos = new Map<string, { avatar: string; isPrivate: boolean; total: number; unread: number }>();
     const reasons = new Map<string, number>();
     for (const n of all) {
-      const entry = repos.get(n.repository.full_name) ?? { avatar: n.repository.owner.avatar_url, total: 0, unread: 0 };
+      const entry = repos.get(n.repository.full_name) ?? { avatar: n.repository.owner.avatar_url, isPrivate: n.repository.private, total: 0, unread: 0 };
       entry.total++;
       if (n.unread) entry.unread++;
       repos.set(n.repository.full_name, entry);
@@ -296,8 +296,16 @@ export function NotificationsPage() {
               icon={<HugeiconsIcon icon={InboxIcon} className="size-3.5 shrink-0" />}
               count={all.filter((n) => n.unread).length}
             />
-            {groups.repos.map(([name, { avatar, unread }]) => (
-              <FilterLink key={name} href={link({ repo: name })} active={name.toLowerCase() === repo?.toLowerCase()} label={name} icon={<Avatar src={avatar} size={14} square />} count={unread} />
+            {groups.repos.map(([name, { avatar, isPrivate, unread }]) => (
+              <FilterLink
+                key={name}
+                href={link({ repo: name })}
+                active={name.toLowerCase() === repo?.toLowerCase()}
+                label={name}
+                icon={<Avatar src={avatar} size={14} square />}
+                count={unread}
+                isPrivate={isPrivate}
+              />
             ))}
             {groups.reasons.length > 0 && <div className="mt-5 px-2 pb-1.5 text-[11px] font-medium text-subtle">Reasons</div>}
             {groups.reasons.map(([key, unread]) => (
@@ -390,6 +398,7 @@ function NotificationRow({
         href={pageUrl(n)}
         data-row
         data-notification={n.id}
+        data-repo-private={n.repository.private || undefined}
         onPointerUp={(e) => e.button <= 1 && onOpen()}
         onKeyDown={(e) => e.key === 'Enter' && onOpen()}
         className="flex h-full min-w-0 flex-1 items-center gap-3 px-4 focus:outline-none"
@@ -406,11 +415,13 @@ function NotificationRow({
         </span>
         <span className="flex w-[180px] shrink-0 items-center gap-1.5 truncate text-[12px] text-subtle">
           <Avatar src={n.repository.owner.avatar_url} size={14} square />
-          <span className="truncate">
+          <span data-private="repos" className="truncate">
             {owner}/<span className="text-muted">{name}</span>
           </span>
         </span>
-        <span className={cx('min-w-0 flex-1 truncate text-[13px]', n.unread ? 'font-medium text-fg' : 'text-muted')}>{n.subject.title}</span>
+        <span data-private="titles" className={cx('min-w-0 flex-1 truncate text-[13px]', n.unread ? 'font-medium text-fg' : 'text-muted')}>
+          {n.subject.title}
+        </span>
         <span
           className={cx(
             'hidden shrink-0 rounded-full border px-2 py-0.5 text-[11px] md:inline',
@@ -444,18 +455,22 @@ function RowAction({ label, icon, onClick }: { label: string; icon: ReactNode; o
   );
 }
 
-function FilterLink({ href, active, label, icon, count }: { href: string; active: boolean; label: string; icon?: ReactNode; count: number }) {
+/** `isPrivate`: the label names a private repository, which Privacy may blur. */
+function FilterLink({ href, active, label, icon, count, isPrivate }: { href: string; active: boolean; label: string; icon?: ReactNode; count: number; isPrivate?: boolean }) {
   return (
     <a
       href={href}
       title={label}
+      data-repo-private={isPrivate || undefined}
       className={cx(
         'flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-[12.5px]',
         active ? 'bg-hover font-medium text-fg' : 'text-muted hover:bg-hover hover:text-fg',
       )}
     >
       {icon}
-      <span className="min-w-0 flex-1 truncate">{label}</span>
+      <span data-private={isPrivate ? 'repos' : undefined} className="min-w-0 flex-1 truncate">
+        {label}
+      </span>
       {count > 0 && <span className="text-[11px] text-subtle tabular-nums">{count}</span>}
     </a>
   );

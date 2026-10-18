@@ -13,7 +13,7 @@ import { matchRoute, type Route } from '@/lib/routes';
 import { sessionLogin } from '@/lib/session';
 import { localCache, setPageAccount } from '@/lib/localCache';
 import { trimPersisted } from '@/lib/persist';
-import { accountItem, DEFAULT_SURFACES, followTheme, fontItem, surfaceOf, surfacesItem, type Font, type Surfaces } from '@/lib/settings';
+import { accountItem, blurredKinds, DEFAULT_PRIVACY, DEFAULT_SURFACES, followTheme, fontItem, privacyItem, surfaceOf, surfacesItem, type Font, type Privacy, type Surfaces } from '@/lib/settings';
 import { paintPalette } from '@/lib/theme';
 
 const OWNING = 'unmerged-owning';
@@ -29,6 +29,7 @@ const documentCss = (background: string) => `
 // Mirrors of settings in github.com's localStorage, read synchronously before extension storage answers
 // (the theme's are kept by `followTheme`).
 const fontCache = localCache<Font>('unmerged:font');
+const blurCache = localCache<string>('unmerged:blur');
 const surfacesCache = localCache<Surfaces>('unmerged:surfaces');
 const TRIMMED_KEY = 'unmerged:trimmed-at';
 
@@ -63,6 +64,19 @@ export default defineContentScript({
     };
     fontItem.getValue().then(setFont);
     fontItem.watch(setFont);
+
+    // Privacy's kinds, as `data-blur` on the root (see style.css). Mirrored too, so private details never flash.
+    let blur = blurCache.get() ?? blurredKinds(DEFAULT_PRIVACY).join(' ');
+    const applyBlur = () => {
+      if (container) container.dataset.blur = blur;
+    };
+    const setPrivacy = (value: Privacy) => {
+      blur = blurredKinds(value).join(' ');
+      blurCache.set(blur);
+      applyBlur();
+    };
+    privacyItem.getValue().then(setPrivacy);
+    privacyItem.watch(setPrivacy);
 
     // Mirrored like the theme: the first decision below has to be right before extension storage answers.
     let surfaces: Surfaces = surfacesCache.get() ?? DEFAULT_SURFACES;
@@ -142,6 +156,7 @@ export default defineContentScript({
         container.classList.add('u-root');
         applyTheme();
         applyFont();
+        applyBlur();
         const root = createRoot(container);
         root.render(
           <QueryClientProvider client={queryClient}>

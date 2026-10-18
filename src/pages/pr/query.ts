@@ -35,7 +35,7 @@ const REF = `__typename ... on Issue { ${ISSUE_REF} } ... on PullRequest { numbe
 export const PR_QUERY = /* GraphQL */ `
   query PullRequest($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner, name: $repo) {
-      nameWithOwner
+      nameWithOwner isPrivate
       mergeCommitAllowed squashMergeAllowed rebaseMergeAllowed autoMergeAllowed
       viewerDefaultMergeMethod viewerPermission
       pullRequest(number: $number) {
@@ -311,6 +311,7 @@ export type PullRequest = {
 export type PrData = {
   repository: {
     nameWithOwner: string;
+    isPrivate: boolean;
     mergeCommitAllowed: boolean;
     squashMergeAllowed: boolean;
     rebaseMergeAllowed: boolean;
@@ -393,7 +394,7 @@ export const prQuery = (owner: string, repo: string, number: number) =>
   queryOptions({
     // The version keeps results persisted by an older build (missing newer fields) from rendering.
     // Bump it whenever PR_QUERY gains fields.
-    queryKey: ['pr', 2, ...prKey(owner, repo, number)],
+    queryKey: ['pr', 3, ...prKey(owner, repo, number)],
     queryFn: () => gql<PrData>(PR_QUERY, { owner, repo, number }, true),
     persister: persisted,
   });

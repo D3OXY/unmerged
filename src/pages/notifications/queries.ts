@@ -10,7 +10,7 @@ export type Notification = {
   reason: string;
   updated_at: string;
   subject: { title: string; url: string | null; type: string };
-  repository: { full_name: string; html_url: string; owner: { avatar_url: string } };
+  repository: { full_name: string; html_url: string; private: boolean; owner: { avatar_url: string } };
 };
 
 export type View = 'inbox' | 'unread' | 'participating';
