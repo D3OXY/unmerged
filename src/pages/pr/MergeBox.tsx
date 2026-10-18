@@ -9,6 +9,7 @@ import { Button } from '@/ui/Button';
 import { Menu, type MenuOption } from '@/ui/Menu';
 import { Panel } from '@/ui/primitives';
 import { summarizeChecks } from './checks';
+import { defaultCommitMessage, defaultMergeMethod, isMergeReady, mergeMethods } from './merge';
 import { MUTATIONS, type MergeMethod, type PullRequest, type Repo } from './query';
 import { usePrMutation } from './usePrMutation';
 
@@ -86,14 +87,8 @@ function ClosedBox({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey }) {
 type Tone = 'ok' | 'fail' | 'wait' | 'neutral';
 
 function OpenBox({ repo, pr, queryKey }: { repo: Repo; pr: PullRequest; queryKey: QueryKey }) {
-  const methods = useMemo(
-    () =>
-      (['SQUASH', 'MERGE', 'REBASE'] as const).filter((m) =>
-        m === 'SQUASH' ? repo.squashMergeAllowed : m === 'MERGE' ? repo.mergeCommitAllowed : repo.rebaseMergeAllowed,
-      ),
-    [repo],
-  );
-  const [method, setMethod] = useState<MergeMethod>(methods.includes(repo.viewerDefaultMergeMethod) ? repo.viewerDefaultMergeMethod : (methods[0] ?? 'MERGE'));
+  const methods = useMemo(() => mergeMethods(repo), [repo]);
+  const [method, setMethod] = useState(() => defaultMergeMethod(repo, methods));
   const [confirming, setConfirming] = useState(false);
   const [headline, setHeadline] = useState('');
   const [body, setBody] = useState('');
@@ -102,8 +97,9 @@ function OpenBox({ repo, pr, queryKey }: { repo: Repo; pr: PullRequest; queryKey
   const secondary = usePrMutation(queryKey);
 
   const startConfirm = (m: MergeMethod = method) => {
-    setHeadline(m === 'SQUASH' ? pr.squashHeadline : m === 'MERGE' ? pr.mergeHeadline : '');
-    setBody(m === 'SQUASH' ? pr.squashBody : m === 'MERGE' ? pr.mergeBody : '');
+    const message = defaultCommitMessage(pr, m);
+    setHeadline(message.headline ?? '');
+    setBody(message.body ?? '');
     setConfirming(true);
   };
 
@@ -116,7 +112,7 @@ function OpenBox({ repo, pr, queryKey }: { repo: Repo; pr: PullRequest; queryKey
       nextAfter: pr.url,
     });
 
-  const ready = pr.mergeStateStatus === 'CLEAN' || pr.mergeStateStatus === 'HAS_HOOKS' || pr.mergeStateStatus === 'UNSTABLE';
+  const ready = isMergeReady(pr);
   const canAutoMerge = repo.autoMergeAllowed && pr.viewerCanEnableAutoMerge;
 
   useRegisterCommands(
