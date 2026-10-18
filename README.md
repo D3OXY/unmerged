@@ -71,7 +71,7 @@ classic token: switch it off in the popup if you use a fine-grained one.
 `pnpm dev` runs the extension with hot reload in a separate browser profile. `pnpm site` runs the website
 ([unmerged.deoxy.dev](https://unmerged.deoxy.dev), in `site/`) on port 3000. `pnpm check` runs what CI runs.
 
-User-visible changes need a [changeset](.changeset/README.md). Rules for AI agents are in
+To contribute, read [CONTRIBUTING.md](CONTRIBUTING.md). Rules for AI agents are in
 [AGENTS.md](AGENTS.md), and the project's terms are in [CONTEXT.md](CONTEXT.md).
 
 ## License
