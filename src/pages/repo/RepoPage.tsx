@@ -9,6 +9,7 @@ import { cx } from '@/lib/cx';
 import { loadDiffs } from '@/lib/diffs';
 import { navigate } from '@/lib/navigation';
 import { pin, unpin, useIsPinned } from '@/lib/pins';
+import { repoPulseItem, useStorageItem } from '@/lib/settings';
 import { useMedia } from '@/lib/useMedia';
 import { useTitle } from '@/lib/useTitle';
 import { Button } from '@/ui/Button';
@@ -21,6 +22,7 @@ import { FileFinder } from './FileFinder';
 import { DEFAULT_REVISION, repoContentQuery, repoResolveQuery, type Repo } from './query';
 import { RecentPushes } from './RecentPushes';
 import { RepoFrame, useRepo } from './RepoFrame';
+import { RepoPulse } from './RepoPulse';
 import { RepoSidebar } from './RepoSidebar';
 import { TreeSkeleton, TreeView } from './TreeView';
 import { treeUrl } from './urls';
@@ -35,6 +37,7 @@ export function RepoPage({ owner, repo: name, view, rest }: Props) {
     return () => cancelIdleCallback(id);
   }, []);
   const repo = useRepo(owner, name).data?.repository;
+  const showPulse = useStorageItem(repoPulseItem);
 
   // "<ref>/<path…>" → ref + path. The root reads the default branch as HEAD, so it needn't wait for `repo`.
   const resolved = useQuery({ ...repoResolveQuery(owner, name, rest), enabled: rest.length > 0 });
@@ -76,6 +79,7 @@ export function RepoPage({ owner, repo: name, view, rest }: Props) {
       ) : (
         <>
           {repo && !rest.length && <RecentPushes repo={repo} />}
+          {repo && !rest.length && showPulse && <RepoPulse repo={repo} />}
           {!repo || !target ? (
             <TreeSkeleton />
           ) : (

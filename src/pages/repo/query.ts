@@ -3,6 +3,8 @@ import { gql, restHtml } from '@/github/client';
 import { absolutizeReadme } from '@/github/readme';
 import { persisted } from '@/lib/persist';
 import type { RepoView } from '@/lib/routes';
+import { repoPulseItem } from '@/lib/settings';
+import { repoChurnQuery, repoPulseQuery } from './pulse';
 import { blobUrl, encodePath, rawUrl } from './urls';
 import type { Actor, CheckState, Language } from '@/github/types';
 
@@ -315,7 +317,14 @@ export function prefetchRepo(client: QueryClient, owner: string, name: string, v
     if (rest.length) client.prefetchQuery(repoResolveQuery(owner, name, rest));
     return;
   }
-  if (!rest.length) client.prefetchQuery(repoAboutQuery(owner, name));
+  if (!rest.length) {
+    client.prefetchQuery(repoAboutQuery(owner, name));
+    repoPulseItem.getValue().then((show) => {
+      if (!show) return;
+      client.prefetchQuery(repoPulseQuery(owner, name));
+      client.prefetchQuery(repoChurnQuery(owner, name));
+    });
+  }
   const resolved = rest.length ? client.fetchQuery(repoResolveQuery(owner, name, rest)) : Promise.resolve({ ref: DEFAULT_REVISION, path: '', isTree: true });
   resolved
     .then(async (target) => {
