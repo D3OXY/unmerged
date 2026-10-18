@@ -137,6 +137,18 @@ describe('matchRoute', () => {
     ['https://github.com/o/r/graphs/commit-activity', null],
     ['https://github.com/o/r/graphs/contributors/more', null],
 
+    // Releases and tags, one release (tags can hold slashes) and the latest; search, drafts and forms stay GitHub's
+    ['https://github.com/o/r/releases', { kind: 'releases', owner: 'o', repo: 'r', tab: 'releases' }],
+    ['https://github.com/o/r/tags', { kind: 'releases', owner: 'o', repo: 'r', tab: 'tags' }],
+    ['https://github.com/o/r/releases?q=fix', null],
+    ['https://github.com/o/r/releases/tag/v1.2.0', { kind: 'release', owner: 'o', repo: 'r', tag: 'v1.2.0' }],
+    ['https://github.com/o/r/releases/tag/app/v1', { kind: 'release', owner: 'o', repo: 'r', tag: 'app/v1' }],
+    ['https://github.com/o/r/releases/latest', { kind: 'release', owner: 'o', repo: 'r' }],
+    ['https://github.com/o/r/releases/tag/untagged-1a2b3c', null],
+    ['https://github.com/o/r/releases/new', null],
+    ['https://github.com/o/r/releases/edit/v1.2.0', null],
+    ['https://github.com/o/r/releases/download/v1.2.0/app.zip', null],
+
     // Compare: three dots split base from head; slashes stay in the ref, a fork's head keeps its owner
     ['https://github.com/o/r/compare', compare({})],
     ['https://github.com/o/r/compare?expand=1', compare({ expand: true })],

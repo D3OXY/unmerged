@@ -13,7 +13,7 @@ import { formatCount, fullDate, timeAgo } from '@/lib/time';
 import { useTitle } from '@/lib/useTitle';
 import { compareHref } from '@/pages/compare/query';
 import { RepoFrame, useRepo } from '@/pages/repo/RepoFrame';
-import { repoQuery, type Repo } from '@/pages/repo/query';
+import { canPushWith, repoQuery, type Repo } from '@/pages/repo/query';
 import { treeUrl } from '@/pages/repo/urls';
 import { Button } from '@/ui/Button';
 import { checkCounts } from '@/ui/CommitList';
@@ -85,9 +85,7 @@ export function BranchesPage({ owner, repo: name, tab }: { owner: string; repo: 
     return branchLists(q ? entries.filter((e) => e.name.toLowerCase().includes(q)) : entries, defaultBranch, login);
   }, [index.data, q, defaultBranch, login]);
 
-  const permission = repo?.viewerPermission;
-  const canPush = permission === 'ADMIN' || permission === 'MAINTAIN' || permission === 'WRITE';
-  const ctx: Context | null = repo ? { owner, name, nwo, repo, canPush } : null;
+  const ctx: Context | null = repo ? { owner, name, nwo, repo, canPush: canPushWith(repo.viewerPermission) } : null;
   // A search on the overview lists every match, as GitHub's does.
   const view = q && tab === 'overview' ? 'all' : tab;
 

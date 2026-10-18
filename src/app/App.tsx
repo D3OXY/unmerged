@@ -20,6 +20,8 @@ import { RepositoriesPage } from '@/pages/profile/RepositoriesPage';
 import { IssuePage } from '@/pages/issue/IssuePage';
 import { NewIssuePage } from '@/pages/issue/NewIssuePage';
 import { PrPage } from '@/pages/pr/PrPage';
+import { ReleasePage } from '@/pages/releases/ReleasePage';
+import { ReleasesPage } from '@/pages/releases/ReleasesPage';
 import { RepoListPage } from '@/pages/repo/RepoListPage';
 import { RepoPage } from '@/pages/repo/RepoPage';
 import { SearchPage } from '@/pages/search/SearchPage';
@@ -59,6 +61,8 @@ export function App() {
       {route.kind === 'contributors' && <ContributorsPage key={`${route.owner}/${route.repo}`.toLowerCase()} {...route} />}
       {route.kind === 'actions' && <ActionsPage key={`${route.owner}/${route.repo}/${route.workflow ?? ''}`.toLowerCase()} {...route} />}
       {route.kind === 'run' && <RunPage key={`${route.owner}/${route.repo}/${route.runId}/${route.attempt ?? ''}`.toLowerCase()} {...route} />}
+      {route.kind === 'releases' && <ReleasesPage key={`${route.owner}/${route.repo}/${route.tab}`.toLowerCase()} {...route} />}
+      {route.kind === 'release' && <ReleasePage key={`${route.owner}/${route.repo}/${route.tag ?? ''}`.toLowerCase()} {...route} />}
       {route.kind === 'compare' && <ComparePage key={`${route.owner}/${route.repo}`.toLowerCase()} {...route} />}
       {route.kind === 'repo' &&
         (route.view === 'issues' || route.view === 'pulls' ? (

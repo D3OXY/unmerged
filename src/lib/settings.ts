@@ -18,6 +18,8 @@ export function surfaceOf(route: Route): Surface {
       return 'profile';
     case 'branches':
     case 'contributors':
+    case 'releases':
+    case 'release':
       return 'repo';
     case 'actions':
       return 'run';

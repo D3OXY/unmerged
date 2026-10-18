@@ -15,7 +15,7 @@ const SURFACES: Record<Surface, { label: string; path: string; icon: ReactNode }
   issue: { label: 'Issues', path: '…/issues/<number>, …/issues/new', icon: <HugeiconsIcon icon={CircleDotIcon} /> },
   commit: { label: 'Commits', path: '…/commit/<sha>, …/pull/<number>/commits/<sha>', icon: <HugeiconsIcon icon={GitCommitHorizontalIcon} /> },
   compare: { label: 'Compare & new pull request', path: '…/compare/<base>...<head>', icon: <HugeiconsIcon icon={GitCompareIcon} /> },
-  repo: { label: 'Repositories', path: 'github.com/<owner>/<repo>, /issues, /pulls, /branches, /graphs/contributors', icon: <HugeiconsIcon icon={Book02Icon} /> },
+  repo: { label: 'Repositories', path: 'github.com/<owner>/<repo>, /issues, /pulls, /branches, /releases, /tags, /graphs/contributors', icon: <HugeiconsIcon icon={Book02Icon} /> },
   work: { label: 'Pull request & issue lists', path: 'github.com/pulls, /issues', icon: <HugeiconsIcon icon={CheckListIcon} /> },
   notifications: { label: 'Notifications', path: 'github.com/notifications', icon: <HugeiconsIcon icon={Notification03Icon} /> },
   run: { label: 'Actions', path: '…/actions, …/actions/runs/<id>, …/job/<id>', icon: <HugeiconsIcon icon={PlayIcon} /> },

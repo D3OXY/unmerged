@@ -53,6 +53,9 @@ export type Subscription = 'SUBSCRIBED' | 'UNSUBSCRIBED' | 'IGNORED';
 
 export type Permission = 'ADMIN' | 'MAINTAIN' | 'WRITE' | 'TRIAGE' | 'READ';
 
+/** Whether a permission lets the viewer push: make and delete branches, draft and edit releases. */
+export const canPushWith = (permission: Permission | null | undefined) => permission === 'ADMIN' || permission === 'MAINTAIN' || permission === 'WRITE';
+
 export type Repo = {
   id: string;
   name: string;

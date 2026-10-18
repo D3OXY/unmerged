@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { matchRoute } from '@/lib/routes';
 import { runsQuery } from '@/pages/actions/query';
 import { branchIndexQuery } from '@/pages/branches/query';
+import { releasesQuery, tagsQuery } from '@/pages/releases/query';
 import { codeSearchQuery, repoSearchQuery, workSearchQuery } from '@/pages/search/queries';
 import { defaultQuery, repoListQuery, workListQuery, workQueryOf } from '@/pages/work/queries';
 import { prefetchRoute } from './prefetch';
@@ -65,5 +66,15 @@ describe('prefetchRoute for Actions', () => {
     ['https://github.com/o/r/actions?query=flaky', []],
   ])('starts the page’s runs for %s', (href, keys) => {
     expect(prefetchedListKeys(href)).toEqual(keys);
+  });
+});
+
+// Releases and tags share a page, each tab with its own list.
+describe('prefetchRoute for releases', () => {
+  it.each<[string, QueryKey]>([
+    ['https://github.com/O/R/releases', releasesQuery('o', 'r').queryKey],
+    ['https://github.com/o/r/tags', tagsQuery('o', 'r').queryKey],
+  ])('starts the page’s list for %s', (href, key) => {
+    expect(prefetchedListKeys(href)).toEqual([key]);
   });
 });

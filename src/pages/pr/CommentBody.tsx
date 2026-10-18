@@ -113,8 +113,11 @@ export function withFlips(groups: ReactionGroup[], flipped: ReactionContent[]) {
   });
 }
 
-/** Reaction counts as chips; clicking one (or picking from the smiley menu) toggles yours at once. */
-function Reactions({ node, queryKey }: { node: CommentFields; queryKey: QueryKey }) {
+/**
+ * Reaction counts as chips; clicking one (or picking from the smiley menu) toggles yours at once, then `queryKey`
+ * refetches. Comments use it, and so do releases.
+ */
+export function Reactions({ node, queryKey }: { node: Pick<CommentFields, 'id' | 'viewerCanReact' | 'reactionGroups'>; queryKey: QueryKey }) {
   const react = usePrMutation(queryKey);
   // Toggles still waiting for the PR refetch. A new `reactionGroups` (the refetch landed) clears them.
   const [pending, setPending] = useState({ groups: node.reactionGroups, flipped: [] as ReactionContent[] });

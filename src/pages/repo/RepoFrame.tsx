@@ -20,9 +20,17 @@ import { REPO_MUTATIONS, repoQuery, type Repo, type Subscription } from './query
 export const useRepo = (owner: string, name: string) => useQuery(repoQuery(owner, name));
 
 /** The tab a frame marks active: a repo route's view, or a page of ours under one of GitHub's tabs. */
-type FrameView = RepoView | 'actions' | 'branches' | 'contributors';
+type FrameView = RepoView | 'actions' | 'branches' | 'contributors' | 'releases' | 'tags';
 
-const LIST_TITLES: Partial<Record<FrameView, string>> = { issues: 'Issues', pulls: 'Pull requests', actions: 'Actions', branches: 'Branches', contributors: 'Contributors' };
+const LIST_TITLES: Partial<Record<FrameView, string>> = {
+  issues: 'Issues',
+  pulls: 'Pull requests',
+  actions: 'Actions',
+  branches: 'Branches',
+  contributors: 'Contributors',
+  releases: 'Releases',
+  tags: 'Tags',
+};
 
 /**
  * Frame for every repo view: breadcrumbs with Watch/Star/Fork, the repo's name, and tabs between views.
@@ -104,14 +112,14 @@ function RepoHeader({ repo }: { repo: Repo }) {
 }
 
 /**
- * Code (with commits and branches under it), Issues and Pull requests are ours, and so are the contributors under
- * Insights; the other tabs link to GitHub's pages.
+ * Code (with commits, branches, releases and tags under it), Issues and Pull requests are ours, and so are the
+ * contributors under Insights; the other tabs link to GitHub's pages.
  * Optional tabs stay hidden until the repo loads. The list views get a New issue link (Unmerged's page) or a
  * New pull request link (GitHub's compare page).
  */
 function RepoTabs({ repo, nwo, view }: { repo?: Repo; nwo: string; view: FrameView }) {
   const tabs: { label: string; href: string; icon: ReactNode; views?: FrameView[]; count?: number; show?: boolean }[] = [
-    { label: 'Code', href: `/${nwo}`, icon: <HugeiconsIcon icon={CodeIcon} />, views: ['code', 'commits', 'branches'] },
+    { label: 'Code', href: `/${nwo}`, icon: <HugeiconsIcon icon={CodeIcon} />, views: ['code', 'commits', 'branches', 'releases', 'tags'] },
     { label: 'Issues', href: `/${nwo}/issues`, icon: <HugeiconsIcon icon={CircleDotIcon} />, views: ['issues'], count: repo?.issues.totalCount, show: !!repo?.hasIssuesEnabled },
     { label: 'Pull requests', href: `/${nwo}/pulls`, icon: <HugeiconsIcon icon={GitPullRequestIcon} />, views: ['pulls'], count: repo?.pullRequests.totalCount },
     { label: 'Discussions', href: `/${nwo}/discussions`, icon: <HugeiconsIcon icon={MessageMultiple02Icon} />, show: !!repo?.hasDiscussionsEnabled },

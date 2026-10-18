@@ -75,7 +75,14 @@ export type Route =
   /** A repo's branches: the overview (/branches) or one list (/branches/yours…). `?query=` is read by the page. */
   | { kind: 'branches'; owner: string; repo: string; tab: BranchesTab }
   /** A repo's contributors graph (/graphs/contributors). Other Insights graphs stay on GitHub. */
-  | { kind: 'contributors'; owner: string; repo: string };
+  | { kind: 'contributors'; owner: string; repo: string }
+  /** A repo's releases (/releases) or tags (/tags): one page, a tab each. */
+  | { kind: 'releases'; owner: string; repo: string; tab: 'releases' | 'tags' }
+  /**
+   * One release (/releases/tag/<tag>), or with no `tag` the latest (/releases/latest). Tags can contain slashes. A
+   * tag without a release shows the tag, as GitHub's page does.
+   */
+  | { kind: 'release'; owner: string; repo: string; tag?: string };
 
 // Hex only, so /commit/<sha>.patch and .diff stay GitHub's.
 const isSha = (part: string | undefined): part is string => !!part && /^[0-9a-f]{7,40}$/i.test(part);
@@ -147,6 +154,11 @@ export function matchRoute(url: URL): Route | null {
     if (third === 'branches' && parts.length === 3) return { kind: 'branches', owner: first, repo: second, tab: 'overview' };
     if (third === 'branches' && parts.length === 4 && fourth && isBranchesTab(fourth)) return { kind: 'branches', owner: first, repo: second, tab: fourth };
     if (third === 'graphs' && fourth === 'contributors' && parts.length === 4) return { kind: 'contributors', owner: first, repo: second };
+    // GitHub's release search (`?q=`) stays GitHub's.
+    if ((third === 'releases' || third === 'tags') && parts.length === 3 && !url.searchParams.has('q')) return { kind: 'releases', owner: first, repo: second, tab: third };
+    if (third === 'releases' && fourth === 'latest' && parts.length === 4) return { kind: 'release', owner: first, repo: second };
+    // A draft has no tag yet: its page (/releases/tag/untagged-<id>) stays GitHub's.
+    if (third === 'releases' && fourth === 'tag' && fifth && !fifth.startsWith('untagged-')) return { kind: 'release', owner: first, repo: second, tag: parts.slice(4).join('/') };
     if (third === 'compare') return compareRoute(first, second, parts.slice(3).join('/'), url);
     if (third === 'search' && parts.length === 3) return searchRoute(url, `${first}/${second}`);
   }
