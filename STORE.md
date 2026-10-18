@@ -62,8 +62,8 @@ and with the privacy policy at https://unmerged.deoxy.dev/privacy (`site/src/rou
 
 ## Firefox Add-ons (AMO)
 
-- **Categories:** Appearance, Other.
-- **License:** AMO asks for one. The repo has no LICENSE file yet; pick one (or All Rights Reserved) first.
+- **Categories:** Appearance, Web Development.
+- **License:** MIT License (`LICENSE`).
 - **Data collection:** the manifest declares none (`data_collection_permissions: { required: ['none'] }`):
   data only goes to GitHub, the site the extension is for.
 - **Source code:** upload the sources zip. **Notes to reviewer:**

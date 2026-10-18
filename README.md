@@ -127,3 +127,7 @@ need to approve it), so repos outside it don't show up; and the **Notifications*
 `⌘K` palette (commands, repo/people search, your PRs and issues by title, `owner/repo#123` jumps, or
 just `#123` inside a repo) · `j`/`k` move between rows · `g h` home · `g p` your profile · `t` go to file
 (repo pages) · `⌘↵` send comment · `?` every shortcut on the current page
+
+## License
+
+[MIT](LICENSE).
