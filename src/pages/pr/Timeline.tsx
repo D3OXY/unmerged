@@ -44,7 +44,9 @@ function TimelineEntry({ item, queryKey }: { item: TimelineItem; queryKey: Query
         <EventLine icon={<HugeiconsIcon icon={GitCommitHorizontalIcon} />}>
           <a href={commit.url} className="flex min-w-0 items-center gap-2 hover:text-fg">
             {user && <Avatar src={user.avatarUrl} size={16} />}
-            <span className="truncate text-fg/90">{commit.messageHeadline}</span>
+            <span data-private="commits" className="truncate text-fg/90">
+              {commit.messageHeadline}
+            </span>
           </a>
           <span className="ml-auto flex shrink-0 items-center gap-2">
             <CheckIcon state={commit.statusCheckRollup?.state} />

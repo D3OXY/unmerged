@@ -85,12 +85,20 @@ export function HomePage() {
                   .toSorted((a, b) => b.mergedAt.localeCompare(a.mergedAt))
                   .slice(0, 6)
                   .map((pr) => (
-                    <a key={pr.id} href={pr.url} data-row className="flex items-start gap-2.5 rounded-lg px-2.5 py-2 hover:bg-hover focus:bg-hover focus:outline-none">
+                    <a
+                      key={pr.id}
+                      href={pr.url}
+                      data-row
+                      data-repo-private={pr.repository.isPrivate !== false || undefined}
+                      className="flex items-start gap-2.5 rounded-lg px-2.5 py-2 hover:bg-hover focus:bg-hover focus:outline-none"
+                    >
                       <PrStateIcon state="MERGED" className="mt-0.5 size-3.5" />
                       <span className="min-w-0">
-                        <span className="line-clamp-2 text-[12.5px] leading-snug font-medium">{pr.title}</span>
+                        <span data-private="titles" className="line-clamp-2 text-[12.5px] leading-snug font-medium">
+                          {pr.title}
+                        </span>
                         <span className="text-[11.5px] text-subtle">
-                          {pr.repository.nameWithOwner} · {timeAgo(pr.mergedAt)}
+                          <span data-private="repos">{pr.repository.nameWithOwner}</span> · {timeAgo(pr.mergedAt)}
                         </span>
                       </span>
                     </a>

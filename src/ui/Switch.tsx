@@ -59,7 +59,7 @@ export function Switch({ on }: { on: boolean }) {
       <span
         ref={thumb}
         className={cx(
-          'absolute top-0.5 left-0 size-4 rounded-full [transition:background-color_420ms,scale_200ms_ease-out] group-hover:scale-[1.035]',
+          'absolute top-0.5 left-0 size-4 rounded-full [transition:background-color_420ms,scale_200ms_ease-out] group-hover:group-enabled:scale-[1.035]',
           on ? 'bg-accent-fg' : 'bg-[color-mix(in_srgb,var(--color-fg)_19%,var(--color-line))]',
         )}
       />

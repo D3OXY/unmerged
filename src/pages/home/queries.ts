@@ -20,9 +20,10 @@ const search = <T,>(name: string, query: string, first: number, fragment: string
   });
 
 const MERGED_ROW_FIELDS = /* GraphQL */ `
-  fragment MergedRow on PullRequest { id title url mergedAt repository { nameWithOwner } }
+  fragment MergedRow on PullRequest { id title url mergedAt repository { nameWithOwner isPrivate } }
 `;
-export type MergedRow = { id: string; title: string; url: string; mergedAt: string; repository: { nameWithOwner: string } };
+// `isPrivate` is missing from a result stored before it was asked for.
+export type MergedRow = { id: string; title: string; url: string; mergedAt: string; repository: { nameWithOwner: string; isPrivate?: boolean } };
 
 /** Local midnight a week ago, with its UTC offset, so "this week" follows your calendar rather than UTC's. */
 function weekAgo() {
