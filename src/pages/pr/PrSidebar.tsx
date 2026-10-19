@@ -14,7 +14,7 @@ import { statusDot } from './files/status';
 import { Avatar, Panel, Pill } from '@/ui/primitives';
 import { CheckIcon, IssueIcon } from '@/ui/status';
 import { checkName, checkUrl, outcomeOf, type CheckOutcome } from './checks';
-import { EDIT_MUTATIONS, repoPath, type CheckContext, type IssueRef, type PullRequest, type ReviewState } from './query';
+import { EDIT_MUTATIONS, repoPath, type CheckContext, type IssueRef, type PrWithReview, type ReviewState } from './query';
 import { usePrMutation } from './usePrMutation';
 
 const ORDER: Record<CheckOutcome, number> = { FAILURE: 0, PENDING: 1, SUCCESS: 2, NEUTRAL: 3 };
@@ -64,7 +64,7 @@ const REVIEW_ICON: Partial<Record<ReviewState, ReactNode>> = {
 };
 
 /** Reviewers, assignees and labels. People who may triage the PR can change them in place. */
-export function PeopleCard({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey }) {
+export function PeopleCard({ pr, queryKey }: { pr: PrWithReview; queryKey: QueryKey }) {
   const viewer = useViewer().data?.login;
   const reviewed = pr.latestOpinionatedReviews.nodes.flatMap(({ author, state }) => (author ? [{ author, state }] : []));
   const requested = pr.reviewRequests.nodes.flatMap(({ requestedReviewer: r }) =>
@@ -207,7 +207,7 @@ function Picker({
   selected,
   hide = [],
 }: {
-  pr: PullRequest;
+  pr: PrWithReview;
   queryKey: QueryKey;
   kind: 'users' | 'labels';
   title: string;
@@ -310,7 +310,7 @@ async function openFile(prUrl: string, path: string) {
   navigate(`${prUrl}/files#${await diffAnchor(path)}`);
 }
 
-export function FilesCard({ pr }: { pr: PullRequest }) {
+export function FilesCard({ pr }: { pr: PrWithReview }) {
   const [all, setAll] = useState(false);
   const files = all ? pr.files.nodes : pr.files.nodes.slice(0, 10);
   if (!files.length) return null;

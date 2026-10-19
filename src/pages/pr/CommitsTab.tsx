@@ -32,7 +32,7 @@ async function fetchCommits(id: string) {
   return commits;
 }
 
-export function CommitsTab({ pr }: { pr: PullRequest }) {
+export function CommitsTab({ pr }: { pr: Pick<PullRequest, 'id' | 'url'> }) {
   const { data, isPending, error } = useQuery({ queryKey: ['pr-commits', pr.id], queryFn: () => fetchCommits(pr.id) });
 
   if (error) return <p className="text-[13px] text-danger">{error.message}</p>;

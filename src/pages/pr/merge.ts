@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { createStore } from '@/lib/store';
 import type { MenuOption } from '@/ui/Menu';
-import type { MergeMethod, PullRequest, Repo } from './query';
+import type { MergeMethod, PrWithMerge, Repo } from './query';
 
 export const METHOD_LABEL: Record<MergeMethod, string> = {
   SQUASH: 'Squash and merge',
@@ -35,7 +35,7 @@ const picked = createStore<Record<string, MergeMethod>>({});
  * The PR's merge method: the one the user picked for it, else the default. The merge box and Slide to merge
  * share it, so they always merge the same way.
  */
-export function useMergeMethod(pr: PullRequest, repo: Repo) {
+export function useMergeMethod(pr: PrWithMerge, repo: Repo) {
   const methods = useMemo(() => mergeMethods(repo), [repo]);
   const choice = picked.use()[pr.id];
   const method = choice && methods.includes(choice) ? choice : defaultMergeMethod(repo, methods);
@@ -44,20 +44,20 @@ export function useMergeMethod(pr: PullRequest, repo: Repo) {
 }
 
 /** GitHub's commit message for a merge with `method`. A rebase makes no commit of its own. */
-export function defaultCommitMessage(pr: PullRequest, method: MergeMethod): { headline?: string; body?: string } {
+export function defaultCommitMessage(pr: PrWithMerge, method: MergeMethod): { headline?: string; body?: string } {
   if (method === 'SQUASH') return { headline: pr.squashHeadline, body: pr.squashBody };
   if (method === 'MERGE') return { headline: pr.mergeHeadline, body: pr.mergeBody };
   return {};
 }
 
 /** Whether GitHub lets the PR merge now, with no rule bypass. */
-export const isMergeReady = (pr: PullRequest) => pr.mergeStateStatus === 'CLEAN' || pr.mergeStateStatus === 'HAS_HOOKS' || pr.mergeStateStatus === 'UNSTABLE';
+export const isMergeReady = (pr: PrWithMerge) => pr.mergeStateStatus === 'CLEAN' || pr.mergeStateStatus === 'HAS_HOOKS' || pr.mergeStateStatus === 'UNSTABLE';
 
 /**
  * Whether the viewer can merge the PR in one step: open, ready, not handled by a merge queue or auto-merge, and
  * the viewer can push to the repository. Slide to merge shows only then.
  */
-export function canMergeNow(pr: PullRequest, repo: Repo) {
+export function canMergeNow(pr: PrWithMerge, repo: Repo) {
   const permission = repo.viewerPermission;
   return (
     pr.state === 'OPEN' &&

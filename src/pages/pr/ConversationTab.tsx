@@ -1,30 +1,53 @@
 import type { QueryKey } from '@tanstack/react-query';
+import { Skeleton } from '@/ui/primitives';
 import { Composer } from './Composer';
 import { MergeBox } from './MergeBox';
 import { ChecksCard, FilesCard, LinkedIssuesCard, PeopleCard } from './PrSidebar';
-import type { PullRequest, Repo } from './query';
+import type { LoadedPr } from './query';
 import { Threads } from './Threads';
 import { CommentCard, MoreOnGitHub, Timeline } from './Timeline';
 
-/** Description, review threads and activity, with merge controls pinned on the right. */
-export function ConversationTab({ pr, repo, queryKey }: { pr: PullRequest; repo: Repo; queryKey: QueryKey }) {
-  const checks = pr.commits.nodes[0]?.commit.statusCheckRollup?.contexts.nodes ?? [];
-  const hiddenThreads = pr.reviewThreads.totalCount - pr.reviewThreads.nodes.length;
+/**
+ * Description, review threads and activity, with merge controls pinned on the right. The description shows
+ * with the first part of the pull request; each other part fills in its own places when it lands.
+ */
+export function ConversationTab({ loaded, queryKey }: { loaded: LoadedPr; queryKey: QueryKey }) {
+  const { pr, merge, review, timelineItems } = loaded;
+  const hiddenThreads = review ? review.reviewThreads.totalCount - review.reviewThreads.nodes.length : 0;
   return (
     <div className="grid gap-8 @3xl:grid-cols-[minmax(0,1fr)_340px]">
       <div className="flex min-w-0 flex-col gap-6">
         <CommentCard author={pr.author} createdAt={pr.createdAt} html={pr.bodyHTML} editable={{ kind: 'pr', node: pr, queryKey }} />
-        <Threads threads={pr.reviewThreads.nodes} queryKey={queryKey} />
+        {review && <Threads threads={review.reviewThreads.nodes} queryKey={queryKey} />}
         {hiddenThreads > 0 && <MoreOnGitHub count={hiddenThreads} noun="review threads" className="-mt-3 px-1" />}
-        <Timeline items={pr.timelineItems.nodes} hiddenCount={pr.timelineItems.nodes.length === 100 ? pr.timelineItems.totalCount - 100 : 0} queryKey={queryKey} />
-        <Composer pr={pr} queryKey={queryKey} />
+        {/* Waits for the threads too, so the activity doesn't move down when they land. */}
+        {review && timelineItems ? (
+          <>
+            <Timeline items={timelineItems.nodes} hiddenCount={timelineItems.nodes.length === 100 ? timelineItems.totalCount - 100 : 0} queryKey={queryKey} />
+            <Composer pr={review} queryKey={queryKey} />
+          </>
+        ) : (
+          <Skeleton className="h-48 rounded-xl" />
+        )}
       </div>
       <aside className="flex flex-col gap-4 *:shrink-0 @3xl:sticky @3xl:top-[108px] @3xl:max-h-[calc(100vh-124px)] @3xl:self-start @3xl:overflow-y-auto">
-        <MergeBox repo={repo} pr={pr} queryKey={queryKey} />
-        <ChecksCard checks={checks} />
-        <PeopleCard pr={pr} queryKey={queryKey} />
-        <LinkedIssuesCard issues={pr.closingIssuesReferences.nodes} />
-        <FilesCard pr={pr} />
+        {merge ? (
+          <>
+            <MergeBox repo={merge.repo} pr={merge.pr} queryKey={queryKey} />
+            <ChecksCard checks={merge.pr.commits.nodes[0]?.commit.statusCheckRollup?.contexts.nodes ?? []} />
+          </>
+        ) : (
+          <Skeleton className="h-40 rounded-xl" />
+        )}
+        {review ? (
+          <>
+            <PeopleCard pr={review} queryKey={queryKey} />
+            <LinkedIssuesCard issues={review.closingIssuesReferences.nodes} />
+            <FilesCard pr={review} />
+          </>
+        ) : (
+          <Skeleton className="h-48 rounded-xl" />
+        )}
       </aside>
     </div>
   );
