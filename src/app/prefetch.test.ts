@@ -1,5 +1,5 @@
 import { QueryClient, type QueryKey } from '@tanstack/react-query';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { matchRoute } from '@/lib/routes';
 import { runsQuery } from '@/pages/actions/query';
 import { branchIndexQuery } from '@/pages/branches/query';
@@ -8,7 +8,7 @@ import { prFilesQuery, prMergeQuery, prQuery, prReviewQuery, prTimelineQuery, pr
 import { releasesQuery, tagsQuery } from '@/pages/releases/query';
 import { codeSearchQuery, repoSearchQuery, workSearchQuery } from '@/pages/search/queries';
 import { defaultQuery, repoListQuery, workDetailsQuery, workListQuery, workQueryOf, type ListPage } from '@/pages/work/queries';
-import { prefetchRoute } from './prefetch';
+import { prefetchRoute, prefetchVisibleRows, rowsToPrefetch } from './prefetch';
 
 /** The list keys `prefetchRoute` starts for `href`, without fetching anything. */
 function prefetchedListKeys(href: string) {
@@ -147,5 +147,143 @@ describe('prefetchRoute for an issue', () => {
     const url = new URL('https://github.com/O/R/issues/7');
     prefetchRoute(client, matchRoute(url)!, url);
     expect(keys).toEqual(expect.arrayContaining([issueQuery('O', 'R', 7).queryKey, issueTimelineQuery('O', 'R', 7).queryKey]));
+  });
+});
+
+const rowsOf = (...hrefs: string[]) => hrefs.map((href) => ({ href }));
+const prRows = (from: number, to: number) => rowsOf(...Array.from({ length: to - from + 1 }, (_, i) => `https://github.com/o/r/pull/${from + i}`));
+const picked = (client: QueryClient, rows: { href: string }[]) => rowsToPrefetch(client, rows).map(({ query }) => query.queryKey);
+
+// A row's prefetch is the first query its page asks for, so opening it finds that query in the cache.
+describe('rowsToPrefetch', () => {
+  it.each(['https://github.com/O/R/pull/7', 'https://github.com/o/r/issues/7'])('picks a query that prefetchRoute starts for %s', (href) => {
+    const client = new QueryClient();
+    const keys: QueryKey[] = [];
+    const record = async (options: { queryKey: QueryKey }) => void keys.push(options.queryKey);
+    vi.spyOn(client, 'prefetchQuery').mockImplementation(record);
+    vi.spyOn(client, 'fetchQuery').mockImplementation(async (options) => (record(options), { repository: null }));
+    const url = new URL(href);
+    prefetchRoute(client, matchRoute(url)!, url);
+    const [key] = picked(client, rowsOf(href));
+    expect(keys).toContainEqual(key);
+  });
+
+  it('picks pull requests and issues once each, at most 10', () => {
+    const rows = rowsOf(
+      'https://github.com/o/r',
+      'https://example.com/o/r/pull/1',
+      'https://github.com/o/r/pull/1',
+      'https://github.com/o/r/pull/1/files',
+      'https://github.com/o/r/issues/2',
+    );
+    expect(picked(new QueryClient(), [...rows, ...prRows(3, 20)])).toEqual([
+      prQuery('o', 'r', 1).queryKey,
+      issueQuery('o', 'r', 2).queryKey,
+      ...[3, 4, 5, 6, 7, 8, 9, 10].map((n) => prQuery('o', 'r', n).queryKey),
+    ]);
+  });
+
+  it('skips what was fetched in the last minutes or is under way, not older results', () => {
+    const client = new QueryClient();
+    client.setQueryData(prQuery('o', 'r', 1).queryKey, { repository: null });
+    client.setQueryData(prQuery('o', 'r', 2).queryKey, { repository: null }, { updatedAt: Date.now() - 10 * 60_000 });
+    client.prefetchQuery({ queryKey: prQuery('o', 'r', 3).queryKey, queryFn: () => new Promise<never>(() => {}) });
+    expect(picked(client, prRows(1, 4))).toEqual([prQuery('o', 'r', 2).queryKey, prQuery('o', 'r', 4).queryKey]);
+  });
+});
+
+describe('prefetchVisibleRows', () => {
+  let report: (entries: { target: Element; isIntersecting: boolean }[]) => void;
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.stubGlobal('requestIdleCallback', (callback: () => void) => setTimeout(callback));
+    vi.stubGlobal('cancelIdleCallback', (id: number) => clearTimeout(id));
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query === '(any-hover: hover)' }));
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(callback: typeof report) {
+          report = callback;
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    Reflect.deleteProperty(navigator, 'connection');
+  });
+
+  /** A list of pull request rows; `show` reports which are on screen, as a scroll would. Prefetches stay open until `finish`. */
+  function list(count: number) {
+    const element = document.createElement('div');
+    element.innerHTML = prRows(1, count).map(({ href }) => `<a data-row href="${href}"></a>`).join('');
+    const rows = [...element.children];
+    const client = new QueryClient();
+    const started: number[] = [];
+    const pending: (() => void)[] = [];
+    vi.spyOn(client, 'prefetchQuery').mockImplementation(({ queryKey }) => {
+      started.push(queryKey.at(-1) as number);
+      return new Promise((done) => pending.push(done));
+    });
+    const stop = prefetchVisibleRows(client, element);
+    return {
+      started,
+      stop,
+      show: (from: number, to: number) => report(rows.map((target, i) => ({ target, isIntersecting: i + 1 >= from && i + 1 <= to }))),
+      /** Ends the prefetches under way and lets the next ones start. */
+      finish: async () => {
+        pending.splice(0).forEach((done) => done());
+        await vi.advanceTimersByTimeAsync(0);
+      },
+    };
+  }
+
+  it('starts once the rows on screen settle, two at a time, up to 10', async () => {
+    const { started, show, finish } = list(30);
+    show(1, 20);
+    await vi.advanceTimersByTimeAsync(399);
+    expect(started).toEqual([]);
+    // The settle, then the idle callback.
+    await vi.advanceTimersByTimeAsync(10);
+    expect(started).toEqual([1, 2]);
+    for (let i = 0; i < 6; i++) await finish();
+    expect(started).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  });
+
+  it('waits while the rows move, and drops rows that leave the screen', async () => {
+    const { started, show, finish } = list(30);
+    show(1, 20);
+    await vi.advanceTimersByTimeAsync(300);
+    show(11, 30);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(started).toEqual([]);
+    await vi.advanceTimersByTimeAsync(110);
+    expect(started).toEqual([11, 12]);
+    show(0, 0);
+    await finish();
+    expect(started).toEqual([11, 12]);
+  });
+
+  it('stops when the list goes away', async () => {
+    const { started, show, stop } = list(5);
+    show(1, 5);
+    stop();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(started).toEqual([]);
+  });
+
+  it.each([
+    ['a touch-only device', () => vi.stubGlobal('matchMedia', () => ({ matches: false }))],
+    ['Save-Data', () => Object.defineProperty(navigator, 'connection', { value: { saveData: true }, configurable: true })],
+    ['a slow connection', () => Object.defineProperty(navigator, 'connection', { value: { effectiveType: '3g' }, configurable: true })],
+  ])('does nothing on %s', async (_, set) => {
+    set();
+    const { started, show } = list(5);
+    show(1, 5);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(started).toEqual([]);
   });
 });
