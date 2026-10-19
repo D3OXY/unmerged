@@ -66,6 +66,8 @@ export function FilesTab({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey
   const jumped = useRef<string>(undefined);
   const lastThread = useRef<ReviewThread>(undefined);
   const list = files.data;
+  // Pages render as they arrive; until the last one is in, the count comes from the pull request.
+  const partial = files.isFetching && !files.isPlaceholderData;
 
   const isViewed = (path: string) => viewed.data?.[path] === 'VIEWED';
   const isOpen = (file: PrFile) => openOverride[file.filename] ?? (!isViewed(file.filename) && file.changes <= BIG_FILE);
@@ -100,11 +102,12 @@ export function FilesTab({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey
     return map;
   }, [pr.reviewThreads.nodes]);
 
-  // GitHub-compatible anchors (#diff-<sha256>).
+  // GitHub-compatible anchors (#diff-<sha256>), once every page is in: each later page would hash the whole
+  // list again and jump back to the #diff- target below.
   useEffect(() => {
-    if (!list) return;
+    if (!list || partial) return;
     Promise.all(list.map(async (f) => [f.filename, await diffAnchor(f.filename)] as const)).then((pairs) => setAnchors(Object.fromEntries(pairs)));
-  }, [list]);
+  }, [list, partial]);
 
   // Honor a #diff- anchor on arrival and on later hash changes. Wait for viewed state first: it collapses
   // files and moves everything.
@@ -234,6 +237,7 @@ export function FilesTab({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey
     );
   }
 
+  const fileCount = partial ? pr.changedFiles : list.length;
   const viewedCount = list.filter((f) => isViewed(f.filename)).length;
   const setAllOpen = (open: boolean) => setOpenOverride(Object.fromEntries(list.map((f) => [f.filename, open])));
   const changeMode = (next: DiffMode) => {
@@ -254,13 +258,13 @@ export function FilesTab({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey
       <div className="flex min-w-0 flex-col gap-3">
         <div className="flex flex-wrap items-center gap-3 text-[12.5px]">
           <span className="font-medium">
-            {list.length} file{list.length === 1 ? '' : 's'}
+            {fileCount} file{fileCount === 1 ? '' : 's'}
           </span>
           <span className="flex items-center gap-2 text-muted">
             <span className="flex h-1.5 w-24 overflow-hidden rounded-full bg-elevated">
-              <span className="bg-accent transition-[width]" style={{ width: `${(viewedCount / (list.length || 1)) * 100}%` }} />
+              <span className="bg-accent transition-[width]" style={{ width: `${(viewedCount / (fileCount || 1)) * 100}%` }} />
             </span>
-            {viewedCount} / {list.length} viewed
+            {viewedCount} / {fileCount} viewed
           </span>
           <div className="ml-auto flex items-center gap-2">
             <button type="button" onClick={() => setAllOpen(false)} className="cursor-pointer text-muted hover:text-fg">
