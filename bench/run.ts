@@ -85,7 +85,8 @@ export const SCENARIOS: Scenario[] = [
     detail: 'The Files changed tab, 133 files, up to the first diff (#11827)',
     url: 'https://github.com/TanStack/query/pull/11827/files',
     marker: 'flat/recommended-typescript',
-    from: { url: 'https://github.com/TanStack/query/pull/11827', link: 'a[href$="/TanStack/query/pull/11827/files"]:visible' },
+    // GitHub's newer Files changed lives at /changes; either link counts.
+    from: { url: 'https://github.com/TanStack/query/pull/11827', link: 'a[href$="/TanStack/query/pull/11827/files"]:visible, a[href$="/TanStack/query/pull/11827/changes"]:visible' },
   },
 ];
 
@@ -251,7 +252,17 @@ async function measure(context: BrowserContext, scenario: Scenario & { marker: s
   let since: number | undefined;
   if (scenario.from) {
     const link = page.locator(scenario.from.link).first();
-    await link.waitFor({ timeout: TIMEOUT });
+    // A start page without the link (GitHub changed it, or the page failed) counts as a timeout, not a crash.
+    const found = await link.waitFor({ timeout: TIMEOUT }).then(
+      () => true,
+      () => false,
+    );
+    if (!found) {
+      console.log(`  ${scenario.id}: no link matching ${scenario.from.link} on ${scenario.from.url}`);
+      context.off('requestfinished', fromWorker);
+      await page.close();
+      return { ms: null, bytes: 0, requests: 0, blockingMs: 0 };
+    }
     await page.waitForTimeout(SETTLE);
     await page.evaluate(() => ((window as unknown as { __blocking: number }).__blocking = 0));
     counting = true;
