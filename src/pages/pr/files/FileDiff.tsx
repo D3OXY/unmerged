@@ -55,8 +55,18 @@ type Props = {
   cardRef: (path: string, el: HTMLElement | null) => void;
 };
 
-/** A file card: sticky header with view state, then the diff with inline review threads. */
+/**
+ * A file card: sticky header with view state, then the diff with inline review threads. Until the card comes
+ * within ~2 screens of the viewport it is only its path at roughly its full height, so a pull request with
+ * thousands of files mounts fast. It stays the same element (anchors, refs and scroll pins hold) and stays
+ * mounted once near.
+ */
 export const FileDiff = memo(function FileDiff({ file, source, review, anchor, mode: preferredMode, wrap, open, viewState, threads = NO_THREADS, onSetOpen, cardRef }: Props) {
+  const section = useRef<HTMLElement>(null);
+  const [near, setNear] = useState(false);
+  useEffect(() => {
+    if (!near && section.current) return whenNear(section.current, () => setNear(true));
+  }, [near]);
   const viewed = viewState === 'VIEWED';
   const onToggleOpen = () => onSetOpen(file.filename, !open);
   // One-sided files would leave half of a split view empty.
@@ -64,8 +74,21 @@ export const FileDiff = memo(function FileDiff({ file, source, review, anchor, m
   const slash = file.filename.lastIndexOf('/');
   const status = STATUS[file.status];
 
+  const ref = (el: HTMLElement | null) => {
+    section.current = el;
+    cardRef(file.filename, el);
+  };
+  if (!near) {
+    // 46 px: the header and the card's borders.
+    return (
+      <section id={anchor} ref={ref} style={{ height: 46 + (open ? bodyHeight(file) : 0) }} className="scroll-mt-[104px] rounded-xl border border-line bg-panel">
+        <p className="truncate pr-3 pl-11 font-mono text-[12.5px] leading-[44px] text-muted">{file.filename}</p>
+      </section>
+    );
+  }
+
   return (
-    <section id={anchor} ref={(el) => cardRef(file.filename, el)} className="scroll-mt-[104px] rounded-xl border border-line bg-panel">
+    <section id={anchor} ref={ref} className="scroll-mt-[104px] rounded-xl border border-line bg-panel">
       <header
         className={cx(
           'sticky top-[92px] z-10 flex h-11 items-center gap-2 bg-panel/95 px-3 backdrop-blur-xl',
@@ -124,7 +147,7 @@ export const FileDiff = memo(function FileDiff({ file, source, review, anchor, m
             </a>
           </div>
         ) : (
-          <LazyBody estimatedHeight={file.patch.split('\n').length * 20}>
+          <LazyBody estimatedHeight={bodyHeight(file)}>
             <DiffBody file={file} patch={file.patch} source={source} review={review && { pr: review.pr, queryKey: review.queryKey, threads }} mode={mode} wrap={wrap} />
           </LazyBody>
         ))}
@@ -144,6 +167,40 @@ function DiffStat({ file }: { file: PrFile }) {
       ))}
     </span>
   );
+}
+
+/** Roughly how tall an open card's body is before its diff mounts: 20 px a line. Counts lines without a split, for thousands of files. */
+function bodyHeight({ patch }: PrFile) {
+  if (!patch) return 66;
+  let lines = 1;
+  for (let i = patch.indexOf('\n'); i !== -1; i = patch.indexOf('\n', i + 1)) lines++;
+  return lines * 20;
+}
+
+// One observer for every card and diff: thousands of observers cost more than one that watches thousands.
+const waiting = new Map<Element, () => void>();
+let nearObserver: IntersectionObserver | undefined;
+
+/** Calls `onNear` once, when `el` comes within ~2 screens of the viewport. Returns a function that stops waiting. */
+function whenNear(el: Element, onNear: () => void) {
+  nearObserver ??= new IntersectionObserver(
+    (entries, observer) => {
+      for (const entry of entries) {
+        const callback = entry.isIntersecting && waiting.get(entry.target);
+        if (!callback) continue;
+        waiting.delete(entry.target);
+        observer.unobserve(entry.target);
+        callback();
+      }
+    },
+    { rootMargin: '2000px 0px' },
+  );
+  waiting.set(el, onNear);
+  nearObserver.observe(el);
+  return () => {
+    waiting.delete(el);
+    nearObserver?.unobserve(el);
+  };
 }
 
 // A diff highlights as it mounts, synchronously. Mounted together (every card near the viewport at once) they
@@ -168,26 +225,14 @@ function mountInTurn(mount: () => void) {
 }
 
 /**
- * Mounts its diff once the card comes within ~2 screens of the viewport (see mountInTurn) and keeps it
- * mounted, so a large pull request doesn't render every file up front. Until then, holds roughly its height.
+ * Mounts its diff once the card comes near the viewport (see whenNear and mountInTurn) and keeps it mounted, so
+ * a large pull request doesn't render every file up front. Until then, holds roughly its height.
  */
 function LazyBody({ estimatedHeight, children }: { estimatedHeight: number; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const [near, setNear] = useState(false);
   useEffect(() => {
-    const el = ref.current;
-    if (near || !el) return;
-    let queued = false;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry?.isIntersecting || queued) return;
-        queued = true;
-        mountInTurn(() => setNear(true));
-      },
-      { rootMargin: '2000px 0px' },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
+    if (!near && ref.current) return whenNear(ref.current, () => mountInTurn(() => setNear(true)));
   }, [near]);
   return near ? children : <div ref={ref} style={{ height: estimatedHeight }} />;
 }
