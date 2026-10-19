@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { chromium, type BrowserContext } from 'playwright';
+import { chromium, type BrowserContext, type Request } from 'playwright';
 
 // Unmerged vs GitHub's own pages, in the same headless Chromium. See bench/README.md for the method.
 // Usage: pnpm build && pnpm bench [--runs 5] [--only repo,pr] [--no-write]
@@ -62,6 +62,10 @@ export type Results = {
   userAgent: string;
   scenarios: (Scenario & { github: Record<Visit, Summary>; unmerged: Record<Visit, Summary> })[];
 };
+
+// Unmerged's background starts a page's first requests (src/github/early.ts); Playwright reports a service
+// worker's requests only with this set, before the browser launches.
+process.env.PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS = '1';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const EXTENSION = resolve(process.env.UNMERGED_EXTENSION ?? join(ROOT, '.output/chrome-mv3'));
@@ -154,7 +158,7 @@ async function measure(context: BrowserContext, scenario: Scenario): Promise<Loa
   const page = await context.newPage();
   const cdp = await context.newCDPSession(page);
   await cdp.send('Network.enable');
-  // Only http(s) requests that went over the network: not the extension's own files, not answers from the cache.
+  // The page's http(s) requests that went over the network: not the extension's own files, not answers from the cache.
   const network = new Set<string>();
   let bytes = 0;
   let requests = 0;
@@ -169,6 +173,14 @@ async function measure(context: BrowserContext, scenario: Scenario): Promise<Loa
     bytes += e.encodedDataLength;
     requests++;
   });
+  // Requests the extension's background makes for this page: the page's CDP session doesn't see them.
+  const fromWorker = async (request: Request) => {
+    if (!counting || !request.serviceWorker() || !/^https?:/.test(request.url())) return;
+    const sizes = await request.sizes();
+    bytes += sizes.responseBodySize + sizes.responseHeadersSize;
+    requests++;
+  };
+  context.on('requestfinished', fromWorker);
   // Main-thread blocking: the part of every long task past 50 ms, as in Total Blocking Time.
   await page.addInitScript(() => {
     const w = window as unknown as { __blocking: number };
@@ -190,6 +202,7 @@ async function measure(context: BrowserContext, scenario: Scenario): Promise<Loa
   const blockingMs = await page.evaluate(() => (window as unknown as { __blocking: number }).__blocking);
   await page.waitForTimeout(SETTLE);
   counting = false;
+  context.off('requestfinished', fromWorker);
   await page.close();
   return { ms, bytes, requests, blockingMs };
 }
