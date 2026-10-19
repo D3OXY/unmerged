@@ -4,6 +4,7 @@
 import '@/lib/customElementsShim';
 import { FileDiff, getFiletypeFromFileName, getLineAnnotationName, getSharedHighlighter, getSingularPatch } from '@pierre/diffs';
 import css from '@pierre/diffs/style';
+import { WorkerPoolManager } from '@pierre/diffs/worker';
 import type { GrammarState } from 'shiki/core';
 import { DIFF_LOOK } from '@/lib/diffLook';
 
@@ -46,16 +47,60 @@ async function highlightLines(text: string, path: string, dark: boolean) {
   return html;
 }
 
+let pool: WorkerPoolManager | undefined;
+
 /**
- * Loads the themes and the grammars these files need, so the first diffs shown don't wait on them.
- * A diff needs both themes before it draws at all; without its grammar it draws plain text, then colors.
+ * The workers that highlight diffs off the page's main thread: a diff draws its text at once and gets its
+ * colors when a worker sends them. github.com can't start a worker from the extension's files, so a hidden
+ * extension page framed into it starts them (src/entrypoints/highlighter); each worker talks to this page
+ * through its own MessagePort. Diffs draw once the workers are up; if they don't start, diffs highlight here.
+ */
+function highlightPool() {
+  if (pool) return pool;
+  const frame = document.createElement('iframe');
+  frame.hidden = true;
+  frame.src = browser.runtime.getURL('/highlighter.html');
+  // Ports for the workers that the pool asks for before the frame has loaded.
+  const ports: MessagePort[] = [];
+  let send: (port: MessagePort) => void = (port) => ports.push(port);
+  frame.addEventListener(
+    'load',
+    () => {
+      send = (port) => frame.contentWindow?.postMessage(null, new URL(frame.src).origin, [port]);
+      ports.splice(0).forEach(send);
+    },
+    { once: true },
+  );
+  document.documentElement.append(frame);
+  pool = new WorkerPoolManager(
+    {
+      poolSize: 2,
+      // Diffs don't draw until the workers are up, so don't wait long for them.
+      workerInitializationTimeout: 3000,
+      workerFactory: () => {
+        const { port1, port2 } = new MessageChannel();
+        send(port2);
+        port1.start();
+        // The pool only posts to a worker, listens to it and terminates it.
+        return Object.assign(port1, { terminate: () => port1.close() }) as unknown as Worker;
+      },
+    },
+    { theme: DIFF_LOOK.theme, lineDiffType: DIFF_LOOK.lineDiffType },
+  );
+  return pool;
+}
+
+/**
+ * Starts the highlighting workers and loads the themes and the grammars these files need, so the first
+ * diffs shown don't wait on them.
  */
 async function preloadHighlighting(paths: string[]) {
+  highlightPool();
   const langs = [...new Set(paths.map(getFiletypeFromFileName))].filter((lang) => lang !== 'text');
   await getSharedHighlighter({ themes: Object.values(DIFF_LOOK.theme), langs });
 }
 
-const api = { FileDiff, getLineAnnotationName, getSingularPatch, prepareContainer, highlightLines, preloadHighlighting };
+const api = { highlightPool, FileDiff, getLineAnnotationName, getSingularPatch, prepareContainer, highlightLines, preloadHighlighting };
 
 export type DiffsApi = typeof api;
 

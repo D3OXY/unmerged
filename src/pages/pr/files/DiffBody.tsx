@@ -36,9 +36,10 @@ const sideOf = (thread: ReviewThread): Side => (thread.diffSide === 'LEFT' ? 'de
 const githubSide = (side: Side) => (side === 'deletions' ? 'LEFT' : 'RIGHT');
 
 /**
- * A file's diff, drawn by `@pierre/diffs` (loaded on demand, see src/lib/diffs.ts) with Shiki highlighting,
- * word-level changes and expandable context. With a `review` (pull requests), its threads and the comment
- * composer are React, slotted under their lines; without one (commits) lines can't be commented on.
+ * A file's diff, drawn by `@pierre/diffs` (loaded on demand, see src/lib/diffs.ts) with word-level changes,
+ * expandable context, and Shiki highlighting from workers (its text draws first, its colors after). With a
+ * `review` (pull requests), its threads and the comment composer are React, slotted under their lines;
+ * without one (commits) lines can't be commented on.
  */
 export function DiffBody({ file, patch, source, review, mode, wrap }: {
   file: PrFile;
@@ -108,7 +109,7 @@ export function DiffBody({ file, patch, source, review, mode, wrap }: {
     if (!diff) {
       api.prepareContainer(container);
       // `true`: React owns the container's children (the slotted notes).
-      diff = instance.current = new api.FileDiff<undefined>(options, undefined, true);
+      diff = instance.current = new api.FileDiff<undefined>(options, api.highlightPool(), true);
       diff.render({ fileDiff, fileContainer: container, lineAnnotations: annotations });
       return;
     }

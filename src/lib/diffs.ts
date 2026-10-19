@@ -38,8 +38,8 @@ export function codeOf(route: Route): 'diffs' | 'file' | undefined {
 
 /**
  * Starts loading what a page of code draws with, alongside its requests: the renderer and, for diffs, the
- * highlighting themes, so the first diff draws as soon as its patch is in. All of it is in the package: this
- * costs no network.
+ * highlighting workers and themes, so the first diff draws as soon as its patch is in. All of it is in the
+ * package: this costs no network.
  */
 export function preloadCode(route: Route) {
   const code = codeOf(route);
