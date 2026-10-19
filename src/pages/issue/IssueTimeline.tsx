@@ -7,25 +7,35 @@ import { repoPath } from '@/pages/pr/query';
 import { CommentCard, EventLine } from '@/pages/pr/Timeline';
 import { Pill } from '@/ui/primitives';
 import { IssueIcon, PrStateIcon } from '@/ui/status';
-import { notPlanned, type Issue, type IssueTimelineItem, type Ref } from './query';
+import { mergeTimeline, notPlanned, type Issue, type IssueTimelineItem, type IssueTimelineItems, type Ref } from './query';
 
-/** The issue's activity on the PR timeline's rail: comments as cards, everything else as one-liners. */
-export function IssueTimeline({ issue }: { issue: Issue }) {
-  const { nodes, totalCount } = issue.timelineItems;
-  const hidden = totalCount - nodes.length;
+/**
+ * The issue's activity on the PR timeline's rail: comments as cards, everything else as one-liners. Until
+ * `timeline` loads, only the issue's newest comments show, under a line that says the rest is loading.
+ */
+export function IssueTimeline({ issue, timeline, failed }: { issue: Issue; timeline?: IssueTimelineItems; failed: boolean }) {
+  const { items, hidden } = mergeTimeline(issue.comments.nodes, timeline);
   const here = repoPath(issue);
+  const classic = (
+    <button type="button" onClick={openClassic} className="cursor-pointer text-accent hover:underline">
+      View in classic
+    </button>
+  );
   return (
     <div className="relative">
       <div className="absolute top-2 bottom-2 left-[15px] w-px bg-line" />
-      {hidden > 0 && (
+      {hidden === undefined ? (
         <EventLine icon={<HugeiconsIcon icon={Comment01Icon} />}>
-          {hidden} earlier events aren't shown.
-          <button type="button" onClick={openClassic} className="cursor-pointer text-accent hover:underline">
-            View in classic
-          </button>
+          {failed ? <>Earlier activity didn't load. {classic}</> : 'Loading earlier activity…'}
         </EventLine>
+      ) : (
+        hidden > 0 && (
+          <EventLine icon={<HugeiconsIcon icon={Comment01Icon} />}>
+            {hidden} earlier events aren't shown. {classic}
+          </EventLine>
+        )
       )}
-      {nodes.map((item) => (
+      {items.map((item) => (
         <Entry key={item.id} item={item} issueUrl={issue.url} here={here} />
       ))}
     </div>

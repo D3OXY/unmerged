@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { matchRoute } from '@/lib/routes';
 import { runsQuery } from '@/pages/actions/query';
 import { branchIndexQuery } from '@/pages/branches/query';
+import { issueQuery, issueTimelineQuery } from '@/pages/issue/query';
 import { prFilesQuery, prHeadQuery, prQuery, prViewedQuery } from '@/pages/pr/query';
 import { releasesQuery, tagsQuery } from '@/pages/releases/query';
 import { codeSearchQuery, repoSearchQuery, workSearchQuery } from '@/pages/search/queries';
@@ -102,5 +103,17 @@ describe('prefetchRoute for Files changed', () => {
     expect(await files).toEqual(prFilesQuery('O', 'R', head).queryKey);
     expect(fetched).toEqual([prHeadQuery('O', 'R', 7).queryKey]);
     expect(keys).toEqual([prQuery('O', 'R', 7).queryKey, prViewedQuery('O', 'R', 7).queryKey, prFilesQuery('O', 'R', head).queryKey]);
+  });
+});
+
+// The issue page reads the issue and its timeline from two queries; prefetch must start both, on the same keys.
+describe('prefetchRoute for an issue', () => {
+  it('starts the page’s issue and timeline', () => {
+    const client = new QueryClient();
+    const keys: QueryKey[] = [];
+    vi.spyOn(client, 'prefetchQuery').mockImplementation(async (options) => void keys.push(options.queryKey));
+    const url = new URL('https://github.com/O/R/issues/7');
+    prefetchRoute(client, matchRoute(url)!, url);
+    expect(keys).toEqual(expect.arrayContaining([issueQuery('O', 'R', 7).queryKey, issueTimelineQuery('O', 'R', 7).queryKey]));
   });
 });
