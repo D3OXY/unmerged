@@ -6,11 +6,23 @@ import { parseArgs } from 'node:util';
 import { chromium, type BrowserContext, type Request } from 'playwright';
 
 // Unmerged vs GitHub's own pages, in the same headless Chromium. See bench/README.md for the method.
-// Usage: pnpm build && pnpm bench [--runs 5] [--only repo,pr] [--no-write]
+// Usage: pnpm build && pnpm bench [--runs 5] [--only repo,to-pulls] [--no-write]
 // UNMERGED_EXTENSION points at another build (default: this checkout's .output/chrome-mv3).
 
-/** A page to load, and a piece of its content: the load counts as done when that text is on screen. */
-export type Scenario = { id: string; label: string; detail: string; url: string; marker: string };
+/**
+ * A page to load, and a piece of its content: the load counts as done when that text is on screen. A marker that
+ * changes over time is a function, read from the API when the scenario starts. With `from`, a click inside a
+ * page: load `from.url`, hover the first visible link that matches `from.link` as a user would, click it, and
+ * time from the click.
+ */
+export type Scenario = {
+  id: string;
+  label: string;
+  detail: string;
+  url: string;
+  marker: string | ((token: string) => Promise<string>);
+  from?: { url: string; link: string };
+};
 
 export const SCENARIOS: Scenario[] = [
   {
@@ -48,7 +60,44 @@ export const SCENARIOS: Scenario[] = [
     url: 'https://github.com/TanStack/query/pull/12054/files',
     marker: 'incorporate upstream adapter fixes',
   },
+  // Clicks inside a page. Links match by the end of their href: GitHub's are paths, some of Unmerged's are full
+  // URLs, and Unmerged's sidebar has links with the same names.
+  {
+    id: 'to-pulls',
+    label: 'Repository → Pull requests',
+    detail: 'The Pull requests tab, up to the newest open PR',
+    url: 'https://github.com/TanStack/query/pulls',
+    marker: newestOpenPr,
+    from: { url: 'https://github.com/TanStack/query', link: 'a[href$="/TanStack/query/pulls"]:visible' },
+  },
+  {
+    id: 'to-pr',
+    label: 'Pull requests → a PR',
+    detail: 'From a list of merged PRs, up to its description (#12030)',
+    url: 'https://github.com/TanStack/query/pull/12030',
+    marker: 'failed type checking with',
+    // Merged on one day: a list that doesn't change.
+    from: { url: 'https://github.com/TanStack/query/pulls?q=is%3Apr+is%3Amerged+merged%3A2026-10-17', link: 'a[href$="/TanStack/query/pull/12030"]:visible' },
+  },
+  {
+    id: 'to-files',
+    label: 'Pull request → Files changed',
+    detail: 'The Files changed tab, 133 files, up to the first diff (#11827)',
+    url: 'https://github.com/TanStack/query/pull/11827/files',
+    marker: 'flat/recommended-typescript',
+    from: { url: 'https://github.com/TanStack/query/pull/11827', link: 'a[href$="/TanStack/query/pull/11827/files"]:visible' },
+  },
 ];
+
+/** The newest open PR's title: the top row of the Pull requests tab on both sides, as both sort newest first. */
+async function newestOpenPr(token: string) {
+  const response = await fetch('https://api.github.com/repos/TanStack/query/pulls?per_page=1', { headers: { authorization: `Bearer ${token}` } });
+  if (!response.ok) throw new Error(`Couldn't read the newest open PR: ${response.status}`);
+  const [pr] = (await response.json()) as { title: string }[];
+  if (!pr) throw new Error('TanStack/query has no open PR');
+  // Code in backticks shows in its own element: the marker is the longest part of the title outside them.
+  return pr.title.split(/`[^`]*`/).map((part) => part.trim()).reduce((a, b) => (b.length > a.length ? b : a));
+}
 
 type Visit = 'cold' | 'warm';
 /** One page load: ms until the marker showed (null if it never did), bytes and requests over the network, and main-thread blocking. */
@@ -60,7 +109,7 @@ export type Results = {
   /** Whether both sides loaded github.com signed in (see SESSION). */
   signedIn: boolean;
   userAgent: string;
-  scenarios: (Scenario & { github: Record<Visit, Summary>; unmerged: Record<Visit, Summary> })[];
+  scenarios: (Scenario & { marker: string; github: Record<Visit, Summary>; unmerged: Record<Visit, Summary> })[];
 };
 
 // Unmerged's background starts a page's first requests (src/github/early.ts); Playwright reports a service
@@ -77,6 +126,8 @@ const TIMEOUT = 60_000;
 
 /** Milliseconds of network after the marker shows that still count: late requests for the same view. */
 const SETTLE = 2000;
+/** How long a click's pointer rests on the link first, as a user's would. */
+const HOVER = 150;
 
 async function main() {
   const { values } = parseArgs({ options: { runs: { type: 'string', default: '5' }, only: { type: 'string' }, 'no-write': { type: 'boolean', default: false } } });
@@ -91,7 +142,8 @@ async function main() {
 
   let userAgent = '';
   const results: Results['scenarios'] = [];
-  for (const scenario of scenarios) {
+  for (const { marker, ...rest } of scenarios) {
+    const scenario = { ...rest, marker: typeof marker === 'string' ? marker : await marker(token) };
     const loads = { github: { cold: [] as Load[], warm: [] as Load[] }, unmerged: { cold: [] as Load[], warm: [] as Load[] } };
     for (let run = 0; run < runs; run++) {
       for (const product of ['github', 'unmerged'] as const) {
@@ -153,8 +205,11 @@ async function saveToken(context: BrowserContext, token: string) {
   await popup.close();
 }
 
-/** Loads the scenario's page in a new tab and measures it until the marker text is visible. */
-async function measure(context: BrowserContext, scenario: Scenario): Promise<Load> {
+/**
+ * Loads the scenario's page in a new tab and measures it until the marker text is visible. For a click, the start
+ * page loads and settles first; only what happens from the hover on counts.
+ */
+async function measure(context: BrowserContext, scenario: Scenario & { marker: string }): Promise<Load> {
   const page = await context.newPage();
   const cdp = await context.newCDPSession(page);
   await cdp.send('Network.enable');
@@ -162,7 +217,7 @@ async function measure(context: BrowserContext, scenario: Scenario): Promise<Loa
   const network = new Set<string>();
   let bytes = 0;
   let requests = 0;
-  let counting = true;
+  let counting = !scenario.from;
   cdp.on('Network.responseReceived', (e) => {
     const { url, fromDiskCache, fromPrefetchCache, fromServiceWorker } = e.response;
     if (/^https?:/.test(url) && !fromDiskCache && !fromPrefetchCache && !fromServiceWorker) network.add(e.requestId);
@@ -191,10 +246,25 @@ async function measure(context: BrowserContext, scenario: Scenario): Promise<Loa
   });
 
   // GitHub's pages stop loading under Unmerged (window.stop), so load events never fire: wait for the commit only.
-  await page.goto(scenario.url, { waitUntil: 'commit' });
+  await page.goto(scenario.from?.url ?? scenario.url, { waitUntil: 'commit' });
+  // The click's start, in the page's clock (ms since the epoch); none for a page load.
+  let since: number | undefined;
+  if (scenario.from) {
+    const link = page.locator(scenario.from.link).first();
+    await link.waitFor({ timeout: TIMEOUT });
+    await page.waitForTimeout(SETTLE);
+    await page.evaluate(() => ((window as unknown as { __blocking: number }).__blocking = 0));
+    counting = true;
+    await link.hover();
+    await page.waitForTimeout(HOVER);
+    since = await page.evaluate(() => performance.timeOrigin + performance.now());
+    // The pointer is on the link already: a click without Playwright's actionability waits.
+    await page.mouse.down();
+    await page.mouse.up();
+  }
   let ms: number | null = null;
   try {
-    const handle = await page.waitForFunction(findMarker, scenario.marker, { polling: 50, timeout: TIMEOUT });
+    const handle = await page.waitForFunction(findMarker, { marker: scenario.marker, since }, { polling: 50, timeout: TIMEOUT });
     ms = (await handle.jsonValue()) as number;
   } catch {
     ms = null;
@@ -208,11 +278,12 @@ async function measure(context: BrowserContext, scenario: Scenario): Promise<Loa
 }
 
 /**
- * Runs in the page: performance.now() once `marker` is in a visible text node, false until then. It looks in the
- * document, in shadow roots on the top-level elements (where Unmerged mounts) and in the shadow roots nested in
- * those, and skips script and template text, where GitHub embeds page data before it renders it.
+ * Runs in the page: once `marker` is in a visible text node, the ms since `since` (the epoch ms a click started),
+ * or since the navigation started without it; false until then. It looks in the document, in shadow roots on the
+ * top-level elements (where Unmerged mounts) and in the shadow roots nested in those, and skips script and
+ * template text, where GitHub embeds page data before it renders it.
  */
-function findMarker(marker: string): number | false {
+function findMarker({ marker, since }: { marker: string; since?: number }): number | false {
   const roots: (Document | ShadowRoot)[] = [document];
   for (const el of [...document.documentElement.children, ...(document.body?.children ?? [])]) if (el.shadowRoot) roots.push(el.shadowRoot);
   // Inside those, every nested shadow root too: @pierre/diffs draws each diff in its own.
@@ -223,7 +294,7 @@ function findMarker(marker: string): number | false {
       if (!(node as Text).data.includes(marker)) continue;
       const el = node.parentElement;
       if (!el || el.closest('script, style, template, noscript')) continue;
-      if (el.checkVisibility() && el.getClientRects().length > 0) return performance.now();
+      if (el.checkVisibility() && el.getClientRects().length > 0) return performance.timeOrigin + performance.now() - (since ?? performance.timeOrigin);
     }
   }
   return false;
