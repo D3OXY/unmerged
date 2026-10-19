@@ -63,7 +63,7 @@ export function HomePage() {
         <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1fr)_300px]">
           <div className="flex min-w-0 flex-col gap-7">
             <ListSection title="Needs your review" count={review.data?.issueCount} loading={review.isPending} more="/pulls/review-requested">
-              {review.data?.nodes.map((pr) => <WorkRow key={pr.id} item={pr} kind="pr" repo={reviewRepo} />)}
+              {review.data?.nodes.map((pr) => <WorkRow key={pr.id} item={pr} details={pr} kind="pr" repo={reviewRepo} />)}
               {review.data && !review.data.nodes.length && <Empty>Inbox zero. Nobody is waiting on you.</Empty>}
             </ListSection>
             <ListSection title="Your pull requests" count={authored.data?.issueCount} loading={authored.isPending} more="/pulls">
@@ -71,7 +71,7 @@ export function HomePage() {
               {authored.data && !authored.data.nodes.length && <Empty>No open pull requests.</Empty>}
             </ListSection>
             <ListSection title="Assigned issues" count={assigned.data?.issueCount} loading={assigned.isPending} more="/issues/assigned">
-              {assigned.data?.nodes.map((issue) => <WorkRow key={issue.id} item={issue} kind="issue" repo={assignedRepo} />)}
+              {assigned.data?.nodes.map((issue) => <WorkRow key={issue.id} item={issue} details={issue} kind="issue" repo={assignedRepo} />)}
               {assigned.data && !assigned.data.nodes.length && <Empty>Nothing assigned to you.</Empty>}
             </ListSection>
           </div>
@@ -135,7 +135,7 @@ function AuthoredGroups({ prs }: { prs: PrRowData[] }) {
             <span className="tabular-nums">{group.length}</span>
           </div>
           {group.map((pr) => (
-            <WorkRow key={pr.id} item={pr} kind="pr" repo={repo} />
+            <WorkRow key={pr.id} item={pr} details={pr} kind="pr" repo={repo} />
           ))}
         </div>
       )
