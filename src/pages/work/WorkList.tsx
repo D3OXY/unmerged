@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useInfiniteQuery, useQueries } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueries, useQueryClient } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowDown01Icon, ArrowUpDownIcon, CheckmarkCircle02Icon, CircleDotIcon, Search01Icon } from '@hugeicons/core-free-icons';
 import { usePageHotkey } from '@/app/keyboard';
+import { prefetchVisibleRows } from '@/app/prefetch';
 import { cx } from '@/lib/cx';
 import type { Peek } from '@/lib/routes';
 import { sidePanelItem, useStorageItem } from '@/lib/settings';
@@ -39,6 +40,11 @@ export function WorkList({ kind, fallback, repo, peek }: { kind: WorkType; fallb
   const sidePanel = useStorageItem(sidePanelItem) ?? false;
   const list = useInfiniteQuery(workListQuery(q, repo));
   const counts = useQueries({ queries: workStateCountQueries(q, repo) });
+
+  // The rows on screen get their pages' first paint ready; again whenever the rows change.
+  const queryClient = useQueryClient();
+  const rowsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => (rowsRef.current ? prefetchVisibleRows(queryClient, rowsRef.current) : undefined), [queryClient, list.data]);
 
   const items = list.data?.pages.flatMap((page) => page.results.nodes) ?? [];
   // Only the pull request table shows details.
@@ -130,23 +136,25 @@ export function WorkList({ kind, fallback, repo, peek }: { kind: WorkType; fallb
         </div>
       )}
 
-      {list.error ? (
-        <p className="py-10 text-[13px] text-danger">{list.error.message}</p>
-      ) : list.isPending ? (
-        <Panel className="mt-4 flex flex-col gap-3 p-4">
-          {Array.from({ length: 8 }, (_, i) => (
-            <Skeleton key={i} className="h-4" />
-          ))}
-        </Panel>
-      ) : items.length === 0 ? (
-        <Panel className="mt-4 animate-enter">
-          <Empty>Nothing matches.</Empty>
-        </Panel>
-      ) : kind === 'pr' ? (
-        <PrTable items={items} details={details} q={q} onQuery={setQ} repoLabel={repoLabel} peek={sidePanel} open={peek} footer={footer} />
-      ) : (
-        <IssueSplit items={items} peek={peek} scoped={!!repo} byCreated={sort.startsWith('created')} footer={footer} />
-      )}
+      <div ref={rowsRef}>
+        {list.error ? (
+          <p className="py-10 text-[13px] text-danger">{list.error.message}</p>
+        ) : list.isPending ? (
+          <Panel className="mt-4 flex flex-col gap-3 p-4">
+            {Array.from({ length: 8 }, (_, i) => (
+              <Skeleton key={i} className="h-4" />
+            ))}
+          </Panel>
+        ) : items.length === 0 ? (
+          <Panel className="mt-4 animate-enter">
+            <Empty>Nothing matches.</Empty>
+          </Panel>
+        ) : kind === 'pr' ? (
+          <PrTable items={items} details={details} q={q} onQuery={setQ} repoLabel={repoLabel} peek={sidePanel} open={peek} footer={footer} />
+        ) : (
+          <IssueSplit items={items} peek={peek} scoped={!!repo} byCreated={sort.startsWith('created')} footer={footer} />
+        )}
+      </div>
     </>
   );
 }

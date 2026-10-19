@@ -17,6 +17,7 @@ import {
 } from '@hugeicons/core-free-icons';
 import { rest } from '@/github/client';
 import { usePageHotkey } from '@/app/keyboard';
+import { prefetchVisibleRows } from '@/app/prefetch';
 import { PageHeader, Shell } from '@/app/Shell';
 import { cx } from '@/lib/cx';
 import { onNavigate } from '@/lib/navigation';
@@ -158,6 +159,9 @@ export function NotificationsPage() {
       reasons: [...reasons].sort(([, a], [, b]) => b - a),
     };
   }, [all]);
+
+  // The rows on screen get their pages' first paint ready; again whenever the rows change.
+  useEffect(() => (listRef.current ? prefetchVisibleRows(queryClient, listRef.current) : undefined), [queryClient, list.data, repo, reason]);
 
   const refs = useMemo(() => [...new Set(all.map(subjectRef).filter((ref) => ref !== null))].sort(), [all]);
   const states = useQuery(subjectStatesQuery(refs)).data;
