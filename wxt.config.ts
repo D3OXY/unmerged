@@ -42,8 +42,10 @@ export default defineConfig({
     description: 'GitHub, as if it never got acquired. A calmer, faster skin for github.com.',
     // unlimitedStorage: the query cache (src/lib/persist.ts) can outgrow the default 10 MB; it shows no prompt.
     // webRequest and github.com: the background sees a tab start to load a github.com page and starts its
-    // requests then (src/github/early.ts). Neither adds an install warning: the content script already runs there.
-    permissions: ['storage', 'unlimitedStorage', 'webRequest'],
+    // requests then (src/github/early.ts). declarativeNetRequestWithHostAccess: owned pages load on a cheap
+    // GitHub page first (src/lib/boot.ts); Chrome only for now. None adds an install warning: the content script
+    // already runs on github.com.
+    permissions: ['storage', 'unlimitedStorage', 'webRequest', ...(browser === 'firefox' ? [] : ['declarativeNetRequestWithHostAccess'])],
     host_permissions: ['https://api.github.com/*', 'https://github.com/*'],
     web_accessible_resources: [{ resources: ['fonts/*', 'app.js', 'diffs.js', 'shiki-langs/*', 'player.html', 'highlighter.html'], matches: ['https://github.com/*'] }],
     // Firefox only: Chrome warns about the key. The id can't change once the add-on is on AMO. Data only goes

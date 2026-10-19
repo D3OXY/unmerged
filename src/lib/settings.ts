@@ -10,7 +10,7 @@ export type Surface = 'home' | 'profile' | 'pr' | 'issue' | 'commit' | 'compare'
 export type Surfaces = Record<Surface, boolean>;
 
 /** The switch a route's page is turned off with: its own, or that of the pages it belongs with. */
-export function surfaceOf(route: Route): Surface {
+export function surfaceOf(route: Pick<Route, 'kind'>): Surface {
   switch (route.kind) {
     case 'newIssue':
       return 'issue';

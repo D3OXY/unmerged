@@ -96,9 +96,10 @@ describe('matchRoute', () => {
     ['https://github.com/o/r/issues/new?template=Bug.YAML', null],
     ['https://github.com/o/r/issues/new/other', null],
     ['https://github.com/o/r/issues/12/edit', null],
-    // Commits: hex SHAs of 7–40 characters only, so raw views, checks and branch names stay GitHub's
+    // Commits: hex SHAs of 7 characters or more only, so raw views, checks and branch names stay GitHub's
     ['https://github.com/o/r/commit/20adf3c', { kind: 'commit', owner: 'o', repo: 'r', sha: '20adf3c' }],
     ['https://github.com/o/r/pull/12/commits/abcdef1', { kind: 'commit', owner: 'o', repo: 'r', sha: 'abcdef1', pr: 12 }],
+    ['https://github.com/o/r/commit/' + 'ab12'.repeat(16), { kind: 'commit', owner: 'o', repo: 'r', sha: 'ab12'.repeat(16) }],
     ['https://github.com/o/r/commit/abc123', null],
     ['https://github.com/o/r/commit/20adf3c.patch', null],
     ['https://github.com/o/r/commit/20adf3c.diff', null],
