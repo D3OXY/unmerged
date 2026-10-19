@@ -23,7 +23,7 @@ import {
 } from '@hugeicons/core-free-icons';
 import { ProductShot } from '../components/shot/ProductShot';
 import { Kbd, Logo } from '../components/ui';
-import { REPO_URL, TAGLINE, TOKEN_URL } from '../site';
+import { CHROME_STORE_URL, REPO_URL, TAGLINE, TOKEN_URL } from '../site';
 
 export const Route = createFileRoute('/')({ component: Home });
 
@@ -158,7 +158,7 @@ function Hero() {
             View source
           </a>
         </div>
-        <p className="mt-4 text-[12.5px] text-subtle">For Chrome and Firefox</p>
+        <p className="mt-4 text-[12.5px] text-subtle">Free for Chrome. Firefox is in review.</p>
       </div>
       <div className="relative mt-16 animate-enter [animation-delay:120ms] sm:mt-20">
         <ProductShot />
@@ -421,26 +421,23 @@ function Install() {
     <Section
       id="install"
       eyebrow="Install"
-      title="Two minutes, from source."
-      lede="Unmerged isn't in the extension stores yet. Build it once and load it unpacked."
+      title="One minute, from the Chrome Web Store."
+      lede="Add the extension, paste a token, and github.com is Unmerged. Firefox Add-ons is still reviewing it."
     >
-      <ol className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]">
-        <Step n={1} title="Build it">
-          <pre className="mt-3 overflow-x-auto rounded-lg border border-line bg-bg px-3.5 py-3 font-mono text-[12px] leading-relaxed text-fg/90">
-            {`git clone ${REPO_URL}\ncd unmerged\npnpm install\npnpm build`}
-          </pre>
-          <p className="mt-3 text-[12.5px] text-subtle">
-            For Firefox, run <code className="font-mono text-muted">pnpm build:firefox</code>.
-          </p>
-        </Step>
-        <Step n={2} title="Load it">
+      <ol className="grid gap-4 md:grid-cols-2">
+        <Step n={1} title="Add it to Chrome">
           <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
-            Open <code className="font-mono text-fg/90">chrome://extensions</code>, turn on Developer mode, click{' '}
-            <span className="text-fg">Load unpacked</span> and pick{' '}
-            <code className="font-mono text-fg/90">.output/chrome-mv3</code>.
+            From the Chrome Web Store. It works in Chrome, Arc, Brave, Edge and other Chromium browsers.
           </p>
+          <a
+            href={CHROME_STORE_URL}
+            className="mt-4 inline-flex h-8 items-center gap-2 rounded-lg bg-fg px-3 text-[13px] font-medium text-bg transition-opacity hover:opacity-90"
+          >
+            Add to Chrome
+            <HugeiconsIcon icon={ArrowRight01Icon} className="size-3.5" />
+          </a>
         </Step>
-        <Step n={3} title="Add a token">
+        <Step n={2} title="Add a token">
           <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
             Open github.com and paste a personal access token when asked. This link fills in the scopes Unmerged needs.
           </p>

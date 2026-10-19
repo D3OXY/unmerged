@@ -25,7 +25,10 @@ with a pill to come back.
 
 ## Install
 
-Unmerged is not in the browser stores yet. Build it and load it unpacked:
+Install it from the [Chrome Web Store](https://chromewebstore.google.com/detail/dimbendmcjfgoldbcebkepgonkfopcab),
+then click the Unmerged toolbar icon and paste a token. Firefox Add-ons is still reviewing it.
+
+To run your own build instead, build it and load it unpacked:
 
 ```sh
 pnpm install
