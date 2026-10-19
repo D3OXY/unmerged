@@ -485,36 +485,50 @@ export const prFilesQuery = (owner: string, repo: string, pr: Pick<PullRequest, 
     staleTime: Infinity,
   });
 
-const VIEWED_QUERY = /* GraphQL */ `
-  query PrViewed($owner: String!, $repo: String!, $number: Int!, $after: String) {
-    repository(owner: $owner, name: $repo) {
-      pullRequest(number: $number) {
-        files(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { path viewerViewedState } }
-      }
-    }
-  }
-`;
-
 export type ViewedState = 'VIEWED' | 'UNVIEWED' | 'DISMISSED';
-type ViewedPage = {
-  repository: {
-    pullRequest: { files: { pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: { path: string; viewerViewedState: ViewedState }[] } } | null;
-  } | null;
-};
+type FilesPage = { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: { path: string; viewerViewedState: ViewedState }[] };
 
-/** The viewer's "Viewed" marks, shared with GitHub. */
+const VIEWED_PER_PAGE = 100; // GitHub's most per connection
+
+/** GitHub's cursor after the first `count` files: the count in base64, unpadded. Opaque by contract, so checked before use. */
+const filesCursor = (count: number) => btoa(String(count)).replace(/=+$/, '');
+
+/** Pages of the viewer's file marks in one request, each starting after its cursor (null: at the first file). */
+async function viewedPages(owner: string, repo: string, number: number, cursors: (string | null)[]) {
+  const pages = cursors.map(
+    (after, i) =>
+      `p${i}: files(first: ${VIEWED_PER_PAGE}${after ? `, after: ${JSON.stringify(after)}` : ''}) { totalCount pageInfo { hasNextPage endCursor } nodes { path viewerViewedState } }`,
+  );
+  const query = `query PrViewed($owner: String!, $repo: String!, $number: Int!) { repository(owner: $owner, name: $repo) { pullRequest(number: $number) { ${pages.join(' ')} } } }`;
+  const { repository } = await gql<{ repository: { pullRequest: Record<string, FilesPage> | null } | null }>(query, { owner, repo, number });
+  return cursors.map((_, i) => repository?.pullRequest?.[`p${i}`]);
+}
+
+/**
+ * The viewer's "Viewed" marks, shared with GitHub. The first page tells how many files there are; every other
+ * page then comes in one more request, so a PR with thousands of files costs two requests, not one per 100 files.
+ */
 export const prViewedQuery = (owner: string, repo: string, number: number) =>
   queryOptions({
     queryKey: ['pr-viewed', ...prKey(owner, repo, number)],
     queryFn: async () => {
       const viewed: Record<string, ViewedState> = {};
-      let after: string | null = null;
-      do {
-        const page: ViewedPage = await gql<ViewedPage>(VIEWED_QUERY, { owner, repo, number, after });
-        const files = page.repository?.pullRequest?.files;
-        for (const file of files?.nodes ?? []) viewed[file.path] = file.viewerViewedState;
-        after = files?.pageInfo.hasNextPage ? files.pageInfo.endCursor : null;
-      } while (after);
+      const add = (page: FilesPage | undefined) => {
+        for (const file of page?.nodes ?? []) viewed[file.path] = file.viewerViewedState;
+      };
+      let [page] = await viewedPages(owner, repo, number, [null]);
+      add(page);
+      if (page?.pageInfo.hasNextPage && page.pageInfo.endCursor === filesCursor(VIEWED_PER_PAGE)) {
+        const cursors: string[] = [];
+        for (let count = VIEWED_PER_PAGE; count < page.totalCount; count += VIEWED_PER_PAGE) cursors.push(filesCursor(count));
+        (await viewedPages(owner, repo, number, cursors)).forEach(add);
+        return viewed;
+      }
+      // GitHub changed its cursors: follow them one page at a time.
+      while (page?.pageInfo.hasNextPage) {
+        [page] = await viewedPages(owner, repo, number, [page.pageInfo.endCursor]);
+        add(page);
+      }
       return viewed;
     },
     persister: persisted,
