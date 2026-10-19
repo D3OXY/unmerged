@@ -54,6 +54,10 @@ and with the privacy policy at https://unmerged.deoxy.dev/privacy (`site/src/rou
   - `unlimitedStorage`: the cache of GitHub results can grow past the default 10 MB; it is capped at 50 MB.
   - `webRequest`: sees when a tab starts to load a github.com page, so that page's data starts loading at once,
     while GitHub's server answers. It only sees github.com pages, and it doesn't read, block or change any request.
+  - `declarativeNetRequestWithHostAccess`: when a tab loads a github.com page that the extension shows, it
+    loads a small GitHub page first in place of GitHub's full page, and the extension puts the real address back.
+    The page opens sooner. It changes only github.com page loads, sends nothing to another site, and reads no
+    request. It adds no install warning.
   - Host permission `api.github.com`: loads the data the pages show, with the user's token.
   - Host permission and content script on `github.com`: draws the extension's pages in place of GitHub's; the
     host permission also lets `webRequest` see github.com pages start to load.

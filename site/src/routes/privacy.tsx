@@ -66,6 +66,11 @@ function Privacy() {
             Unmerged doesn't read, block or change those requests, and sees no other site's.
           </li>
           <li>
+            <b>Changing which github.com page loads</b> (Chrome): when you open a page that Unmerged shows, the browser
+            loads a small GitHub page in its place, which GitHub sends faster than the full page. Unmerged then puts
+            the real address back. The request still goes to github.com, and Unmerged reads none of it.
+          </li>
+          <li>
             <b>Access to api.github.com</b>: to load the data those pages show.
           </li>
           <li>

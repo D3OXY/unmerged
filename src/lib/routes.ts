@@ -84,8 +84,9 @@ export type Route =
    */
   | { kind: 'release'; owner: string; repo: string; tag?: string };
 
-// Hex only, so /commit/<sha>.patch and .diff stay GitHub's.
-const isSha = (part: string | undefined): part is string => !!part && /^[0-9a-f]{7,40}$/i.test(part);
+// Hex only, so /commit/<sha>.patch and .diff stay GitHub's. No upper bound, as the boot rules (bootRules.ts) can't
+// afford one.
+const isSha = (part: string | undefined): part is string => !!part && /^[0-9a-f]{7,}$/i.test(part);
 
 const PR_TABS: Record<string, PrTab> = { commits: 'commits', checks: 'checks', files: 'files', changes: 'files' };
 
@@ -94,7 +95,7 @@ const PULL_FILTERS: Record<string, WorkFilter> = { '': 'created', assigned: 'ass
 const ISSUE_FILTERS: Record<string, WorkFilter> = { '': 'created', created: 'created', assigned: 'assigned', mentioned: 'mentioned' };
 
 // First path segments that are GitHub features, not users or organizations.
-const RESERVED = new Set([
+export const RESERVED = new Set([
   'about', 'account', 'apps', 'blog', 'codespaces', 'collections', 'contact', 'copilot', 'customer-stories',
   'dashboard', 'discussions', 'enterprise', 'events', 'explore', 'features', 'feed', 'github-copilot', 'home',
   'issues', 'join', 'login', 'logout', 'marketplace', 'mobile', 'models', 'new', 'nonprofit', 'notifications',

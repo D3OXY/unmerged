@@ -2,6 +2,7 @@ import './style.css';
 import type { ShadowRootContentScriptUi } from 'wxt/utils/content-script-ui/shadow-root';
 import type { AppApi } from '@/entrypoints/app';
 import { prefetchInBackground } from '@/github/early';
+import { bootTarget, reloadedOnGitHub, reloadOnGitHub } from '@/lib/boot';
 import { classicPath, clearClassicUnless } from '@/lib/classic';
 import { isModifiedClick, withPeek } from '@/lib/navigation';
 import { matchRoute, type Route } from '@/lib/routes';
@@ -44,6 +45,15 @@ export default defineContentScript({
 
   async main(ctx) {
     const html = document.documentElement;
+    // A full load of an owned page arrives on the boot page (lib/boot.ts): put the real URL back before
+    // anything reads it, and a neutral title before the 404 page's ("Page not found") is parsed. The first
+    // <title> in the document is the one the tab shows and the app later sets.
+    const boot = bootTarget(new URL(location.href));
+    if (boot) {
+      history.replaceState(null, '', boot);
+      html.append(Object.assign(document.createElement('title'), { textContent: 'GitHub' }));
+    }
+    const reloaded = reloadedOnGitHub();
     // Read now, given to the app before anything renders: API data cached in the page must be this account's.
     const account = accountItem.getValue();
     const style = document.createElement('style');
@@ -72,8 +82,9 @@ export default defineContentScript({
     const isOwning = () => html.classList.contains(OWNING);
 
     // Hide GitHub's page synchronously; mounting our UI is async (it loads with its CSS) and must not flash.
+    // The boot page is never shown: if the URL is GitHub's after all, the tab reloads on GitHub's page (see sync).
     const initial = resolve(new URL(location.href));
-    html.classList.toggle(OWNING, !!initial?.owning);
+    html.classList.toggle(OWNING, !!initial?.owning || !!boot);
 
     // GitHub's page under ours is never shown, yet it would download (~1 MB of HTML on a repo page) and run
     // its scripts, competing with ours. Its <head> has what we need (who's signed in, title, icon), so once
@@ -140,8 +151,13 @@ export default defineContentScript({
       latest = url;
       clearClassicUnless(url.pathname);
       const result = resolve(url);
-      // GitHub's own page was never loaded; get it now.
-      if (stopped && !result?.owning) return location.reload();
+      // GitHub's own page was never loaded; get it now. If this boot page is that reload's, the way past the
+      // redirect failed: show its 404 page rather than reload again.
+      if ((stopped || boot) && !result?.owning) {
+        if (boot && reloaded) html.classList.remove(OWNING);
+        else reloadOnGitHub();
+        return;
+      }
       html.classList.toggle(OWNING, !!result?.owning);
       if (!shell) {
         // Shown once the app has loaded, at the URL that is current by then.
