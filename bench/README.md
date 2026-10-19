@@ -75,24 +75,24 @@ Measured 2026-10-19, median of 5 runs, signed in to github.com. Mozilla/5.0 (Mac
 
 | Page | Visit | Time GitHub | Time Unmerged | Data GitHub | Data Unmerged | Requests GitHub | Requests Unmerged | Blocking GitHub | Blocking Unmerged |
 |---|---|---|---|---|---|---|---|---|---|
-| Repository | First visit | 1.46 s | 1.28 s | 4.9 MB | 222 KB | 368 | 58 | 0 ms | 0 ms |
-| Repository | Repeat visit | 1.20 s | 1.06 s | 178 KB | 70 KB | 20 | 19 | 33 ms | 0 ms |
-| Pull request | First visit | 1.83 s | 1.68 s | 6.0 MB | 177 KB | 468 | 37 | 0 ms | 0 ms |
-| Pull request | Repeat visit | 1.58 s | 1.51 s | 238 KB | 138 KB | 23 | 9 | 0 ms | 0 ms |
-| Long issue | First visit | 2.86 s | 2.31 s | 5.9 MB | 263 KB | 433 | 64 | 0 ms | 0 ms |
-| Long issue | Repeat visit | 2.58 s | 2.37 s | 168 KB | 164 KB | 17 | 6 | 33 ms | 0 ms |
-| Files changed, 133 files | First visit | 2.57 s | 2.43 s | 6.0 MB | 398 KB | 415 | 34 | 10 ms | 0 ms |
-| Files changed, 133 files | Repeat visit | 2.34 s | 2.20 s | 310 KB | 250 KB | 19 | 18 | 56 ms | 0 ms |
-| Files changed, 2,416 files | First visit | 10.29 s | 9.56 s | 6.0 MB | 3.4 MB | 416 | 80 | 745 ms | 0 ms |
-| Files changed, 2,416 files | Repeat visit | 10.03 s | 9.20 s | 305 KB | 1.7 MB | 18 | 65 | 650 ms | 0 ms |
-| Very long pull request | First visit | 8.26 s | 7.96 s | 5.9 MB | 1.1 MB | 434 | 53 | 0 ms | 0 ms |
-| Very long pull request | Repeat visit | 7.65 s | 7.89 s | 200 KB | 974 KB | 18 | 8 | 93 ms | 0 ms |
-| Files changed, 2,188 files | First visit | > 60 s | 9.75 s | 7.3 MB | 6.8 MB | 418 | 64 | 10310 ms | 0 ms |
-| Files changed, 2,188 files | Repeat visit | > 60 s | 9.10 s | 1.6 MB | 2.2 MB | 35 | 59 | 10275 ms | 0 ms |
-| Repository → Pull requests | First visit | 1.67 s | 952 ms | 1.6 MB | 190 KB | 102 | 49 | 2 ms | 0 ms |
-| Repository → Pull requests | Repeat visit | 1.31 s | 83 ms | 82 KB | 72 KB | 11 | 11 | 4 ms | 0 ms |
-| Pull requests → a PR | First visit | 1.38 s | 723 ms | 461 KB | 221 KB | 91 | 30 | 267 ms | 0 ms |
-| Pull requests → a PR | Repeat visit | 1.25 s | 109 ms | 197 KB | 147 KB | 22 | 13 | 300 ms | 12 ms |
-| Pull request → Files changed | First visit | 1.21 s | 118 ms | 136 KB | 54 KB | 18 | 6 | 79 ms | 0 ms |
-| Pull request → Files changed | Repeat visit | 1.25 s | 122 ms | 84 KB | 0 KB | 11 | 0 | 84 ms | 0 ms |
+| Repository | First visit | 1.87 s | 1.19 s | 4.9 MB | 129 KB | 363 | 24 | 0 ms | 0 ms |
+| Repository | Repeat visit | 1.15 s | 579 ms | 177 KB | 49 KB | 18 | 20 | 36 ms | 0 ms |
+| Pull request | First visit | 2.20 s | 752 ms | 4.9 MB | 176 KB | 400 | 16 | 0 ms | 0 ms |
+| Pull request | Repeat visit | 1.65 s | 620 ms | 751 KB | 109 KB | 45 | 10 | 0 ms | 0 ms |
+| Long issue | First visit | 3.63 s | 1.01 s | 5.9 MB | 307 KB | 406 | 65 | 0 ms | 0 ms |
+| Long issue | Repeat visit | 2.23 s | 641 ms | 179 KB | 164 KB | 17 | 7 | 34 ms | 0 ms |
+| Files changed, 133 files | First visit | 2.78 s | 1.53 s | 5.9 MB | 266 KB | 396 | 17 | 0 ms | 0 ms |
+| Files changed, 133 files | Repeat visit | 2.39 s | 1.46 s | 334 KB | 201 KB | 18 | 16 | 55 ms | 0 ms |
+| Files changed, 2,416 files | First visit | 10.34 s | 1.98 s | 6.0 MB | 2.5 MB | 413 | 50 | 760 ms | 0 ms |
+| Files changed, 2,416 files | Repeat visit | 10.49 s | 2.00 s | 304 KB | 2.5 MB | 15 | 84 | 638 ms | 0 ms |
+| Very long pull request | First visit | 8.31 s | 910 ms | 5.9 MB | 943 KB | 436 | 23 | 0 ms | 0 ms |
+| Very long pull request | Repeat visit | 7.77 s | 715 ms | 188 KB | 874 KB | 19 | 8 | 0 ms | 0 ms |
+| Files changed, 2,188 files | First visit | > 60 s | 3.73 s | 7.3 MB | 5.7 MB | 428 | 51 | 10531 ms | 0 ms |
+| Files changed, 2,188 files | Repeat visit | > 60 s | 2.54 s | 1.6 MB | 5.7 MB | 31 | 72 | 10519 ms | 0 ms |
+| Repository → Pull requests | First visit | 1.26 s | 782 ms | 1.6 MB | 205 KB | 91 | 53 | 5 ms | 0 ms |
+| Repository → Pull requests | Repeat visit | 1.11 s | 90 ms | 80 KB | 87 KB | 7 | 12 | 2 ms | 0 ms |
+| Pull requests → a PR | First visit | 1.34 s | 653 ms | 482 KB | 205 KB | 92 | 30 | 302 ms | 0 ms |
+| Pull requests → a PR | Repeat visit | 1.27 s | 119 ms | 197 KB | 151 KB | 22 | 14 | 307 ms | 17 ms |
+| Pull request → Files changed | First visit | 1.18 s | 120 ms | 148 KB | 51 KB | 20 | 5 | 94 ms | 0 ms |
+| Pull request → Files changed | Repeat visit | 1.18 s | 122 ms | 77 KB | 0 KB | 11 | 0 | 90 ms | 0 ms |
 <!-- /results -->
