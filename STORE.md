@@ -52,8 +52,11 @@ and with the privacy policy at https://unmerged.deoxy.dev/privacy (`site/src/rou
 - **Permission justifications:**
   - `storage`: keeps the user's GitHub token, settings and cached GitHub results on the device.
   - `unlimitedStorage`: the cache of GitHub results can grow past the default 10 MB; it is capped at 50 MB.
+  - `webRequest`: sees when a tab starts to load a github.com page, so that page's data starts loading at once,
+    while GitHub's server answers. It only sees github.com pages, and it doesn't read, block or change any request.
   - Host permission `api.github.com`: loads the data the pages show, with the user's token.
-  - Content script on `github.com`: draws the extension's pages in place of GitHub's.
+  - Host permission and content script on `github.com`: draws the extension's pages in place of GitHub's; the
+    host permission also lets `webRequest` see github.com pages start to load.
 - **Remote code:** No. Everything that runs, including the diff renderer and syntax grammars, is in the
   package.
 - **Data usage:** tick Authentication information (the token, sent only to api.github.com) and certify the

@@ -62,6 +62,10 @@ function Privacy() {
             <b>Access to github.com</b>: to draw Unmerged's pages in place of GitHub's.
           </li>
           <li>
+            <b>Web requests</b>: to see when a tab starts to load a github.com page, so its data starts loading at once.
+            Unmerged doesn't read, block or change those requests, and sees no other site's.
+          </li>
+          <li>
             <b>Access to api.github.com</b>: to load the data those pages show.
           </li>
           <li>
