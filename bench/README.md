@@ -35,8 +35,9 @@ on GitHub (Settings → Sessions) when you're done.
 
 ## What it measures
 
-Every page is public, in `TanStack/query`, from a small pull request to one with 2,416 changed files (see
-`SCENARIOS` in `run.ts`). There are two kinds of scenario:
+Every page is public, in `TanStack/query`, from a small pull request to one with 2,416 changed files, plus
+Bun's rewrite in Rust (`oven-sh/bun#30412`: 2,188 files, a million lines, 707 comments) (see `SCENARIOS` in
+`run.ts`). There are two kinds of scenario:
 
 - **Page loads** open a URL in a new tab, as when you follow a link from elsewhere or reload.
 - **Clicks inside a page** (the rows with "→") are how most navigations happen: on a page that has loaded and

@@ -60,6 +60,21 @@ export const SCENARIOS: Scenario[] = [
     url: 'https://github.com/TanStack/query/pull/12054/files',
     marker: 'incorporate upstream adapter fixes',
   },
+  // Bun's rewrite in Rust: the biggest pull request here by far, in its own repository.
+  {
+    id: 'bun-pr',
+    label: 'Very long pull request',
+    detail: '707 comments and 170 reviews, up to its description (oven-sh/bun#30412)',
+    url: 'https://github.com/oven-sh/bun/pull/30412',
+    marker: 'compiler-assisted tools for catching',
+  },
+  {
+    id: 'bun-files',
+    label: 'Files changed, 2,188 files',
+    detail: '+1,009,257 −4,024 lines, up to the first diff (oven-sh/bun#30412)',
+    url: 'https://github.com/oven-sh/bun/pull/30412/files',
+    marker: 'Serialize Apply-phase agents',
+  },
   // Clicks inside a page. Links match by the end of their href: GitHub's are paths, some of Unmerged's are full
   // URLs, and Unmerged's sidebar has links with the same names.
   {
