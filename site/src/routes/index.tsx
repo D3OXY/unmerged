@@ -21,7 +21,7 @@ import {
   Tick02Icon,
   UserIcon,
 } from '@hugeicons/core-free-icons';
-import { Benchmark, benchmarkSummary } from '../components/Benchmark';
+import { Benchmark, benchmarkSetup } from '../components/Benchmark';
 import { Screenshots } from '../components/Screenshots';
 import { Kbd, Logo } from '../components/ui';
 import { useInstallHref } from '../install';
@@ -271,17 +271,17 @@ const SPEED: { icon: IconSvgElement; title: string; body: ReactNode }[] = [
 ];
 
 function Speed() {
-  const facts = benchmarkSummary();
+  const setup = benchmarkSetup;
   return (
     <Section
       id="speed"
-      title={facts.faster * 2 > facts.pages ? 'A fraction of the data, faster on most pages.' : 'A fraction of the data, about as fast.'}
-      lede={`On ${facts.pages} public pages of TanStack/query, Unmerged downloaded ${facts.minLess} to ${facts.maxLess} times less than GitHub on a first visit, and showed the content sooner on ${facts.faster} of ${facts.pages}.`}
+      title="Measured against GitHub."
+      lede={`${setup.pages} public pages of TanStack/query, each loaded ${setup.runs} times in Chromium: as GitHub serves them, and with Unmerged. Both ${setup.signedIn ? 'signed in' : 'signed out'}. These are the medians.`}
     >
       <Benchmark />
       <p className="mt-3 text-[12.5px] leading-relaxed text-subtle">
         Time is from the start of the navigation until the page's content is on screen; data is what crossed the network,
-        compressed. Median of {facts.runs} runs on {facts.date}, {facts.signedIn ? 'signed in to' : 'signed out of'} github.com,
+        compressed. Median of {setup.runs} runs on {setup.date}, {setup.signedIn ? 'signed in to' : 'signed out of'} github.com,
         in headless Chromium.{' '}
         <a href={`${REPO_URL}/tree/main/bench`} className="text-muted underline underline-offset-2 hover:text-fg">
           How it's measured, and run it yourself
