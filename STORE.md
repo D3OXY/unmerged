@@ -43,6 +43,7 @@ and with the privacy policy at https://unmerged.deoxy.dev/privacy (`site/src/rou
 
 ## Chrome Web Store
 
+- **Listing:** https://chromewebstore.google.com/detail/dimbendmcjfgoldbcebkepgonkfopcab
 - **Category:** Developer Tools. **Language:** English.
 - **Images:** the 128×128 icon (`public/icon/128.png`), 1 to 5 screenshots at 1280×800, and a 440×280 small
   promo tile.

@@ -11,6 +11,7 @@ import {
   CursorPointer01Icon,
   DatabaseIcon,
   FileDiffIcon,
+  GitForkIcon,
   GithubIcon,
   GitPullRequestIcon,
   Home01Icon,
@@ -23,7 +24,8 @@ import {
 } from '@hugeicons/core-free-icons';
 import { ProductShot } from '../components/shot/ProductShot';
 import { Kbd, Logo } from '../components/ui';
-import { REPO_URL, TAGLINE, TOKEN_URL } from '../site';
+import { useInstallHref } from '../install';
+import { FORK_URL, REPO_URL, TAGLINE, TOKEN_URL } from '../site';
 
 export const Route = createFileRoute('/')({ component: Home });
 
@@ -133,6 +135,7 @@ function useCompactOnScroll() {
 }
 
 function Hero() {
+  const installHref = useInstallHref();
   return (
     <section className="mx-auto max-w-[1120px] px-6 pt-16 sm:pt-24">
       <div className="mx-auto flex max-w-[760px] animate-enter flex-col items-center text-center">
@@ -144,21 +147,21 @@ function Hero() {
         </p>
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
           <a
-            href="#install"
+            href={installHref}
             className="flex h-10 items-center gap-2 rounded-lg bg-fg px-4 text-[14px] font-medium text-bg transition-opacity hover:opacity-90"
           >
-            Install Unmerged
+            Install
             <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
           </a>
           <a
-            href={REPO_URL}
+            href={FORK_URL}
             className="flex h-10 items-center gap-2 rounded-lg border border-line-strong px-4 text-[14px] font-medium transition-colors hover:bg-hover"
           >
-            <HugeiconsIcon icon={GithubIcon} className="size-4" />
-            View source
+            <HugeiconsIcon icon={GitForkIcon} className="size-4" />
+            Fork
           </a>
         </div>
-        <p className="mt-4 text-[12.5px] text-subtle">For Chrome and Firefox</p>
+        <p className="mt-4 text-[12.5px] text-subtle">Free for Chrome. Firefox is in review.</p>
       </div>
       <div className="relative mt-16 animate-enter [animation-delay:120ms] sm:mt-20">
         <ProductShot />
@@ -417,30 +420,28 @@ function Fact({ icon, title, children }: { icon: IconSvgElement; title: string; 
 }
 
 function Install() {
+  const installHref = useInstallHref();
   return (
-    <Section
-      id="install"
-      eyebrow="Install"
-      title="Two minutes, from source."
-      lede="Unmerged isn't in the extension stores yet. Build it once and load it unpacked."
-    >
-      <ol className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]">
-        <Step n={1} title="Build it">
-          <pre className="mt-3 overflow-x-auto rounded-lg border border-line bg-bg px-3.5 py-3 font-mono text-[12px] leading-relaxed text-fg/90">
-            {`git clone ${REPO_URL}\ncd unmerged\npnpm install\npnpm build`}
-          </pre>
-          <p className="mt-3 text-[12.5px] text-subtle">
-            For Firefox, run <code className="font-mono text-muted">pnpm build:firefox</code>.
-          </p>
-        </Step>
-        <Step n={2} title="Load it">
+    <Section id="install" eyebrow="Install" title="Two steps, about a minute." lede="Install the extension, then give it a token so it can read GitHub's API.">
+      <ol className="grid gap-4 md:grid-cols-2">
+        <Step n={1} title="Install it">
           <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
-            Open <code className="font-mono text-fg/90">chrome://extensions</code>, turn on Developer mode, click{' '}
-            <span className="text-fg">Load unpacked</span> and pick{' '}
-            <code className="font-mono text-fg/90">.output/chrome-mv3</code>.
+            From the Chrome Web Store, for Chrome, Arc, Brave and Edge. Firefox is coming soon.
           </p>
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <a
+              href={installHref}
+              className="inline-flex h-8 items-center gap-2 rounded-lg bg-fg px-3 text-[13px] font-medium text-bg transition-opacity hover:opacity-90"
+            >
+              Install
+              <HugeiconsIcon icon={ArrowRight01Icon} className="size-3.5" />
+            </a>
+            <a href="/install/source" className="text-[13px] text-muted transition-colors hover:text-fg">
+              Build from source
+            </a>
+          </div>
         </Step>
-        <Step n={3} title="Add a token">
+        <Step n={2} title="Add a token">
           <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
             Open github.com and paste a personal access token when asked. This link fills in the scopes Unmerged needs.
           </p>
