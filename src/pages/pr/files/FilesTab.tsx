@@ -9,7 +9,7 @@ import { cx } from '@/lib/cx';
 import { loadDiffs } from '@/lib/diffs';
 import { Skeleton } from '@/ui/primitives';
 import { toast } from '@/ui/toast';
-import { MUTATIONS, prFilesQuery, prViewedQuery, repoPath, type PullRequest, type ReviewThread, type ViewedState } from '../query';
+import { MUTATIONS, prFilesQuery, prViewedQuery, repoPath, type PrHead, type PullRequest, type ReviewThread, type ViewedState } from '../query';
 import { diffAnchor } from './anchor';
 import { FileDiff, type DiffMode, type FileReview, type PrFile } from './FileDiff';
 import { FileTree } from './FileTree';
@@ -48,8 +48,9 @@ const NO_THREADS: ReviewThread[] = [];
 /**
  * Files changed: file tree on the left, diffs on the right, "Viewed" synced with GitHub.
  * Keys (also in the palette): n / p next or previous file, v toggle viewed, ] next unresolved thread.
+ * `pr` is enough to show the files; review threads and line comments wait for the `full` pull request.
  */
-export function FilesTab({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey }) {
+export function FilesTab({ pr, full, queryKey }: { pr: PrHead; full?: PullRequest; queryKey: QueryKey }) {
   const queryClient = useQueryClient();
   const [owner, repo] = repoPath(pr).split('/') as [string, string];
   // After a push, the previous commit's files stay up until the new ones arrive.
@@ -68,6 +69,7 @@ export function FilesTab({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey
   const list = files.data;
   // Pages render as they arrive; until the last one is in, the count comes from the pull request.
   const partial = files.isFetching && !files.isPlaceholderData;
+  const reviewThreads = full?.reviewThreads.nodes ?? NO_THREADS;
 
   const isViewed = (path: string) => viewed.data?.[path] === 'VIEWED';
   const isOpen = (file: PrFile) => openOverride[file.filename] ?? (!isViewed(file.filename) && file.changes <= BIG_FILE);
@@ -94,13 +96,13 @@ export function FilesTab({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey
     else cards.current.delete(path);
   }, []);
   const source = useMemo(() => ({ nameWithOwner: `${owner}/${repo}`, oid: pr.headRefOid }), [owner, repo, pr.headRefOid]);
-  const review = useMemo<FileReview>(() => ({ pr, queryKey, onToggleViewed: toggleViewed }), [pr, queryKey, toggleViewed]);
+  const review = useMemo<FileReview>(() => ({ pr: full, queryKey, onToggleViewed: toggleViewed }), [full, queryKey, toggleViewed]);
 
   const threadsByPath = useMemo(() => {
     const map = new Map<string, ReviewThread[]>();
-    for (const thread of pr.reviewThreads.nodes) map.set(thread.path, [...(map.get(thread.path) ?? []), thread]);
+    for (const thread of reviewThreads) map.set(thread.path, [...(map.get(thread.path) ?? []), thread]);
     return map;
-  }, [pr.reviewThreads.nodes]);
+  }, [reviewThreads]);
 
   // GitHub-compatible anchors (#diff-<sha256>), once every page is in: each later page would hash the whole
   // list again and jump back to the #diff- target below.
@@ -192,11 +194,11 @@ export function FilesTab({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey
     if (card) requestAnimationFrame(() => pinScroll(card));
   }, [currentFile, viewed.data, toggleViewed]);
 
-  const hasOpenThreads = pr.reviewThreads.nodes.some(isOpenLineThread);
+  const hasOpenThreads = reviewThreads.some(isOpenLineThread);
 
   /** Jumps to the unresolved thread after the last one jumped to, wrapping around. */
   const nextThread = useCallback(() => {
-    const thread = nextOpenThread(pr.reviewThreads.nodes, list ?? [], lastThread.current);
+    const thread = nextOpenThread(reviewThreads, list ?? [], lastThread.current);
     if (!thread) return;
     lastThread.current = thread;
     const side = thread.diffSide === 'LEFT' ? 'deletions' : 'additions';
@@ -207,7 +209,7 @@ export function FilesTab({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey
       },
       () => select(thread.path),
     );
-  }, [pr.reviewThreads.nodes, list, select]);
+  }, [reviewThreads, list, select]);
 
   usePageHotkey('n', useCallback(() => step(1), [step]));
   usePageHotkey('p', useCallback(() => step(-1), [step]));

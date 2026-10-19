@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { matchRoute } from '@/lib/routes';
 import { runsQuery } from '@/pages/actions/query';
 import { branchIndexQuery } from '@/pages/branches/query';
+import { prFilesQuery, prHeadQuery, prQuery, prViewedQuery } from '@/pages/pr/query';
 import { releasesQuery, tagsQuery } from '@/pages/releases/query';
 import { codeSearchQuery, repoSearchQuery, workSearchQuery } from '@/pages/search/queries';
 import { defaultQuery, repoListQuery, workListQuery, workQueryOf } from '@/pages/work/queries';
@@ -76,5 +77,30 @@ describe('prefetchRoute for releases', () => {
     ['https://github.com/o/r/tags', tagsQuery('o', 'r').queryKey],
   ])('starts the page’s list for %s', (href, key) => {
     expect(prefetchedListKeys(href)).toEqual([key]);
+  });
+});
+
+// Files changed starts from the head query that the page also reads; the patches start at its head commit.
+describe('prefetchRoute for Files changed', () => {
+  it('starts the page’s head, viewed marks and patches', async () => {
+    const client = new QueryClient();
+    const head = { number: 7, headRefOid: 'abc', changedFiles: 3 };
+    const fetched: QueryKey[] = [];
+    vi.spyOn(client, 'fetchQuery').mockImplementation(async (options) => {
+      fetched.push(options.queryKey);
+      return { repository: { pullRequest: head } };
+    });
+    const keys: QueryKey[] = [];
+    const files = new Promise<QueryKey>((resolve) =>
+      vi.spyOn(client, 'prefetchQuery').mockImplementation(async (options) => {
+        keys.push(options.queryKey);
+        if (options.queryKey[0] === 'pr-files') resolve(options.queryKey);
+      }),
+    );
+    const url = new URL('https://github.com/O/R/pull/7/files');
+    prefetchRoute(client, matchRoute(url)!, url);
+    expect(await files).toEqual(prFilesQuery('O', 'R', head).queryKey);
+    expect(fetched).toEqual([prHeadQuery('O', 'R', 7).queryKey]);
+    expect(keys).toEqual([prQuery('O', 'R', 7).queryKey, prViewedQuery('O', 'R', 7).queryKey, prFilesQuery('O', 'R', head).queryKey]);
   });
 });

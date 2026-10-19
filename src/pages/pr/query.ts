@@ -534,12 +534,42 @@ export const prViewedQuery = (owner: string, repo: string, number: number) =>
     persister: persisted,
   });
 
-// Just what the patches' cache key needs, in a fraction of the full pull request's time.
+// What the page header and Files changed need, in a fraction of the full pull request's time.
 const PR_HEAD_QUERY = /* GraphQL */ `
   query PullRequestHead($owner: String!, $repo: String!, $number: Int!) {
-    repository(owner: $owner, name: $repo) { pullRequest(number: $number) { number headRefOid changedFiles } }
+    repository(owner: $owner, name: $repo) {
+      isPrivate
+      pullRequest(number: $number) {
+        id number title url state isDraft createdAt viewerCanUpdate
+        author { login avatarUrl }
+        baseRefName headRefName headRefOid isCrossRepository
+        headRepositoryOwner { login }
+        additions deletions changedFiles
+        commits(last: 1) { totalCount nodes { commit { statusCheckRollup { state contexts(first: 100) { nodes { __typename } } } } } }
+      }
+    }
   }
 `;
+
+/** The part of a pull request that the header and Files changed show. The full `PullRequest` is one too. */
+export type PrHead = Pick<
+  PullRequest,
+  | 'id' | 'number' | 'title' | 'url' | 'state' | 'isDraft' | 'createdAt' | 'viewerCanUpdate' | 'author' | 'baseRefName' | 'headRefName'
+  | 'headRefOid' | 'isCrossRepository' | 'headRepositoryOwner' | 'additions' | 'deletions' | 'changedFiles'
+> & {
+  commits: { totalCount: number; nodes: { commit: { statusCheckRollup: { state: CheckState; contexts: { nodes: { __typename: string }[] } } | null } }[] };
+};
+type PrHeadData = { repository: { isPrivate: boolean; pullRequest: PrHead | null } | null };
+
+/**
+ * The header and Files changed before the full pull request loads, which takes seconds on a large one. Not
+ * persisted: a revisit has the persisted full pull request.
+ */
+export const prHeadQuery = (owner: string, repo: string, number: number) =>
+  queryOptions({
+    queryKey: ['pr-head', ...prKey(owner, repo, number)],
+    queryFn: () => gql<PrHeadData>(PR_HEAD_QUERY, { owner, repo, number }),
+  });
 
 /** What a pull request URL will show, started early (page load, link hover) by src/app/prefetch.ts. */
 export function prefetchPr(client: QueryClient, owner: string, repo: string, number: number, tab: PrTab) {
@@ -547,7 +577,8 @@ export function prefetchPr(client: QueryClient, owner: string, repo: string, num
   if (tab !== 'files') return;
   client.prefetchQuery(prViewedQuery(owner, repo, number));
   // Patches are keyed by the head commit; look it up on its own so they don't wait for the full pull request.
-  gql<{ repository: { pullRequest: Pick<PullRequest, 'number' | 'headRefOid' | 'changedFiles'> | null } | null }>(PR_HEAD_QUERY, { owner, repo, number })
+  client
+    .fetchQuery(prHeadQuery(owner, repo, number))
     .then(({ repository }) => repository?.pullRequest && client.prefetchQuery(prFilesQuery(owner, repo, repository.pullRequest)))
     .catch(() => {});
 }
