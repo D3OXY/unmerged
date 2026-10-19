@@ -1,17 +1,20 @@
 import { QueryClient } from '@tanstack/react-query';
 import { prefetchRoute } from '@/app/prefetch';
 import { answerCodeSearch } from '@/github/client';
-import { answerEarly, keepEarlyAnswers } from '@/github/early';
+import { answerEarly, keepEarlyAnswers, prefetchRequest } from '@/github/early';
 import { matchRoute } from '@/lib/routes';
 import { surfaceOf, surfacesItem } from '@/lib/settings';
 
 // Content scripts can't reload the extension or open its pages; github.com asks here (see SettingsDialog
 // and openSettingsPage in lib/settings.ts). Code search, which github.com can't read, is fetched here too,
-// and so are an owned page's first requests (see github/early.ts).
+// and so are an owned page's first requests (see github/early.ts), also for a link the user points at before
+// the page's app has loaded.
 export default defineBackground(() => {
   browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message === 'reload') browser.runtime.reload();
     if (message === 'open-settings') browser.runtime.openOptionsPage();
+    const prefetch = prefetchRequest(message);
+    if (prefetch) prefetchEarly(prefetch);
     const answer = answerCodeSearch(message) ?? answerEarly(message);
     if (!answer) return;
     answer.then(sendResponse);
