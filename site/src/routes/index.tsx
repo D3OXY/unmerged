@@ -2,7 +2,6 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
 import {
-  ArrowRight01Icon,
   BrowserIcon,
   CircleDotIcon,
   CodeIcon,
@@ -10,6 +9,7 @@ import {
   Copy01Icon,
   CursorPointer01Icon,
   DatabaseIcon,
+  Download04Icon,
   FileDiffIcon,
   GitForkIcon,
   GithubIcon,
@@ -22,10 +22,11 @@ import {
   Tick02Icon,
   UserIcon,
 } from '@hugeicons/core-free-icons';
-import { ProductShot } from '../components/shot/ProductShot';
+import screenshot1120 from '../assets/screenshot-1120.webp?url';
+import screenshot2000 from '../assets/screenshot-2000.webp?url';
 import { Kbd, Logo } from '../components/ui';
 import { useInstallHref } from '../install';
-import { FORK_URL, REPO_URL, TAGLINE, TOKEN_URL } from '../site';
+import { FORK_URL, REPO_URL, TAGLINE } from '../site';
 
 export const Route = createFileRoute('/')({ component: Home });
 
@@ -44,7 +45,6 @@ function Home() {
         <Speed />
         <Keyboard />
         <Privacy />
-        <Install />
       </main>
       <Footer />
     </div>
@@ -55,7 +55,7 @@ const NAV_LINKS = [
   { href: '#pages', label: 'Pages' },
   { href: '#speed', label: 'Speed' },
   { href: '#privacy', label: 'Privacy' },
-  { href: '#install', label: 'Install' },
+  { href: '/install', label: 'Install' },
 ];
 
 /** Floating liquid-glass bar; it narrows and shortens while scrolling down and expands again on the way up. */
@@ -148,23 +148,32 @@ function Hero() {
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
           <a
             href={installHref}
-            className="flex h-10 items-center gap-2 rounded-lg bg-fg px-4 text-[14px] font-medium text-bg transition-opacity hover:opacity-90"
+            className="flex h-11 items-center gap-2 rounded-full bg-accent pr-5 pl-4 text-[14.5px] font-medium text-accent-fg shadow-[inset_0_1px_0_rgb(255_255_255/0.2),0_10px_30px_-12px_var(--u-accent)] transition-[filter,scale] duration-150 hover:brightness-110 active:scale-[0.97]"
           >
+            <HugeiconsIcon icon={Download04Icon} className="size-[18px]" />
             Install
-            <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
           </a>
           <a
             href={FORK_URL}
-            className="flex h-10 items-center gap-2 rounded-lg border border-line-strong px-4 text-[14px] font-medium transition-colors hover:bg-hover"
+            className="flex h-11 items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] pr-5 pl-4 text-[14.5px] font-medium transition-[background-color,scale] duration-150 hover:bg-white/[0.12] active:scale-[0.97]"
           >
-            <HugeiconsIcon icon={GitForkIcon} className="size-4" />
+            <HugeiconsIcon icon={GitForkIcon} className="size-[18px]" />
             Fork
           </a>
         </div>
-        <p className="mt-4 text-[12.5px] text-subtle">Free for Chrome. Firefox is in review.</p>
+        <p className="mt-4 text-[12.5px] text-subtle">Free forever</p>
       </div>
       <div className="relative mt-16 animate-enter [animation-delay:120ms] sm:mt-20">
-        <ProductShot />
+        <img
+          src={screenshot2000}
+          srcSet={`${screenshot1120} 1120w, ${screenshot2000} 2000w`}
+          sizes="(min-width: 1120px) 1072px, 100vw"
+          width={2000}
+          height={1307}
+          fetchPriority="high"
+          alt="A repository page in Unmerged, split diagonally between dark and light mode"
+          className="h-auto w-full"
+        />
       </div>
     </section>
   );
@@ -237,7 +246,6 @@ function Pages() {
   return (
     <Section
       id="pages"
-      eyebrow="Same URLs"
       title="It takes over the pages you live in."
       lede="Links, bookmarks and the URLs in your email all keep working, because nothing moves. Every page not listed here is GitHub as usual."
     >
@@ -296,7 +304,6 @@ function Speed() {
   return (
     <Section
       id="speed"
-      eyebrow="Fast by doing less"
       title="Faster, mostly by loading less."
       lede="Data comes straight from GitHub's GraphQL API. Slow queries are split into parallel requests, and each section shows the moment its data lands."
     >
@@ -325,7 +332,6 @@ function Keyboard() {
   return (
     <Section
       id="keyboard"
-      eyebrow="Keyboard first"
       title="Everything is a few keys away."
       lede="⌘K finds repos, people and your pull requests and issues by title, jumps to owner/repo#123 (or just #123 inside a repo), and carries the actions for the page you're on."
     >
@@ -388,7 +394,6 @@ function Privacy() {
   return (
     <Section
       id="privacy"
-      eyebrow="Privacy"
       title="Your token never leaves your browser."
       lede="Unmerged has no server and no analytics. It talks to GitHub, and to another site only when you play a video linked from it."
     >
@@ -419,62 +424,10 @@ function Fact({ icon, title, children }: { icon: IconSvgElement; title: string; 
   );
 }
 
-function Install() {
-  const installHref = useInstallHref();
-  return (
-    <Section id="install" eyebrow="Install" title="Two steps, about a minute." lede="Install the extension, then give it a token so it can read GitHub's API.">
-      <ol className="grid gap-4 md:grid-cols-2">
-        <Step n={1} title="Install it">
-          <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
-            From the Chrome Web Store, for Chrome, Arc, Brave and Edge. Firefox is coming soon.
-          </p>
-          <div className="mt-4 flex flex-wrap items-center gap-4">
-            <a
-              href={installHref}
-              className="inline-flex h-8 items-center gap-2 rounded-lg bg-fg px-3 text-[13px] font-medium text-bg transition-opacity hover:opacity-90"
-            >
-              Install
-              <HugeiconsIcon icon={ArrowRight01Icon} className="size-3.5" />
-            </a>
-            <a href="/install/source" className="text-[13px] text-muted transition-colors hover:text-fg">
-              Build from source
-            </a>
-          </div>
-        </Step>
-        <Step n={2} title="Add a token">
-          <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
-            Open github.com and paste a personal access token when asked. This link fills in the scopes Unmerged needs.
-          </p>
-          <a
-            href={TOKEN_URL}
-            className="mt-4 inline-flex h-8 items-center gap-2 rounded-lg border border-line-strong px-3 text-[13px] font-medium transition-colors hover:bg-hover"
-          >
-            Create a token
-            <HugeiconsIcon icon={ArrowRight01Icon} className="size-3.5" />
-          </a>
-        </Step>
-      </ol>
-    </Section>
-  );
-}
-
-function Step({ n, title, children }: { n: number; title: string; children: ReactNode }) {
-  return (
-    <li className="rounded-2xl border border-line bg-panel/60 p-6">
-      <div className="flex items-center gap-3">
-        <span className="flex size-6 items-center justify-center rounded-full bg-accent text-[12px] font-semibold text-accent-fg">{n}</span>
-        <h3 className="text-[15px] font-semibold tracking-tight">{title}</h3>
-      </div>
-      {children}
-    </li>
-  );
-}
-
-function Section({ id, eyebrow, title, lede, children }: { id: string; eyebrow: string; title: string; lede: string; children: ReactNode }) {
+function Section({ id, title, lede, children }: { id: string; title: string; lede: string; children: ReactNode }) {
   return (
     <section id={id} className="mx-auto max-w-[1120px] scroll-mt-8 px-6 pt-28 sm:pt-36">
-      <p className="text-[13px] font-medium text-accent">{eyebrow}</p>
-      <h2 className="mt-3 max-w-[640px] text-[30px] leading-[1.1] font-semibold tracking-[-0.03em] text-balance sm:text-[40px]">{title}</h2>
+      <h2 className="max-w-[640px] text-[30px] leading-[1.1] font-semibold tracking-[-0.03em] text-balance sm:text-[40px]">{title}</h2>
       <p className="mt-4 max-w-[600px] text-[15.5px] leading-relaxed text-muted text-pretty">{lede}</p>
       <div className="mt-10">{children}</div>
     </section>
@@ -483,17 +436,26 @@ function Section({ id, eyebrow, title, lede, children }: { id: string; eyebrow: 
 
 function Footer() {
   return (
-    <footer className="mx-auto mt-32 flex max-w-[1120px] flex-col gap-4 border-t border-line px-6 py-10 text-[13px] text-subtle sm:flex-row sm:items-center">
-      <span className="flex items-center gap-2 text-muted">
-        <Logo size={18} />
-        Unmerged
+    <footer className="mx-auto mt-32 grid max-w-[1120px] gap-4 border-t border-line px-6 py-10 text-[13px] text-subtle sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+      <span className="flex items-center gap-4">
+        <span className="flex items-center gap-2 text-muted">
+          <Logo size={18} />
+          Unmerged
+        </span>
+        Not affiliated with GitHub.
       </span>
-      <span>Not affiliated with GitHub.</span>
-      <span className="flex gap-5 sm:ml-auto">
+      <a
+        href="https://deoxy.dev"
+        aria-label="Designed and engineered by DEOXY"
+        className="font-mono text-[12.5px] whitespace-nowrap transition-opacity hover:opacity-80"
+      >
+        <span className="text-violet-400">&lt;Designed/&gt;</span> &amp; <span className="text-emerald-400">Engineered()</span> by{' '}
+        <span className="font-semibold text-blue-500">DEOXY</span>
+      </a>
+      <span className="flex gap-5 sm:justify-end">
         <a href="/support" className="transition-colors hover:text-fg">Support</a>
         <a href="/privacy" className="transition-colors hover:text-fg">Privacy policy</a>
         <a href={REPO_URL} className="transition-colors hover:text-fg">Source</a>
-        <a href="https://deoxy.dev" className="transition-colors hover:text-fg">Made by DEOXY</a>
       </span>
     </footer>
   );
