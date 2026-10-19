@@ -1,9 +1,10 @@
 import { browser } from '#imports';
 
 // Early requests. On a page we own, the content script can't start a request until GitHub's <head> has arrived
-// (it then calls `window.stop()`, which cancels requests in flight). So when a tab starts to load an owned page,
-// the background starts the page's first API requests at once (see background.ts), and keeps each answer for a
-// short time. The page then takes the background's answer instead of making the same request again. A request
+// (it then calls `window.stop()`, which cancels requests in flight), and the app that makes them loads after
+// that. So when a tab starts to load an owned page, or the user points at a link to one before the app has
+// loaded, the background starts the page's first API requests at once (see background.ts), and keeps each answer
+// for a short time. The page then takes the background's answer instead of making the same request again. A request
 // matches only when it is the same request: method, URL, headers (all but the token) and body.
 
 /** How long the background keeps an answer, and how long a new page asks for one. */
@@ -40,9 +41,24 @@ export function keepEarlyAnswers() {
   keeping = true;
 }
 
-/** Page: its requests in the next seconds ask the background first. Call it when the page loads as an owned page. */
+/** Page: its requests in the next seconds ask the background first. Call it when the app starts in a page. */
 export function takeEarlyAnswers() {
   takingUntil = Date.now() + KEEP_MS;
+}
+
+/**
+ * Page, before the app has loaded: asks the background to start the requests of the owned page at `url` (a link
+ * the user points at), so they don't wait for the app. The app takes their answers once it starts.
+ */
+export function prefetchInBackground(url: URL) {
+  browser.runtime.sendMessage({ type: 'prefetch', url: url.href }).catch(() => {});
+}
+
+/** The background's half of `prefetchInBackground`: the URL to prefetch, or null for any other message. */
+export function prefetchRequest(message: unknown): URL | null {
+  if (typeof message !== 'object' || message === null || !('type' in message) || message.type !== 'prefetch') return null;
+  if (!('url' in message) || typeof message.url !== 'string') return null;
+  return URL.parse(message.url);
 }
 
 /** The background's half of `apiFetch`: the kept answer, once, or null. Returns null for any other message. */

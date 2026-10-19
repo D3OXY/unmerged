@@ -53,3 +53,14 @@ describe('apiFetch', () => {
     expect(network).toHaveBeenCalledOnce();
   });
 });
+
+describe('prefetchRequest', () => {
+  it('reads the URL that prefetchInBackground sends, and nothing from other messages', async () => {
+    const received = new Promise<unknown>((done) => fakeBrowser.runtime.onMessage.addListener((message) => void done(message)));
+    early.prefetchInBackground(new URL('https://github.com/o/r/pull/1'));
+    expect(early.prefetchRequest(await received)?.href).toBe('https://github.com/o/r/pull/1');
+    expect(early.prefetchRequest({ type: 'early', key: 'k' })).toBeNull();
+    expect(early.prefetchRequest({ type: 'prefetch', url: 'not a url' })).toBeNull();
+    expect(early.prefetchRequest('reload')).toBeNull();
+  });
+});

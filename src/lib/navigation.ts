@@ -1,6 +1,6 @@
 import { matchRoute } from './routes';
 
-/** Whether Unmerged renders a URL. The content script swaps in a check that also honors settings. */
+/** Whether Unmerged renders a URL. The app swaps in the content script's check, which also honors settings. */
 let owns = (url: URL) => matchRoute(url) !== null;
 export function setOwns(check: (url: URL) => boolean) {
   owns = check;

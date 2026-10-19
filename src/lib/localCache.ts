@@ -15,7 +15,7 @@ export function localCache<T>(key: string) {
   };
 }
 
-// github.com's copy of the extension's account id (`accountItem`), kept current by the content script so
+// github.com's copy of the extension's account id (`accountItem`), kept current by the app (src/entrypoints/app.tsx) so
 // API data cached in the page can be checked synchronously against it.
 const ACCOUNT_KEY = 'unmerged:account';
 const pageAccount = () => localStorage.getItem(ACCOUNT_KEY) ?? '';

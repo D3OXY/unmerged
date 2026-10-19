@@ -49,8 +49,9 @@ We need to be on the same page with terminology. When communicating, use this la
 These break without a clear error.
 
 - **The root `tsconfig.json` extends `.wxt/tsconfig.json`, which `wxt prepare` generates and git ignores.** In a new clone or worktree, run `pnpm install` first (its `postinstall` runs `wxt prepare`), or typecheck fails.
+- **The content script (`src/entrypoints/github.content/index.ts`) runs on every github.com page; the UI is in `src/entrypoints/app.tsx`, which it loads only when a page needs it.** A static import of app, page or React code into the content script puts the full app in every page's bundle. Type-only imports are fine.
 - **Load the code renderer only through `loadDiffs()` (`src/lib/diffs.ts`).** It loads `src/entrypoints/diffs.ts`, which holds `@pierre/diffs` and Shiki, as a separate script on demand. A static import of either one outside that entrypoint puts the full renderer in every page's bundle. Type-only imports are fine.
-- **`window.stop()` cancels requests in flight, ours included.** On an owned page, the content script stops GitHub's page once its `<head>` is parsed. Start no request before that point. To leave an owned page for one of GitHub's pages after the stop, do a full reload.
+- **`window.stop()` cancels requests in flight, ours included.** On an owned page, the content script stops GitHub's page once its `<head>` is parsed. Start no request before that point, not even loading the app. To leave an owned page for one of GitHub's pages after the stop, do a full reload.
 - **A page lives in four places that must agree:** its `Route` in `src/lib/routes.ts`, its `Surface` in `src/lib/settings.ts`, its render in `src/app/App.tsx`, and its case in `prefetchRoute` (`src/app/prefetch.ts`). Prefetch calls the page's own query-option functions with the arguments that the page reads from the URL. If the query keys drift, nothing fails; navigations only get slower.
 
 ## Security
