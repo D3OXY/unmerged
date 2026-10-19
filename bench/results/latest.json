@@ -1,0 +1,323 @@
+{
+  "date": "2026-10-19",
+  "runs": 5,
+  "signedIn": true,
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+  "scenarios": [
+    {
+      "id": "repo",
+      "label": "Repository",
+      "detail": "TanStack/query, up to its README",
+      "url": "https://github.com/TanStack/query",
+      "marker": "An async state management library built to simplify fetching",
+      "github": {
+        "cold": {
+          "ms": 1455,
+          "bytes": 4920211,
+          "requests": 373,
+          "blockingMs": 0,
+          "runs": [
+            1778,
+            1441,
+            1455,
+            1338,
+            1608
+          ]
+        },
+        "warm": {
+          "ms": 1028,
+          "bytes": 170607,
+          "requests": 20,
+          "blockingMs": 36,
+          "runs": [
+            1013,
+            1091,
+            917,
+            1051,
+            1028
+          ]
+        }
+      },
+      "unmerged": {
+        "cold": {
+          "ms": 1189,
+          "bytes": 273963,
+          "requests": 61,
+          "blockingMs": 0,
+          "runs": [
+            1290,
+            1115,
+            1161,
+            1238,
+            1189
+          ]
+        },
+        "warm": {
+          "ms": 1038,
+          "bytes": 51293,
+          "requests": 19,
+          "blockingMs": 0,
+          "runs": [
+            1038,
+            1011,
+            1084,
+            1182,
+            968
+          ]
+        }
+      }
+    },
+    {
+      "id": "pr",
+      "label": "Pull request",
+      "detail": "A small PR, up to its description (#12030)",
+      "url": "https://github.com/TanStack/query/pull/12030",
+      "marker": "failed type checking with",
+      "github": {
+        "cold": {
+          "ms": 1893,
+          "bytes": 6075461,
+          "requests": 472,
+          "blockingMs": 0,
+          "runs": [
+            1875,
+            2173,
+            1993,
+            1893,
+            1812
+          ]
+        },
+        "warm": {
+          "ms": 1642,
+          "bytes": 233332,
+          "requests": 24,
+          "blockingMs": 0,
+          "runs": [
+            1752,
+            1741,
+            1642,
+            1298,
+            1450
+          ]
+        }
+      },
+      "unmerged": {
+        "cold": {
+          "ms": 2265,
+          "bytes": 205750,
+          "requests": 37,
+          "blockingMs": 0,
+          "runs": [
+            2054,
+            2391,
+            2734,
+            1737,
+            2265
+          ]
+        },
+        "warm": {
+          "ms": 1403,
+          "bytes": 103798,
+          "requests": 7,
+          "blockingMs": 0,
+          "runs": [
+            1403,
+            1298,
+            1420,
+            1445,
+            1319
+          ]
+        }
+      }
+    },
+    {
+      "id": "issue",
+      "label": "Long issue",
+      "detail": "91 comments, up to the newest one (#1657)",
+      "url": "https://github.com/TanStack/query/issues/1657",
+      "marker": "the two identical requests can clobber the same key",
+      "github": {
+        "cold": {
+          "ms": 3329,
+          "bytes": 5951905,
+          "requests": 436,
+          "blockingMs": 0,
+          "runs": [
+            3253,
+            3329,
+            3882,
+            2711,
+            3513
+          ]
+        },
+        "warm": {
+          "ms": 2165,
+          "bytes": 157743,
+          "requests": 17,
+          "blockingMs": 29,
+          "runs": [
+            2406,
+            2344,
+            2165,
+            1950,
+            1887
+          ]
+        }
+      },
+      "unmerged": {
+        "cold": {
+          "ms": 2367,
+          "bytes": 1769462,
+          "requests": 67,
+          "blockingMs": 0,
+          "runs": [
+            2272,
+            1992,
+            2576,
+            2488,
+            2367
+          ]
+        },
+        "warm": {
+          "ms": 2185,
+          "bytes": 135659,
+          "requests": 6,
+          "blockingMs": 0,
+          "runs": [
+            2166,
+            2174,
+            2185,
+            2243,
+            2241
+          ]
+        }
+      }
+    },
+    {
+      "id": "files",
+      "label": "Files changed, 133 files",
+      "detail": "+1 −668 lines, up to the first diff (#11827)",
+      "url": "https://github.com/TanStack/query/pull/11827/files",
+      "marker": "flat/recommended-typescript",
+      "github": {
+        "cold": {
+          "ms": 2612,
+          "bytes": 5986922,
+          "requests": 418,
+          "blockingMs": 14,
+          "runs": [
+            2640,
+            2759,
+            2612,
+            2573,
+            2564
+          ]
+        },
+        "warm": {
+          "ms": 2385,
+          "bytes": 312812,
+          "requests": 20,
+          "blockingMs": 53,
+          "runs": [
+            2531,
+            2217,
+            2392,
+            1898,
+            2385
+          ]
+        }
+      },
+      "unmerged": {
+        "cold": {
+          "ms": 2390,
+          "bytes": 373764,
+          "requests": 30,
+          "blockingMs": 32,
+          "runs": [
+            2473,
+            2383,
+            2212,
+            2390,
+            2535
+          ]
+        },
+        "warm": {
+          "ms": 2130,
+          "bytes": 245991,
+          "requests": 15,
+          "blockingMs": 31,
+          "runs": [
+            2089,
+            2383,
+            2076,
+            2167,
+            2130
+          ]
+        }
+      }
+    },
+    {
+      "id": "huge",
+      "label": "Files changed, 2,416 files",
+      "detail": "+56,023 −39,471 lines, up to the first diff (#12054)",
+      "url": "https://github.com/TanStack/query/pull/12054/files",
+      "marker": "incorporate upstream adapter fixes",
+      "github": {
+        "cold": {
+          "ms": 11486,
+          "bytes": 6011513,
+          "requests": 418,
+          "blockingMs": 731,
+          "runs": [
+            9798,
+            11134,
+            11885,
+            11486,
+            11962
+          ]
+        },
+        "warm": {
+          "ms": 10251,
+          "bytes": 298519,
+          "requests": 17,
+          "blockingMs": 606,
+          "runs": [
+            5179,
+            10865,
+            11886,
+            10021,
+            10251
+          ]
+        }
+      },
+      "unmerged": {
+        "cold": {
+          "ms": 9713,
+          "bytes": 3338568,
+          "requests": 76,
+          "blockingMs": 0,
+          "runs": [
+            9900,
+            9398,
+            9760,
+            9713,
+            9418
+          ]
+        },
+        "warm": {
+          "ms": 8769,
+          "bytes": 1675565,
+          "requests": 61,
+          "blockingMs": 0,
+          "runs": [
+            7313,
+            9034,
+            8769,
+            9896,
+            3774
+          ]
+        }
+      }
+    }
+  ]
+}
