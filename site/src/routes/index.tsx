@@ -21,6 +21,7 @@ import {
   Tick02Icon,
   UserIcon,
 } from '@hugeicons/core-free-icons';
+import { Benchmark, benchmarkSummary } from '../components/Benchmark';
 import { Screenshots } from '../components/Screenshots';
 import { Kbd, Logo } from '../components/ui';
 import { useInstallHref } from '../install';
@@ -38,7 +39,6 @@ function Home() {
       <Nav />
       <main className="relative">
         <Hero />
-        <Stats />
         <Pages />
         <Speed />
         <Keyboard />
@@ -167,30 +167,6 @@ function Hero() {
   );
 }
 
-const STATS = [
-  { value: '102 ms', label: 'From a profile to one of its repos, click to content' },
-  { value: '305 ms', label: 'To show a pull request on a warm reload' },
-  { value: '~1 MB', label: "Of GitHub's HTML a repo page never downloads" },
-];
-
-function Stats() {
-  return (
-    <section className="mx-auto max-w-[1120px] px-6 pt-20">
-      <div className="grid overflow-hidden rounded-2xl border border-line sm:grid-cols-3">
-        {STATS.map((stat) => (
-          <div key={stat.value} className="border-line bg-panel/60 px-6 py-7 not-last:border-b sm:not-last:border-r sm:not-last:border-b-0">
-            <p className="font-mono text-[32px] font-medium tracking-tight">{stat.value}</p>
-            <p className="mt-1 text-[13.5px] text-muted">{stat.label}</p>
-          </div>
-        ))}
-      </div>
-      <p className="mt-3 text-center text-[12px] text-subtle">
-        Measured in Chromium on public pages, medians of 3 to 5 runs. GitHub's API latency moves the numbers around.
-      </p>
-    </section>
-  );
-}
-
 const PAGES: { icon: IconSvgElement; title: string; url: string; body: string }[] = [
   {
     icon: Home01Icon,
@@ -265,11 +241,11 @@ function Pages() {
   );
 }
 
-const SPEED: { icon: IconSvgElement; title: string; body: string }[] = [
+const SPEED: { icon: IconSvgElement; title: string; body: ReactNode }[] = [
   {
     icon: StopCircleIcon,
     title: "GitHub's page stops loading",
-    body: "Once GitHub's head arrives with who's signed in, the rest of its page is cancelled. Its HTML body and scripts never load underneath.",
+    body: "The page's own requests start in the background as the navigation starts. Once GitHub's head arrives with who's signed in, the rest of its page is cancelled: its HTML body and scripts never load underneath.",
   },
   {
     icon: CursorPointer01Icon,
@@ -283,25 +259,53 @@ const SPEED: { icon: IconSvgElement; title: string; body: string }[] = [
   },
   {
     icon: FileDiffIcon,
-    title: 'Code highlighting on demand',
-    body: 'Diffs and files are drawn by @pierre/diffs with Shiki. Pages without code never load it, and each grammar loads on first use.',
+    title: 'Code drawn by @pierre/diffs',
+    body: (
+      <>
+        <a href="https://diffs.com">@pierre/diffs</a> uses CSS Grid and Shadow DOM, "meaning fewer DOM nodes and faster rendering",
+        with <a href="https://shiki.style">Shiki</a>, the same highlighting engine as VS Code. Diffs draw only near the screen, and
+        each language's grammar loads on first use.
+      </>
+    ),
   },
 ];
 
 function Speed() {
+  const facts = benchmarkSummary();
   return (
     <Section
       id="speed"
-      title="Faster, mostly by loading less."
-      lede="Data comes straight from GitHub's GraphQL API. Slow queries are split into parallel requests, and each section shows the moment its data lands."
+      title={facts.faster * 2 > facts.pages ? 'A fraction of the data, faster on most pages.' : 'A fraction of the data, about as fast.'}
+      lede={`On ${facts.pages} public pages of TanStack/query, Unmerged downloaded ${facts.minLess} to ${facts.maxLess} times less than GitHub on a first visit, and showed the content sooner on ${facts.faster} of ${facts.pages}.`}
     >
-      <div className="grid gap-4 sm:grid-cols-2">
+      <Benchmark />
+      <p className="mt-3 text-[12.5px] leading-relaxed text-subtle">
+        Time is from the start of the navigation until the page's content is on screen; data is what crossed the network,
+        compressed. Median of {facts.runs} runs on {facts.date}, {facts.signedIn ? 'signed in to' : 'signed out of'} github.com,
+        in headless Chromium.{' '}
+        <a href={`${REPO_URL}/tree/main/bench`} className="text-muted underline underline-offset-2 hover:text-fg">
+          How it's measured, and run it yourself
+        </a>
+        .
+      </p>
+      <div className="mt-12 grid gap-4 sm:grid-cols-2 [&_a]:text-fg [&_a]:underline [&_a]:underline-offset-2">
         {SPEED.map((item) => (
           <Fact key={item.title} icon={item.icon} title={item.title}>
             {item.body}
           </Fact>
         ))}
       </div>
+      <p className="mt-6 text-[12.5px] leading-relaxed text-subtle">
+        GitHub's own engineers found that on large pull requests "the JavaScript heap could exceed 1 GB, DOM node counts
+        surpassed 400,000" (
+        <a
+          href="https://github.blog/engineering/architecture-optimization/the-uphill-climb-of-making-diff-lines-performant/"
+          className="text-muted underline underline-offset-2 hover:text-fg"
+        >
+          The uphill climb of making diff lines performant
+        </a>
+        , April 2026).
+      </p>
     </Section>
   );
 }
