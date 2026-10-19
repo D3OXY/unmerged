@@ -19,7 +19,7 @@ import { IssueIcon } from '@/ui/status';
 import { CLOSE_REASONS, IssueComposer } from './IssueComposer';
 import { IssueSidebar } from './IssueSidebar';
 import { IssueTimeline, RefLink } from './IssueTimeline';
-import { issueQuery, notPlanned, stateChange, type Issue } from './query';
+import { issueKey, issueQuery, issueTimelineQuery, notPlanned, stateChange, type Issue, type IssueTimelineItems } from './query';
 
 type Props = { owner: string; repo: string; number: number };
 
@@ -49,10 +49,12 @@ export function IssuePage({ owner, repo, number }: Props) {
  * row under the title instead of a sidebar.
  */
 export function IssueContent({ owner, repo, number, panel }: Props & { panel?: boolean }) {
-  const query = issueQuery(owner, repo, number);
-  const { data, error } = useQuery(query);
+  const { data, error } = useQuery(issueQuery(owner, repo, number));
+  const timeline = useQuery(issueTimelineQuery(owner, repo, number));
   const subject = data?.repository?.issueOrPullRequest;
-  if (subject?.__typename === 'Issue') return <IssueView issue={subject} queryKey={query.queryKey} panel={panel} />;
+  if (subject?.__typename === 'Issue') {
+    return <IssueView issue={subject} timeline={timeline.data ?? undefined} timelineFailed={timeline.isError} queryKey={issueKey(owner, repo, number)} panel={panel} />;
+  }
   if (!error && !(data && !subject)) return <IssueSkeleton />;
   return (
     <div className="py-4 text-[13px]">
@@ -64,7 +66,14 @@ export function IssueContent({ owner, repo, number, panel }: Props & { panel?: b
   );
 }
 
-function IssueView({ issue, queryKey, panel }: { issue: Issue; queryKey: QueryKey; panel?: boolean }) {
+/** Shows the issue at once; the timeline fills in when it loads. */
+function IssueView({ issue, timeline, timelineFailed, queryKey, panel }: {
+  issue: Issue;
+  timeline?: IssueTimelineItems;
+  timelineFailed: boolean;
+  queryKey: QueryKey;
+  panel?: boolean;
+}) {
   const { mutate } = usePrMutation(queryKey);
 
   const commands = useMemo<Command[]>(() => {
@@ -93,7 +102,7 @@ function IssueView({ issue, queryKey, panel }: { issue: Issue; queryKey: QueryKe
   const thread = (
     <div className="flex min-w-0 flex-col gap-6">
       <CommentCard author={issue.author} createdAt={issue.createdAt} html={issue.bodyHTML} />
-      <IssueTimeline issue={issue} />
+      <IssueTimeline issue={issue} timeline={timeline} failed={timelineFailed} />
       <IssueComposer issue={issue} queryKey={queryKey} />
     </div>
   );

@@ -3,14 +3,21 @@ import { gql } from '@/github/client';
 import type { Actor, IssueState, IssueStateReason, Label, PrState } from '@/github/types';
 import { persisted } from '@/lib/persist';
 
-// `issueOrPullRequest`: `/issues/<n>` of a pull request is a redirect on GitHub, so the page needs to know.
-const ISSUE_QUERY = /* GraphQL */ `
+const REF = /* GraphQL */ `
   fragment Ref on ReferencedSubject {
     __typename
     ... on Issue { number title url state stateReason repository { nameWithOwner } }
     ... on PullRequest { number title url state isDraft repository { nameWithOwner } }
   }
+`;
 
+const COMMENT = /* GraphQL */ `fragment Comment on IssueComment { __typename id author { login avatarUrl } bodyHTML createdAt }`;
+
+// The first request: the issue, its sidebar and its newest comments, in a third of the full timeline's time.
+// `issueOrPullRequest`: `/issues/<n>` of a pull request is a redirect on GitHub, so the page needs to know.
+const ISSUE_QUERY = /* GraphQL */ `
+  ${REF}
+  ${COMMENT}
   query Issue($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner, name: $repo) {
       isPrivate
@@ -25,6 +32,21 @@ const ISSUE_QUERY = /* GraphQL */ `
           assignees(first: 10) { nodes { login avatarUrl } }
           milestone { title url }
           closedByPullRequestsReferences(first: 10, includeClosedPrs: true) { nodes { ...Ref } }
+          comments(last: 10) { nodes { ...Comment } }
+        }
+      }
+    }
+  }
+`;
+
+// The rest of the activity (events, cross-references, older comments). Its comments' bodies make it the slow one.
+const TIMELINE_QUERY = /* GraphQL */ `
+  ${REF}
+  ${COMMENT}
+  query IssueTimeline($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner, name: $repo) {
+      issueOrPullRequest(number: $number) {
+        ... on Issue {
           timelineItems(
             last: 100
             itemTypes: [
@@ -35,7 +57,7 @@ const ISSUE_QUERY = /* GraphQL */ `
             totalCount
             nodes {
               __typename
-              ... on IssueComment { id author { login avatarUrl } bodyHTML createdAt }
+              ...Comment
               ... on ClosedEvent {
                 id actor { login avatarUrl } createdAt stateReason
                 closer { __typename ... on PullRequest { number url } ... on Commit { abbreviatedOid url } }
@@ -79,7 +101,12 @@ export type IssueTimelineItem =
   | Event<'RenamedTitleEvent', { previousTitle: string }>
   | Event<'ConnectedEvent', { source: Ref; subject: Ref }>;
 
+export type IssueComment = Extract<IssueTimelineItem, { __typename: 'IssueComment' }>;
+
 export type LinkedPr = Extract<Ref, { __typename: 'PullRequest' }>;
+
+/** The newest timeline items, and how many there are in all. */
+export type IssueTimelineItems = { totalCount: number; nodes: IssueTimelineItem[] };
 
 export type Issue = {
   __typename: 'Issue';
@@ -98,11 +125,12 @@ export type Issue = {
   assignees: { nodes: NonNullable<Actor>[] };
   milestone: { title: string; url: string } | null;
   closedByPullRequestsReferences: { nodes: LinkedPr[] };
-  timelineItems: { totalCount: number; nodes: IssueTimelineItem[] };
+  /** The newest comments, shown until the timeline loads. */
+  comments: { nodes: IssueComment[] };
 };
 
-// `isPrivate` is missing from a result stored before it was asked for.
-type IssueData = { repository: { isPrivate?: boolean; issueOrPullRequest: Issue | { __typename: 'PullRequest'; url: string } | null } | null };
+type IssueData = { repository: { isPrivate: boolean; issueOrPullRequest: Issue | { __typename: 'PullRequest'; url: string } | null } | null };
+type TimelineData = { repository: { issueOrPullRequest: { timelineItems?: IssueTimelineItems } | null } | null };
 
 export type ClosedReason = 'COMPLETED' | 'NOT_PLANNED';
 
@@ -118,9 +146,34 @@ export const stateChange = (id: string, reason?: ClosedReason) =>
     ? { query: CLOSE, variables: { id, reason }, success: reason === 'COMPLETED' ? 'Closed as completed' : 'Closed as not planned' }
     : { query: REOPEN, variables: { id }, success: 'Issue reopened' };
 
+/** What both of an issue's queries start with: invalidating it refetches the issue and its timeline. */
+export const issueKey = (owner: string, repo: string, number: number) => ['issue', owner.toLowerCase(), repo.toLowerCase(), number] as const;
+
+/** The issue and its newest comments: what the page shows first. */
 export const issueQuery = (owner: string, repo: string, number: number) =>
   queryOptions({
-    queryKey: ['issue', owner.toLowerCase(), repo.toLowerCase(), number],
+    queryKey: [...issueKey(owner, repo, number), 'head'],
     queryFn: () => gql<IssueData>(ISSUE_QUERY, { owner, repo, number }, true),
     persister: persisted,
   });
+
+/** The issue's timeline, fetched beside `issueQuery`. Null when the number is a pull request's. */
+export const issueTimelineQuery = (owner: string, repo: string, number: number) =>
+  queryOptions({
+    queryKey: [...issueKey(owner, repo, number), 'timeline'],
+    queryFn: async () => (await gql<TimelineData>(TIMELINE_QUERY, { owner, repo, number }, true)).repository?.issueOrPullRequest?.timelineItems ?? null,
+    persister: persisted,
+  });
+
+/**
+ * The activity to show: the issue's newest comments until the timeline loads, then the timeline. Newer comments
+ * than the timeline's last item (a stored timeline under a fresh issue) come after it. `hidden` counts the older
+ * items that aren't shown; it's unknown until the timeline loads.
+ */
+export function mergeTimeline(newest: IssueComment[], timeline: IssueTimelineItems | null | undefined): { items: IssueTimelineItem[]; hidden?: number } {
+  if (!timeline) return { items: newest };
+  const last = timeline.nodes.at(-1)?.createdAt ?? '';
+  const known = new Set(timeline.nodes.map((item) => item.id));
+  const later = newest.filter((comment) => !known.has(comment.id) && comment.createdAt > last);
+  return { items: [...timeline.nodes, ...later], hidden: timeline.totalCount - timeline.nodes.length };
+}

@@ -8,7 +8,7 @@ import { prefetchCompare } from '@/pages/compare/query';
 import { contributorsQuery } from '@/pages/contributors/query';
 import { prefetchHome } from '@/pages/home/queries';
 import { newIssueQuery } from '@/pages/issue/newIssue';
-import { issueQuery } from '@/pages/issue/query';
+import { issueQuery, issueTimelineQuery } from '@/pages/issue/query';
 import { notificationsQuery, viewOf } from '@/pages/notifications/queries';
 import { orgPeopleQuery, orgQuery, orgReadmeQuery, orgWorkQuery } from '@/pages/org/queries';
 import { prefetchPr } from '@/pages/pr/query';
@@ -74,6 +74,7 @@ export function prefetchRoute(client: QueryClient, route: Route, url: URL) {
     case 'issue':
       client.prefetchQuery(repoQuery(route.owner, route.repo));
       client.prefetchQuery(issueQuery(route.owner, route.repo, route.number));
+      client.prefetchQuery(issueTimelineQuery(route.owner, route.repo, route.number));
       return;
     case 'newIssue':
       client.prefetchQuery(repoQuery(route.owner, route.repo));
