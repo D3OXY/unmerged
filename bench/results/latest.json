@@ -320,6 +320,132 @@
       }
     },
     {
+      "id": "bun-pr",
+      "label": "Very long pull request",
+      "detail": "707 comments and 170 reviews, up to its description (oven-sh/bun#30412)",
+      "url": "https://github.com/oven-sh/bun/pull/30412",
+      "marker": "compiler-assisted tools for catching",
+      "github": {
+        "cold": {
+          "ms": 8258,
+          "bytes": 5907310,
+          "requests": 434,
+          "blockingMs": 0,
+          "runs": [
+            8271,
+            8241,
+            8250,
+            8760,
+            8258
+          ]
+        },
+        "warm": {
+          "ms": 7650,
+          "bytes": 199808,
+          "requests": 18,
+          "blockingMs": 93,
+          "runs": [
+            7635,
+            8015,
+            7650,
+            7939,
+            7596
+          ]
+        }
+      },
+      "unmerged": {
+        "cold": {
+          "ms": 7962,
+          "bytes": 1066247,
+          "requests": 53,
+          "blockingMs": 0,
+          "runs": [
+            8032,
+            7938,
+            7962,
+            7965,
+            7938
+          ]
+        },
+        "warm": {
+          "ms": 7889,
+          "bytes": 973950,
+          "requests": 8,
+          "blockingMs": 0,
+          "runs": [
+            7889,
+            7792,
+            7991,
+            7850,
+            7960
+          ]
+        }
+      }
+    },
+    {
+      "id": "bun-files",
+      "label": "Files changed, 2,188 files",
+      "detail": "+1,009,257 −4,024 lines, up to the first diff (oven-sh/bun#30412)",
+      "url": "https://github.com/oven-sh/bun/pull/30412/files",
+      "marker": "Serialize Apply-phase agents",
+      "github": {
+        "cold": {
+          "ms": null,
+          "bytes": 7280947,
+          "requests": 418,
+          "blockingMs": 10310,
+          "runs": [
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        "warm": {
+          "ms": null,
+          "bytes": 1620511,
+          "requests": 35,
+          "blockingMs": 10275,
+          "runs": [
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        }
+      },
+      "unmerged": {
+        "cold": {
+          "ms": 9748,
+          "bytes": 6812711,
+          "requests": 64,
+          "blockingMs": 0,
+          "runs": [
+            9725,
+            10357,
+            10035,
+            7557,
+            9748
+          ]
+        },
+        "warm": {
+          "ms": 9103,
+          "bytes": 2238788,
+          "requests": 59,
+          "blockingMs": 0,
+          "runs": [
+            9532,
+            9368,
+            9103,
+            4239,
+            7380
+          ]
+        }
+      }
+    },
+    {
       "id": "to-pulls",
       "label": "Repository → Pull requests",
       "detail": "The Pull requests tab, up to the newest open PR",

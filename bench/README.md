@@ -85,6 +85,10 @@ Measured 2026-10-19, median of 5 runs, signed in to github.com. Mozilla/5.0 (Mac
 | Files changed, 133 files | Repeat visit | 2.34 s | 2.20 s | 310 KB | 250 KB | 19 | 18 | 56 ms | 0 ms |
 | Files changed, 2,416 files | First visit | 10.29 s | 9.56 s | 6.0 MB | 3.4 MB | 416 | 80 | 745 ms | 0 ms |
 | Files changed, 2,416 files | Repeat visit | 10.03 s | 9.20 s | 305 KB | 1.7 MB | 18 | 65 | 650 ms | 0 ms |
+| Very long pull request | First visit | 8.26 s | 7.96 s | 5.9 MB | 1.1 MB | 434 | 53 | 0 ms | 0 ms |
+| Very long pull request | Repeat visit | 7.65 s | 7.89 s | 200 KB | 974 KB | 18 | 8 | 93 ms | 0 ms |
+| Files changed, 2,188 files | First visit | > 60 s | 9.75 s | 7.3 MB | 6.8 MB | 418 | 64 | 10310 ms | 0 ms |
+| Files changed, 2,188 files | Repeat visit | > 60 s | 9.10 s | 1.6 MB | 2.2 MB | 35 | 59 | 10275 ms | 0 ms |
 | Repository → Pull requests | First visit | 1.67 s | 952 ms | 1.6 MB | 190 KB | 102 | 49 | 2 ms | 0 ms |
 | Repository → Pull requests | Repeat visit | 1.31 s | 83 ms | 82 KB | 72 KB | 11 | 11 | 4 ms | 0 ms |
 | Pull requests → a PR | First visit | 1.38 s | 723 ms | 461 KB | 221 KB | 91 | 30 | 267 ms | 0 ms |
