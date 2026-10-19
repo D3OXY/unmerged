@@ -8,7 +8,6 @@ import { cx } from '@/lib/cx';
 import { loadDiffs } from '@/lib/diffs';
 import { emitNavigate, navigate } from '@/lib/navigation';
 import type { CompareRoute } from '@/lib/routes';
-import { useIsDark } from '@/lib/settings';
 import { useTitle } from '@/lib/useTitle';
 import { CommitFiles } from '@/pages/commit/CommitFiles';
 import { BranchPicker } from '@/pages/repo/BranchPicker';
@@ -28,7 +27,6 @@ type Props = Omit<CompareRoute, 'kind'>;
  */
 export function ComparePage({ owner, repo: name, base, head, expand }: Props) {
   const queryClient = useQueryClient();
-  const dark = useIsDark();
   const repo = useRepo(owner, name).data?.repository;
   // A fork's branch is proposed to the repo it was forked from. GitHub's server redirects a full page load the
   // same way; this covers in-place navigations (the recent-pushes banner).
@@ -47,9 +45,9 @@ export function ComparePage({ owner, repo: name, base, head, expand }: Props) {
   useEffect(() => {
     if (!head || toParent) return;
     Promise.all([loadDiffs(), queryClient.fetchQuery(compareQuery(owner, name, base, head))])
-      .then(([renderer, { files }]) => renderer.preloadHighlighting(files.map((f) => f.filename), dark))
+      .then(([renderer, { files }]) => renderer.preloadHighlighting(files.map((f) => f.filename)))
       .catch(() => {});
-  }, [queryClient, owner, name, base, head, toParent, dark]);
+  }, [queryClient, owner, name, base, head, toParent]);
 
   const nwo = repo?.nameWithOwner ?? `${owner}/${name}`;
   const baseName = base ?? repo?.defaultBranchRef?.name;

@@ -104,6 +104,11 @@ export function FilesTab({ pr, full, queryKey }: { pr: PrHead; full?: PullReques
     return map;
   }, [reviewThreads]);
 
+  // The grammars for the files listed so far, as each page arrives, so diffs draw in color.
+  useEffect(() => {
+    if (list) loadDiffs().then((renderer) => renderer.preloadHighlighting(list.map((f) => f.filename))).catch(() => {});
+  }, [list]);
+
   // GitHub-compatible anchors (#diff-<sha256>), once every page is in: each later page would hash the whole
   // list again and jump back to the #diff- target below.
   useEffect(() => {

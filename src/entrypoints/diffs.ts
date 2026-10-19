@@ -5,6 +5,7 @@ import '@/lib/customElementsShim';
 import { FileDiff, getFiletypeFromFileName, getLineAnnotationName, getSharedHighlighter, getSingularPatch } from '@pierre/diffs';
 import css from '@pierre/diffs/style';
 import type { GrammarState } from 'shiki/core';
+import { DIFF_LOOK } from '@/lib/diffLook';
 
 let sheet: CSSStyleSheet | undefined;
 
@@ -45,10 +46,13 @@ async function highlightLines(text: string, path: string, dark: boolean) {
   return html;
 }
 
-/** Loads the theme and the grammars these files need, so the first diff or file shown doesn't wait on them. */
-async function preloadHighlighting(paths: string[], dark: boolean) {
+/**
+ * Loads the themes and the grammars these files need, so the first diffs shown don't wait on them.
+ * A diff needs both themes before it draws at all; without its grammar it draws plain text, then colors.
+ */
+async function preloadHighlighting(paths: string[]) {
   const langs = [...new Set(paths.map(getFiletypeFromFileName))].filter((lang) => lang !== 'text');
-  await getSharedHighlighter({ themes: [dark ? 'pierre-dark' : 'pierre-light'], langs });
+  await getSharedHighlighter({ themes: Object.values(DIFF_LOOK.theme), langs });
 }
 
 const api = { FileDiff, getLineAnnotationName, getSingularPatch, prepareContainer, highlightLines, preloadHighlighting };

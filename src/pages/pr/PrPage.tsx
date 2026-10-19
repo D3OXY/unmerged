@@ -8,7 +8,6 @@ import { openClassic } from '@/lib/classic';
 import { copy } from '@/lib/clipboard';
 import { cx } from '@/lib/cx';
 import { loadDiffs } from '@/lib/diffs';
-import { useIsDark } from '@/lib/settings';
 import { navigate } from '@/lib/navigation';
 import type { PrTab } from '@/lib/routes';
 import { timeAgo } from '@/lib/time';
@@ -85,7 +84,6 @@ export function PrContent({ owner, repo, number, tab, panel }: Props & { panel?:
   // While the reader is on another tab, get Files changed ready: the diff renderer, the viewed marks, and
   // (unless there are too many) the files themselves and the grammars for their languages.
   const queryClient = useQueryClient();
-  const dark = useIsDark();
   const headRefOid = pr?.headRefOid;
   const changedFiles = pr?.changedFiles;
   useEffect(() => {
@@ -94,11 +92,11 @@ export function PrContent({ owner, repo, number, tab, panel }: Props & { panel?:
       queryClient.prefetchQuery(prViewedQuery(owner, repo, number));
       const files = changedFiles > IDLE_PREFETCH_MAX_FILES ? [] : queryClient.fetchQuery(prFilesQuery(owner, repo, { number, headRefOid, changedFiles }));
       Promise.all([loadDiffs(), files])
-        .then(([renderer, list]) => renderer.preloadHighlighting(list.map((f) => f.filename), dark))
+        .then(([renderer, list]) => renderer.preloadHighlighting(list.map((f) => f.filename)))
         .catch(() => {});
     });
     return () => cancelIdleCallback(id);
-  }, [queryClient, owner, repo, number, headRefOid, changedFiles, dark]);
+  }, [queryClient, owner, repo, number, headRefOid, changedFiles]);
 
   const poll = useStatusPoll(owner, repo, number, pr);
 
