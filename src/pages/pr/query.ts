@@ -461,17 +461,26 @@ const MAX_FILES = 3000; // GitHub lists no more than this
 
 /**
  * Every changed file with its patch, at one head commit: a push changes the key, so the files never go stale
- * before then. All pages load at once (`changedFiles` says how many). Not persisted: patches are large.
+ * before then. All pages are requested at once (`changedFiles` says how many), and each goes into the cache
+ * as soon as the pages before it are in, so the top of the list shows first. The query stays fetching until
+ * the last page is in. Not persisted: patches are large.
  */
 export const prFilesQuery = (owner: string, repo: string, pr: Pick<PullRequest, 'number' | 'headRefOid' | 'changedFiles'>) =>
   queryOptions({
     queryKey: ['pr-files', ...prKey(owner, repo, pr.number), pr.headRefOid],
-    queryFn: async () => {
+    queryFn: async ({ client, queryKey }) => {
       const pages = Math.max(1, Math.ceil(Math.min(pr.changedFiles, MAX_FILES) / FILES_PER_PAGE));
-      const batches = await Promise.all(
-        Array.from({ length: pages }, (_, i) => rest<PrFile[]>(`/repos/${owner}/${repo}/pulls/${pr.number}/files?per_page=${FILES_PER_PAGE}&page=${i + 1}`)),
+      const requests = Array.from({ length: pages }, (_, i) =>
+        rest<PrFile[]>(`/repos/${owner}/${repo}/pulls/${pr.number}/files?per_page=${FILES_PER_PAGE}&page=${i + 1}`),
       );
-      return batches.flat();
+      // A failed page fails the query below; this only stops the pages after it from reporting as unhandled.
+      for (const request of requests) request.catch(() => {});
+      let files: PrFile[] = [];
+      for (const request of requests) {
+        files = [...files, ...(await request)];
+        client.setQueryData(queryKey, files);
+      }
+      return files;
     },
     staleTime: Infinity,
   });
