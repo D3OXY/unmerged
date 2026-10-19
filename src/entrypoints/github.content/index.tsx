@@ -6,6 +6,7 @@ import { prefetchRoute } from '@/app/prefetch';
 import { installKeyboard } from '@/app/keyboard';
 import { appState, authRejected, onApiError, type AppState } from '@/app/state';
 import { GitHubError } from '@/github/client';
+import { takeEarlyAnswers } from '@/github/early';
 import { loadFonts } from '@/lib/fonts';
 import { classicPath, clearClassicUnless } from '@/lib/classic';
 import { emitNavigate, isModifiedClick, navigate, onNavigate, setOwns, withPeek } from '@/lib/navigation';
@@ -101,7 +102,9 @@ export default defineContentScript({
     // its scripts, competing with ours. Its <head> has what we need (who's signed in, title, icon), so once
     // the body starts, stop the rest. `window.stop()` also cancels requests already in flight, ours included,
     // so on a page we own nothing of ours starts before it; the head arrives right after the response
-    // starts, about when this script runs anyway. Leaving our pages for one of GitHub's reloads (see sync).
+    // starts, about when this script runs anyway. The background started the page's first requests when the
+    // navigation started, and the page takes their answers (see github/early.ts). Leaving our pages for one of
+    // GitHub's reloads (see sync).
     let stopped = false;
     const headParsed = new Promise<void>((done) => {
       if (document.body) return done();
@@ -113,6 +116,7 @@ export default defineContentScript({
       observer.observe(html, { childList: true });
     });
     if (initial?.owning) {
+      takeEarlyAnswers();
       await headParsed;
       if (resolve(new URL(location.href))?.owning) {
         window.stop();

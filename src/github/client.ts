@@ -1,6 +1,7 @@
 import { browser } from '#imports';
 import { tokenItem } from '@/lib/settings';
 import { formatTime } from '@/lib/time';
+import { apiFetch } from './early';
 
 /** Why a GitHub request failed, in terms the UI can act on. */
 export type GitHubProblem =
@@ -39,7 +40,7 @@ async function authHeaders(): Promise<HeadersInit> {
  * Pass a query's `signal` so an abandoned fetch is cancelled.
  */
 export async function gql<T>(query: string, variables: Record<string, unknown> = {}, allowPartial = false, signal?: AbortSignal): Promise<T> {
-  const res = await fetch('https://api.github.com/graphql', {
+  const res = await apiFetch('https://api.github.com/graphql', {
     method: 'POST',
     headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
     body: JSON.stringify({ query, variables }),
@@ -68,7 +69,7 @@ export async function rest<T>(
   path: string,
   init: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; signal?: AbortSignal } = {},
 ): Promise<T> {
-  const res = await fetch(`https://api.github.com${path}`, {
+  const res = await apiFetch(`https://api.github.com${path}`, {
     method: init.method ?? 'GET',
     headers: { ...(await authHeaders()), Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
     body: init.body === undefined ? undefined : JSON.stringify(init.body),
@@ -88,7 +89,7 @@ export async function restWithHeaders<T>(
   path: string,
   init: { headers?: Record<string, string>; signal?: AbortSignal } = {},
 ): Promise<{ data: T | null; headers: Headers }> {
-  const res = await fetch(`https://api.github.com${path}`, {
+  const res = await apiFetch(`https://api.github.com${path}`, {
     headers: { ...(await authHeaders()), Accept: 'application/vnd.github+json', ...init.headers },
     signal: init.signal,
   });
@@ -124,7 +125,7 @@ export function answerCodeSearch(message: unknown): Promise<CodeSearchAnswer<unk
 
 /** REST GET returning rendered HTML (READMEs). Resolves to null on 404. Revalidates like `rest`. */
 export async function restHtml(path: string, signal?: AbortSignal): Promise<string | null> {
-  const res = await fetch(`https://api.github.com${path}`, {
+  const res = await apiFetch(`https://api.github.com${path}`, {
     headers: { ...(await authHeaders()), Accept: 'application/vnd.github.html+json' },
     signal,
     cache: 'no-cache',
@@ -141,7 +142,7 @@ export async function restHtml(path: string, signal?: AbortSignal): Promise<stri
  * Revalidates like `rest`.
  */
 export async function restText(path: string, signal?: AbortSignal): Promise<string | null> {
-  const res = await fetch(`https://api.github.com${path}`, { headers: await authHeaders(), signal, cache: 'no-cache' });
+  const res = await apiFetch(`https://api.github.com${path}`, { headers: await authHeaders(), signal, cache: 'no-cache' });
   if (res.status === 404 || res.status === 410) return null;
   if (!res.ok) throw await httpError(res);
   return res.text();

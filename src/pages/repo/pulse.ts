@@ -97,7 +97,8 @@ export const repoPulseQuery = (owner: string, name: string) =>
   queryOptions({
     queryKey: ['repo-pulse', ...key(owner, name)],
     queryFn: async ({ signal }): Promise<Pulse> => {
-      const now = Date.now();
+      // To the minute, so the page's request is the same as the one the background started early (github/early.ts).
+      const now = Math.floor(Date.now() / 60_000) * 60_000;
       const weeks = pulseWeeks(now);
       const span = PULSE_WEEKS * WEEK;
       const before: [number, number] = [weeks[0]! - span, now - span];
