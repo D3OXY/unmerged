@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { chromium, type BrowserContext } from 'playwright';
 
@@ -119,16 +119,23 @@ async function main() {
       github: { cold: summarize(loads.github.cold), warm: summarize(loads.github.warm) },
       unmerged: { cold: summarize(loads.unmerged.cold), warm: summarize(loads.unmerged.warm) },
     });
+    // Saved after every page, so a failure later in the run keeps what was measured.
+    if (!values['no-write']) save({ date: new Date().toISOString().slice(0, 10), runs, signedIn: !!session, userAgent, scenarios: results });
   }
+  if (!values['no-write']) console.log(`\nWrote ${RESULTS} and the table in ${README}`);
+}
 
-  if (values['no-write']) return;
+/**
+ * Writes results/latest.json and the table in the README. Pages measured now replace their earlier results;
+ * pages not measured in this run (--only, or not reached yet) keep theirs.
+ */
+function save(run: Results) {
   const previous: Results | null = existsSync(RESULTS) ? JSON.parse(readFileSync(RESULTS, 'utf8')) : null;
-  // A partial run (--only) replaces just its scenarios in the saved results.
-  const merged = previous && only ? previous.scenarios.map((s) => results.find((r) => r.id === s.id) ?? s) : results;
-  const out: Results = { date: new Date().toISOString().slice(0, 10), runs, signedIn: !!session, userAgent, scenarios: merged };
+  const scenarios = SCENARIOS.flatMap((s) => run.scenarios.find((r) => r.id === s.id) ?? previous?.scenarios.find((p) => p.id === s.id) ?? []);
+  const out: Results = { ...run, scenarios };
+  mkdirSync(dirname(RESULTS), { recursive: true });
   writeFileSync(RESULTS, `${JSON.stringify(out, null, 2)}\n`);
   writeFileSync(README, readFileSync(README, 'utf8').replace(/<!-- results -->[\s\S]*<!-- \/results -->/, `<!-- results -->\n${table(out)}\n<!-- /results -->`));
-  console.log(`\nWrote ${RESULTS} and the table in ${README}`);
 }
 
 /** Saves the token through Unmerged's own popup, as a user would. */
