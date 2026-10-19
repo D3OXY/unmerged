@@ -74,14 +74,20 @@ Measured 2026-10-19, median of 5 runs, signed in to github.com. Mozilla/5.0 (Mac
 
 | Page | Visit | Time GitHub | Time Unmerged | Data GitHub | Data Unmerged | Requests GitHub | Requests Unmerged | Blocking GitHub | Blocking Unmerged |
 |---|---|---|---|---|---|---|---|---|---|
-| Repository | First visit | 1.46 s | 1.19 s | 4.9 MB | 274 KB | 373 | 61 | 0 ms | 0 ms |
-| Repository | Repeat visit | 1.03 s | 1.04 s | 171 KB | 51 KB | 20 | 19 | 36 ms | 0 ms |
-| Pull request | First visit | 1.89 s | 2.27 s | 6.1 MB | 206 KB | 472 | 37 | 0 ms | 0 ms |
-| Pull request | Repeat visit | 1.64 s | 1.40 s | 233 KB | 104 KB | 24 | 7 | 0 ms | 0 ms |
-| Long issue | First visit | 3.33 s | 2.37 s | 6.0 MB | 1.8 MB | 436 | 67 | 0 ms | 0 ms |
-| Long issue | Repeat visit | 2.17 s | 2.19 s | 158 KB | 136 KB | 17 | 6 | 29 ms | 0 ms |
-| Files changed, 133 files | First visit | 2.61 s | 2.39 s | 6.0 MB | 374 KB | 418 | 30 | 14 ms | 32 ms |
-| Files changed, 133 files | Repeat visit | 2.38 s | 2.13 s | 313 KB | 246 KB | 20 | 15 | 53 ms | 31 ms |
-| Files changed, 2,416 files | First visit | 11.49 s | 9.71 s | 6.0 MB | 3.3 MB | 418 | 76 | 731 ms | 0 ms |
-| Files changed, 2,416 files | Repeat visit | 10.25 s | 8.77 s | 299 KB | 1.7 MB | 17 | 61 | 606 ms | 0 ms |
+| Repository | First visit | 1.46 s | 1.28 s | 4.9 MB | 222 KB | 368 | 58 | 0 ms | 0 ms |
+| Repository | Repeat visit | 1.20 s | 1.06 s | 178 KB | 70 KB | 20 | 19 | 33 ms | 0 ms |
+| Pull request | First visit | 1.83 s | 1.68 s | 6.0 MB | 177 KB | 468 | 37 | 0 ms | 0 ms |
+| Pull request | Repeat visit | 1.58 s | 1.51 s | 238 KB | 138 KB | 23 | 9 | 0 ms | 0 ms |
+| Long issue | First visit | 2.86 s | 2.31 s | 5.9 MB | 263 KB | 433 | 64 | 0 ms | 0 ms |
+| Long issue | Repeat visit | 2.58 s | 2.37 s | 168 KB | 164 KB | 17 | 6 | 33 ms | 0 ms |
+| Files changed, 133 files | First visit | 2.57 s | 2.43 s | 6.0 MB | 398 KB | 415 | 34 | 10 ms | 0 ms |
+| Files changed, 133 files | Repeat visit | 2.34 s | 2.20 s | 310 KB | 250 KB | 19 | 18 | 56 ms | 0 ms |
+| Files changed, 2,416 files | First visit | 10.29 s | 9.56 s | 6.0 MB | 3.4 MB | 416 | 80 | 745 ms | 0 ms |
+| Files changed, 2,416 files | Repeat visit | 10.03 s | 9.20 s | 305 KB | 1.7 MB | 18 | 65 | 650 ms | 0 ms |
+| Repository → Pull requests | First visit | 1.67 s | 952 ms | 1.6 MB | 190 KB | 102 | 49 | 2 ms | 0 ms |
+| Repository → Pull requests | Repeat visit | 1.31 s | 83 ms | 82 KB | 72 KB | 11 | 11 | 4 ms | 0 ms |
+| Pull requests → a PR | First visit | 1.38 s | 723 ms | 461 KB | 221 KB | 91 | 30 | 267 ms | 0 ms |
+| Pull requests → a PR | Repeat visit | 1.25 s | 109 ms | 197 KB | 147 KB | 22 | 13 | 300 ms | 12 ms |
+| Pull request → Files changed | First visit | 1.21 s | 118 ms | 136 KB | 54 KB | 18 | 6 | 79 ms | 0 ms |
+| Pull request → Files changed | Repeat visit | 1.25 s | 122 ms | 84 KB | 0 KB | 11 | 0 | 84 ms | 0 ms |
 <!-- /results -->
