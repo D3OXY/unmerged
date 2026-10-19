@@ -6,6 +6,7 @@ import { useRegisterCommands, type Command } from '@/app/commands';
 import { PageHeader, Shell } from '@/app/Shell';
 import { openClassic } from '@/lib/classic';
 import { copy } from '@/lib/clipboard';
+import { cx } from '@/lib/cx';
 import { loadDiffs } from '@/lib/diffs';
 import { useIsDark } from '@/lib/settings';
 import { navigate } from '@/lib/navigation';
@@ -20,7 +21,7 @@ import { ChecksTab } from './ChecksTab';
 import { CommitsTab } from './CommitsTab';
 import { ConversationTab } from './ConversationTab';
 import { FilesTab } from './files/FilesTab';
-import { EDIT_MUTATIONS, isSettling, MUTATIONS, prFilesQuery, prQuery, prStatusQuery, prViewedQuery, type PullRequest, type Repo } from './query';
+import { EDIT_MUTATIONS, isSettling, MUTATIONS, prFilesQuery, prHeadQuery, prQuery, prStatusQuery, prViewedQuery, type PrHead, type PullRequest, type Repo } from './query';
 import { SlideToMerge } from './SlideToMerge';
 import { usePrMutation } from './usePrMutation';
 
@@ -31,8 +32,8 @@ const IDLE_PREFETCH_MAX_FILES = 300;
 
 /** A pull request: shared header and tab bar over Conversation, Commits, Checks and Files changed. */
 export function PrPage({ owner, repo, number, tab }: Props) {
-  const { data } = useQuery(prQuery(owner, repo, number));
-  const pr = data?.repository?.pullRequest;
+  const { shown } = usePr(owner, repo, number, tab);
+  const pr = shown?.pullRequest;
   useTitle(pr && `${pr.title} · Pull Request #${number} · ${owner}/${repo}`);
   const base = `/${owner}/${repo}`;
   const crumbs = [
@@ -43,7 +44,7 @@ export function PrPage({ owner, repo, number, tab }: Props) {
   ];
 
   return (
-    <Shell privateRepo={data?.repository?.isPrivate !== false}>
+    <Shell privateRepo={shown?.isPrivate !== false}>
       <PageHeader
         crumbs={crumbs}
         actions={
@@ -60,14 +61,26 @@ export function PrPage({ owner, repo, number, tab }: Props) {
 }
 
 /**
+ * The full pull request, and the repository and pull request that the header shows (`shown`): the full one once
+ * it loads. Before that, on Files changed, `shown` comes from the small head query, so the header and the
+ * patches don't wait seconds for the full pull request of a large one.
+ */
+function usePr(owner: string, repo: string, number: number, tab: PrTab) {
+  const query = prQuery(owner, repo, number);
+  const full = useQuery(query);
+  const head = useQuery({ ...prHeadQuery(owner, repo, number), enabled: tab === 'files' && !full.data });
+  return { query, full, shown: full.data?.repository ?? head.data?.repository };
+}
+
+/**
  * The pull request without the page's frame: on its own page and in a list's side panel (`panel`), where its
  * tabs switch the panel instead of leaving the list.
  */
 export function PrContent({ owner, repo, number, tab, panel }: Props & { panel?: boolean }) {
-  const query = prQuery(owner, repo, number);
+  const { query, full: { data, error }, shown } = usePr(owner, repo, number, tab);
   const { queryKey } = query;
-  const { data, isPending, error } = useQuery(query);
-  const pr = data?.repository?.pullRequest;
+  const repository = data?.repository;
+  const pr = repository?.pullRequest;
 
   // While the reader is on another tab, get Files changed ready: the diff renderer, the viewed marks, and
   // (unless there are too many) the files themselves and the grammars for their languages.
@@ -99,12 +112,14 @@ export function PrContent({ owner, repo, number, tab, panel }: Props & { panel?:
       </div>
     );
   }
-  if (isPending || !pr || !data.repository) return <PrSkeleton />;
+  const head = shown?.pullRequest;
+  if (!head) return <PrSkeleton />;
+  const full = pr && repository ? { pr, repo: repository } : undefined;
   return (
     <>
-      <PrView pr={pr} repo={data.repository} tab={tab} queryKey={queryKey} poll={poll} panel={panel} />
+      <PrView pr={head} full={full} tab={tab} queryKey={queryKey} poll={poll} panel={panel} />
       {/* Outside PrView: its entry animation's transform would pin the fixed slider to the page, not the window. */}
-      <SlideToMerge pr={pr} repo={data.repository} queryKey={queryKey} />
+      {full && <SlideToMerge pr={full.pr} repo={full.repo} queryKey={queryKey} />}
     </>
   );
 }
@@ -134,10 +149,22 @@ function useStatusPoll(owner: string, repo: string, number: number, pr: PullRequ
   return { watching, watch };
 }
 
-function PrView({ pr, repo, tab, queryKey, poll, panel }: { pr: PullRequest; repo: Repo; tab: PrTab; queryKey: QueryKey; poll: StatusPoll; panel?: boolean }) {
+/**
+ * The header and the open tab. `pr` is enough for the header and Files changed; the other tabs, and Approve,
+ * wait for `full`.
+ */
+function PrView({ pr, full, tab, queryKey, poll, panel }: {
+  pr: PrHead;
+  full?: { pr: PullRequest; repo: Repo };
+  tab: PrTab;
+  queryKey: QueryKey;
+  poll: StatusPoll;
+  panel?: boolean;
+}) {
   const approve = usePrMutation(queryKey);
   const draft = usePrMutation(queryKey);
   const total = pr.additions + pr.deletions || 1;
+  const fullPr = full?.pr;
 
   const commands = useMemo<Command[]>(() => {
     const list: Command[] = [
@@ -150,7 +177,7 @@ function PrView({ pr, repo, tab, queryKey, poll, panel }: { pr: PullRequest; rep
       { id: 'pr:copy-link', group: 'Pull request', title: 'Copy link', icon: <HugeiconsIcon icon={Link02Icon} />, perform: () => copy(pr.url, 'link') },
       { id: 'pr:classic', group: 'Pull request', title: 'Open in classic GitHub', icon: <HugeiconsIcon icon={BrowserIcon} />, perform: openClassic },
     ];
-    if (pr.state === 'OPEN' && !pr.viewerDidAuthor) {
+    if (fullPr && fullPr.state === 'OPEN' && !fullPr.viewerDidAuthor) {
       list.unshift({
         id: 'pr:approve',
         group: 'Pull request',
@@ -158,12 +185,12 @@ function PrView({ pr, repo, tab, queryKey, poll, panel }: { pr: PullRequest; rep
         icon: <HugeiconsIcon icon={Tick02Icon} />,
         // Like the composer: a pending review goes out with the approval.
         perform: () => {
-          const pending = pr.viewerPendingReview?.nodes[0];
+          const pending = fullPr.viewerPendingReview?.nodes[0];
           approve.mutate({
             query: pending ? MUTATIONS.submitReview : MUTATIONS.addReview,
-            variables: { id: pending?.id ?? pr.id, event: 'APPROVE' },
+            variables: { id: pending?.id ?? fullPr.id, event: 'APPROVE' },
             success: 'Approved',
-            nextAfter: pr.url,
+            nextAfter: fullPr.url,
           });
         },
       });
@@ -179,7 +206,7 @@ function PrView({ pr, repo, tab, queryKey, poll, panel }: { pr: PullRequest; rep
     }
     return list;
     // Mutation objects change identity every render; their `mutate` is stable.
-  }, [pr]);
+  }, [pr, fullPr]);
   useRegisterCommands('pr', commands);
 
   const rollup = pr.commits.nodes[0]?.commit.statusCheckRollup;
@@ -233,16 +260,18 @@ function PrView({ pr, repo, tab, queryKey, poll, panel }: { pr: PullRequest; rep
         <Tab href={`${pr.url}/files`} peek={panel} active={tab === 'files'} icon={<HugeiconsIcon icon={FileDiffIcon} />} label="Files changed" count={pr.changedFiles} />
       </TabBar>
 
-      {tab === 'conversation' && <ConversationTab pr={pr} repo={repo} queryKey={queryKey} />}
-      {tab === 'commits' && <CommitsTab pr={pr} />}
-      {tab === 'checks' && <ChecksTab pr={pr} watching={poll.watching} onRerun={poll.watch} />}
-      {tab === 'files' && <FilesTab pr={pr} queryKey={queryKey} />}
+      {/* Each tab keeps its slot, so Files changed doesn't mount again when the full pull request lands. */}
+      {!full && tab !== 'files' && <TabSkeleton />}
+      {full && tab === 'conversation' && <ConversationTab pr={full.pr} repo={full.repo} queryKey={queryKey} />}
+      {full && tab === 'commits' && <CommitsTab pr={full.pr} />}
+      {full && tab === 'checks' && <ChecksTab pr={full.pr} watching={poll.watching} onRerun={poll.watch} />}
+      {tab === 'files' && <FilesTab pr={pr} full={full?.pr} queryKey={queryKey} />}
     </div>
   );
 }
 
 /** The title, edited in place by whoever can update the PR. Enter saves, Esc cancels. */
-function PrTitle({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey }) {
+function PrTitle({ pr, queryKey }: { pr: PrHead; queryKey: QueryKey }) {
   const [draft, setDraft] = useState<string | null>(null);
   const save = usePrMutation(queryKey);
 
@@ -311,10 +340,16 @@ function PrSkeleton() {
     <div className="mx-auto max-w-[1600px] px-6 pt-8">
       <Skeleton className="h-8 w-[560px] max-w-full" />
       <Skeleton className="mt-4 h-5 w-[420px] max-w-full" />
-      <div className="mt-8 grid gap-8 @3xl:grid-cols-[minmax(0,1fr)_340px]">
-        <Skeleton className="h-64 rounded-xl" />
-        <Skeleton className="h-48 rounded-xl" />
-      </div>
+      <TabSkeleton className="mt-8" />
+    </div>
+  );
+}
+
+function TabSkeleton({ className }: { className?: string }) {
+  return (
+    <div className={cx('grid gap-8 @3xl:grid-cols-[minmax(0,1fr)_340px]', className)}>
+      <Skeleton className="h-64 rounded-xl" />
+      <Skeleton className="h-48 rounded-xl" />
     </div>
   );
 }
