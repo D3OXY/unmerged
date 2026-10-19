@@ -276,7 +276,7 @@ function Speed() {
     <Section
       id="speed"
       title="Measured against GitHub."
-      lede={`${setup.pages} public pages of TanStack/query, each loaded ${setup.runs} times in Chromium: as GitHub serves them, and with Unmerged. Both ${setup.signedIn ? 'signed in' : 'signed out'}. These are the medians.`}
+      lede={`${setup.pages} public pages of TanStack/query and of Bun's rewrite in Rust, each loaded ${setup.runs} times in Chromium: as GitHub serves them, and with Unmerged. Both ${setup.signedIn ? 'signed in' : 'signed out'}. These are the medians.`}
     >
       <Benchmark />
       <p className="mt-3 text-[12.5px] leading-relaxed text-subtle">

@@ -115,6 +115,7 @@ export function Benchmark() {
                   <p className="text-[11.5px] text-subtle md:hidden">{v.label}</p>
                   <Lane side={s.github[v.id]} className="bg-white/30" name={`GitHub, ${v.label.toLowerCase()}`} />
                   <Lane side={s.unmerged[v.id]} className="bg-accent" name={`Unmerged, ${v.label.toLowerCase()}`} />
+                  <Timeouts github={s.github[v.id]} unmerged={s.unmerged[v.id]} />
                   <Blocking github={s.github[v.id]} unmerged={s.unmerged[v.id]} />
                 </div>
               ))}
@@ -204,26 +205,48 @@ function Axis({ label }: { label: string }) {
 }
 
 /**
- * One side's lane: the bar grows with `--t` until this side's time, then its time fades in just past the bar's
- * end. A side that never showed the content runs to the end of the scale and says so.
+ * One side's lane: the bar grows with `--t` until this side's time, and its time fades in at the bar's end as the
+ * bar arrives (playback stops on the slowest lane, so the fade can't wait for later). A side that never showed the
+ * content runs to the end of the scale and fades out, with its label inside.
  */
 function Lane({ side, className, name }: { side: Side; className: string; name: string }) {
   const ms = side.ms ?? LONGEST;
+  const shown = side.ms !== null;
   return (
     <div role="img" aria-label={`${name}: ${time(side.ms)}`} className={`relative h-5 ${LABEL_ROOM}`}>
       <div className="absolute inset-0 rounded-full bg-white/[0.035]" />
       {TICKS.slice(1).map((s) => (
         <div key={s} className="absolute inset-y-0 w-px bg-white/[0.05]" style={{ left: `${at(s * 1000)}%` }} />
       ))}
-      <div className={`absolute inset-y-0 left-0 origin-left rounded-full ${className}`} style={{ width: `${at(ms)}%`, scale: `clamp(0, calc(var(--t) / ${ms}), 1) 1` }} />
+      <div
+        className={`absolute inset-y-0 left-0 origin-left rounded-full ${className} ${shown ? '' : 'rounded-r-none [mask-image:linear-gradient(to_right,black_45%,transparent)]'}`}
+        style={{ width: `${at(ms)}%`, scale: `clamp(0, calc(var(--t) / ${ms}), 1) 1` }}
+      />
       <span
-        className="absolute top-1/2 -translate-y-1/2 pl-2.5 font-mono text-[12px] whitespace-nowrap text-fg/90"
-        style={{ left: `${at(ms)}%`, opacity: `clamp(0, calc((var(--t) - ${ms}) / 150), 1)` }}
+        className={`absolute top-1/2 -translate-y-1/2 font-mono text-[12px] whitespace-nowrap ${shown ? 'pl-2.5 text-fg/90' : 'right-0 pr-2.5 text-muted'}`}
+        style={{ left: shown ? `${at(ms)}%` : undefined, opacity: `clamp(0, calc((var(--t) - ${ms - 150}) / 150), 1)` }}
       >
         {time(side.ms)}
       </span>
     </div>
   );
+}
+
+/** A line under the lanes for each side that showed no content in some runs: the median hides how often. */
+function Timeouts({ github, unmerged }: { github: Side; unmerged: Side }) {
+  const sides = [
+    ['GitHub', github],
+    ['Unmerged', unmerged],
+  ] as const;
+  return sides.map(([name, side]) => {
+    const missed = side.runs.filter((run) => run === null).length;
+    if (!missed) return null;
+    return (
+      <p key={name} className="pt-1 text-[12px] text-subtle">
+        {name}: no content within {TIMEOUT} in {missed} of {side.runs.length} runs
+      </p>
+    );
+  });
 }
 
 /** A line under the lanes when either side kept the main thread busy long enough to notice. */
@@ -240,7 +263,11 @@ function Blocking({ github, unmerged }: { github: Side; unmerged: Side }) {
 function Blocks({ side, className, name }: { side: Side; className: string; name: string }) {
   const count = Math.max(1, Math.round(side.bytes / BLOCK));
   return (
-    <div role="img" aria-label={`${name}: ${size(side.bytes)} in ${side.requests} requests`} className="flex items-start gap-3">
+    <div
+      role="img"
+      aria-label={`${name}: ${size(side.bytes)} in ${side.requests} requests${side.ms === null ? `, and ${time(null)}` : ''}`}
+      className="flex items-start gap-3"
+    >
       <div className="flex flex-1 flex-wrap gap-[3px] pt-[3px]">
         {Array.from({ length: count }, (_, i) => (
           <span key={i} className={`size-[7px] rounded-[2px] ${className}`} />
@@ -248,6 +275,7 @@ function Blocks({ side, className, name }: { side: Side; className: string; name
       </div>
       <span className="w-[8.5rem] shrink-0 text-right font-mono text-[12px] text-muted">
         {size(side.bytes)} · {side.requests} req
+        {side.ms === null && <span className="block text-[11px] text-subtle">no content</span>}
       </span>
     </div>
   );
@@ -264,7 +292,9 @@ function Key({ className, children }: { className: string; children: string }) {
 
 /** Where `ms` falls on the shared scale, in percent. */
 const at = (ms: number) => (ms / LONGEST) * 100;
-const time = (ms: number | null) => (ms === null ? 'over 60 s' : `${(ms / 1000).toFixed(2)} s`);
+/** How long bench/run.ts waits for a page's content before it gives up. */
+const TIMEOUT = '60 s';
+const time = (ms: number | null) => (ms === null ? `no content in ${TIMEOUT}` : `${(ms / 1000).toFixed(2)} s`);
 const size = (bytes: number) => (bytes >= 1e6 ? `${(bytes / 1e6).toFixed(1)} MB` : `${Math.round(bytes / 1e3)} KB`);
 
 /** How the results were measured, for the section's text. */
