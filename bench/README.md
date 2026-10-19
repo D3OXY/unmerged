@@ -59,18 +59,18 @@ Every page is public, in `TanStack/query`, from a small pull request to one with
 ## Latest results
 
 <!-- results -->
-Measured 2026-10-19, median of 1 runs. Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36
+Measured 2026-10-19, median of 5 runs, signed in to github.com. Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36
 
 | Page | Visit | Time GitHub | Time Unmerged | Data GitHub | Data Unmerged | Requests GitHub | Requests Unmerged | Blocking GitHub | Blocking Unmerged |
 |---|---|---|---|---|---|---|---|---|---|
-| Repository | First visit | 891 ms | 1.50 s | 2.3 MB | 219 KB | 218 | 64 | 297 ms | 184 ms |
-| Repository | Repeat visit | 446 ms | 398 ms | 36 KB | 38 KB | 12 | 20 | 43 ms | 134 ms |
-| Pull request | First visit | 723 ms | 2.26 s | 5.0 MB | 197 KB | 385 | 40 | 7 ms | 160 ms |
-| Pull request | Repeat visit | 575 ms | 368 ms | 255 KB | 98 KB | 13 | 4 | 9 ms | 97 ms |
-| Long issue | First visit | 2.49 s | 4.13 s | 4.8 MB | 1.8 MB | 371 | 76 | 260 ms | 174 ms |
-| Long issue | Repeat visit | 1.06 s | 557 ms | 97 KB | 120 KB | 14 | 3 | 259 ms | 143 ms |
-| Files changed, 202 files | First visit | 1.48 s | 3.11 s | 1.7 MB | 314 KB | 168 | 37 | 0 ms | 611 ms |
-| Files changed, 202 files | Repeat visit | 1.17 s | > 60 s | 251 KB | 192 KB | 12 | 13 | 349 ms | 485 ms |
-| Files changed, 2,416 files | First visit | 1.96 s | 7.38 s | 1.7 MB | 2.4 MB | 167 | 89 | 0 ms | 909 ms |
-| Files changed, 2,416 files | Repeat visit | 368 ms | 5.58 s | 242 KB | 652 KB | 6 | 58 | 0 ms | 1091 ms |
+| Repository | First visit | 1.46 s | 1.19 s | 4.9 MB | 274 KB | 373 | 61 | 0 ms | 0 ms |
+| Repository | Repeat visit | 1.03 s | 1.04 s | 171 KB | 51 KB | 20 | 19 | 36 ms | 0 ms |
+| Pull request | First visit | 1.89 s | 2.27 s | 6.1 MB | 206 KB | 472 | 37 | 0 ms | 0 ms |
+| Pull request | Repeat visit | 1.64 s | 1.40 s | 233 KB | 104 KB | 24 | 7 | 0 ms | 0 ms |
+| Long issue | First visit | 3.33 s | 2.37 s | 6.0 MB | 1.8 MB | 436 | 67 | 0 ms | 0 ms |
+| Long issue | Repeat visit | 2.17 s | 2.19 s | 158 KB | 136 KB | 17 | 6 | 29 ms | 0 ms |
+| Files changed, 133 files | First visit | 2.61 s | 2.39 s | 6.0 MB | 374 KB | 418 | 30 | 14 ms | 32 ms |
+| Files changed, 133 files | Repeat visit | 2.38 s | 2.13 s | 313 KB | 246 KB | 20 | 15 | 53 ms | 31 ms |
+| Files changed, 2,416 files | First visit | 11.49 s | 9.71 s | 6.0 MB | 3.3 MB | 418 | 76 | 731 ms | 0 ms |
+| Files changed, 2,416 files | Repeat visit | 10.25 s | 8.77 s | 299 KB | 1.7 MB | 17 | 61 | 606 ms | 0 ms |
 <!-- /results -->
