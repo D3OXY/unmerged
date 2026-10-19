@@ -11,6 +11,7 @@ import {
   CursorPointer01Icon,
   DatabaseIcon,
   FileDiffIcon,
+  GitForkIcon,
   GithubIcon,
   GitPullRequestIcon,
   Home01Icon,
@@ -23,7 +24,8 @@ import {
 } from '@hugeicons/core-free-icons';
 import { ProductShot } from '../components/shot/ProductShot';
 import { Kbd, Logo } from '../components/ui';
-import { CHROME_STORE_URL, REPO_URL, TAGLINE, TOKEN_URL } from '../site';
+import { useInstallHref } from '../install';
+import { FORK_URL, REPO_URL, TAGLINE, TOKEN_URL } from '../site';
 
 export const Route = createFileRoute('/')({ component: Home });
 
@@ -133,6 +135,7 @@ function useCompactOnScroll() {
 }
 
 function Hero() {
+  const installHref = useInstallHref();
   return (
     <section className="mx-auto max-w-[1120px] px-6 pt-16 sm:pt-24">
       <div className="mx-auto flex max-w-[760px] animate-enter flex-col items-center text-center">
@@ -144,18 +147,18 @@ function Hero() {
         </p>
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
           <a
-            href="#install"
+            href={installHref}
             className="flex h-10 items-center gap-2 rounded-lg bg-fg px-4 text-[14px] font-medium text-bg transition-opacity hover:opacity-90"
           >
-            Install Unmerged
+            Install
             <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
           </a>
           <a
-            href={REPO_URL}
+            href={FORK_URL}
             className="flex h-10 items-center gap-2 rounded-lg border border-line-strong px-4 text-[14px] font-medium transition-colors hover:bg-hover"
           >
-            <HugeiconsIcon icon={GithubIcon} className="size-4" />
-            View source
+            <HugeiconsIcon icon={GitForkIcon} className="size-4" />
+            Fork
           </a>
         </div>
         <p className="mt-4 text-[12.5px] text-subtle">Free for Chrome. Firefox is in review.</p>
@@ -417,25 +420,26 @@ function Fact({ icon, title, children }: { icon: IconSvgElement; title: string; 
 }
 
 function Install() {
+  const installHref = useInstallHref();
   return (
-    <Section
-      id="install"
-      eyebrow="Install"
-      title="One minute, from the Chrome Web Store."
-      lede="Add the extension, paste a token, and github.com is Unmerged. Firefox Add-ons is still reviewing it."
-    >
+    <Section id="install" eyebrow="Install" title="Two steps, about a minute." lede="Install the extension, then give it a token so it can read GitHub's API.">
       <ol className="grid gap-4 md:grid-cols-2">
-        <Step n={1} title="Add it to Chrome">
+        <Step n={1} title="Install it">
           <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
-            From the Chrome Web Store. It works in Chrome, Arc, Brave, Edge and other Chromium browsers.
+            From the Chrome Web Store, for Chrome, Arc, Brave and Edge. Firefox is coming soon.
           </p>
-          <a
-            href={CHROME_STORE_URL}
-            className="mt-4 inline-flex h-8 items-center gap-2 rounded-lg bg-fg px-3 text-[13px] font-medium text-bg transition-opacity hover:opacity-90"
-          >
-            Add to Chrome
-            <HugeiconsIcon icon={ArrowRight01Icon} className="size-3.5" />
-          </a>
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <a
+              href={installHref}
+              className="inline-flex h-8 items-center gap-2 rounded-lg bg-fg px-3 text-[13px] font-medium text-bg transition-opacity hover:opacity-90"
+            >
+              Install
+              <HugeiconsIcon icon={ArrowRight01Icon} className="size-3.5" />
+            </a>
+            <a href="/install/source" className="text-[13px] text-muted transition-colors hover:text-fg">
+              Build from source
+            </a>
+          </div>
         </Step>
         <Step n={2} title="Add a token">
           <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
