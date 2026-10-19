@@ -21,8 +21,7 @@ import {
   Tick02Icon,
   UserIcon,
 } from '@hugeicons/core-free-icons';
-import screenshot1120 from '../assets/screenshot-1120.webp?url';
-import screenshot2000 from '../assets/screenshot-2000.webp?url';
+import { Screenshots } from '../components/Screenshots';
 import { Kbd, Logo } from '../components/ui';
 import { useInstallHref } from '../install';
 import { FORK_URL, REPO_URL, TAGLINE } from '../site';
@@ -162,16 +161,7 @@ function Hero() {
         <p className="mt-4 text-[12.5px] text-subtle">Free forever</p>
       </div>
       <div className="relative mt-16 animate-enter [animation-delay:120ms] sm:mt-20">
-        <img
-          src={screenshot2000}
-          srcSet={`${screenshot1120} 1120w, ${screenshot2000} 2000w`}
-          sizes="(min-width: 1120px) 1072px, 100vw"
-          width={2000}
-          height={1307}
-          fetchPriority="high"
-          alt="A repository page in Unmerged, split diagonally between dark and light mode"
-          className="h-auto w-full"
-        />
+        <Screenshots />
       </div>
     </section>
   );
