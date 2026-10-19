@@ -36,18 +36,24 @@ type RowBase = {
   /** `isPrivate` is missing from a result stored before it was asked for; Privacy then blurs the row. */
   repository: { nameWithOwner: string; isPrivate?: boolean };
   author: Actor;
-  comments: { totalCount: number };
   labels: { nodes: Label[] };
 };
 
-export type PrRowData = RowBase & {
-  isDraft: boolean;
-  state: PrState;
+export type PrRowItem = RowBase & { isDraft: boolean; state: PrState };
+export type IssueRowItem = RowBase & { state: IssueState; stateReason: IssueStateReason | null };
+
+/** What a row shows that GitHub's search works out slowly, so a list can ask for it after the rows (by id). */
+export type IssueRowDetails = { comments: { totalCount: number } };
+export type PrRowDetails = IssueRowDetails & {
   reviewDecision: ReviewDecision;
   commits: { nodes: { commit: { statusCheckRollup: { state: CheckState } | null } }[] };
 };
 
-export type IssueRowData = RowBase & { state: IssueState; stateReason: IssueStateReason | null };
+/** A row's details as a list has them: undefined while they load, null when they couldn't. */
+export type Details<T> = T | null | undefined;
+
+export type PrRowData = PrRowItem & PrRowDetails;
+export type IssueRowData = IssueRowItem & IssueRowDetails;
 
 /** How a row names its repo: not at all (inside the repo), by `name`, or as `owner/name`. */
 export type RepoLabel = 'none' | 'name' | 'full';
@@ -57,13 +63,35 @@ export const repoLabelFor = (items: { repository: { nameWithOwner: string } }[])
   new Set(items.map((item) => item.repository.nameWithOwner.split('/')[0])).size > 1 ? 'full' : 'name';
 
 /**
- * One dense, keyboard-focusable line for a PR or issue (Linear's list row). `peek` opens it in the list's side
- * panel on a plain click (new tabs still get its page); `selected` marks the one open there.
+ * Stands in for details a row doesn't have: a still bar while they load (no animation: a list has many), a
+ * dash when they couldn't load. It fills no more than the column it's in, so the row doesn't move.
  */
-export function WorkRow(row: ({ kind: 'pr'; item: PrRowData } | { kind: 'issue'; item: IssueRowData }) & { repo?: RepoLabel; peek?: boolean; selected?: boolean }) {
-  const { item, repo = 'name', peek, selected } = row;
-  const pr = row.kind === 'pr' ? row.item : null;
-  const checks = pr?.commits.nodes[0]?.commit.statusCheckRollup?.state;
+export function NotLoaded({ failed, className }: { failed: boolean; className: string }) {
+  return failed ? (
+    <span title="Couldn’t load" className="text-[12px] text-subtle">
+      –
+    </span>
+  ) : (
+    <span aria-hidden className={cx('h-2.5 rounded-sm bg-elevated', className)} />
+  );
+}
+
+/**
+ * One dense, keyboard-focusable line for a PR or issue (Linear's list row). `details` are its comments, and a
+ * PR's review and CI, which a list may load after the row. `peek` opens it in the list's side panel on a plain
+ * click (new tabs still get its page); `selected` marks the one open there.
+ */
+export function WorkRow(
+  row: ({ kind: 'pr'; item: PrRowItem } | { kind: 'issue'; item: IssueRowItem }) & {
+    details: Details<IssueRowDetails | PrRowDetails>;
+    repo?: RepoLabel;
+    peek?: boolean;
+    selected?: boolean;
+  },
+) {
+  const { item, details, repo = 'name', peek, selected } = row;
+  const prDetails = details && 'commits' in details ? details : undefined;
+  const missing = (className: string) => !details && <NotLoaded failed={details === null} className={className} />;
   return (
     <a
       href={item.url}
@@ -91,17 +119,18 @@ export function WorkRow(row: ({ kind: 'pr'; item: PrRowData } | { kind: 'issue';
           </Pill>
         ))}
       </span>
-      {pr && <ReviewBadge decision={pr.reviewDecision} />}
-      <span className="flex w-4 justify-center">
-        <CheckIcon state={checks} />
-      </span>
+      {/* A fixed width, so the review landing late doesn't push the title. */}
+      {row.kind === 'pr' && <span className="flex w-14 shrink-0 justify-end">{prDetails ? <ReviewBadge decision={prDetails.reviewDecision} /> : missing('w-10')}</span>}
+      <span className="flex w-4 justify-center">{prDetails ? <CheckIcon state={prDetails.commits.nodes[0]?.commit.statusCheckRollup?.state} /> : row.kind === 'pr' && missing('w-3.5')}</span>
       <span className="flex w-8 items-center gap-1 text-[12px] text-subtle tabular-nums">
-        {item.comments.totalCount > 0 && (
-          <>
-            <HugeiconsIcon icon={Comment01Icon} className="size-3" />
-            {item.comments.totalCount}
-          </>
-        )}
+        {details
+          ? details.comments.totalCount > 0 && (
+              <>
+                <HugeiconsIcon icon={Comment01Icon} className="size-3" />
+                {details.comments.totalCount}
+              </>
+            )
+          : missing('w-5')}
       </span>
       <Avatar src={item.author?.avatarUrl} size={18} />
       <span className="w-16 shrink-0 text-right text-[12px] text-subtle">{timeAgo(item.updatedAt)}</span>

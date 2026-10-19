@@ -6,7 +6,7 @@ import { branchIndexQuery } from '@/pages/branches/query';
 import { prFilesQuery, prMergeQuery, prQuery, prReviewQuery, prTimelineQuery, prViewedQuery } from '@/pages/pr/query';
 import { releasesQuery, tagsQuery } from '@/pages/releases/query';
 import { codeSearchQuery, repoSearchQuery, workSearchQuery } from '@/pages/search/queries';
-import { defaultQuery, repoListQuery, workListQuery, workQueryOf } from '@/pages/work/queries';
+import { defaultQuery, repoListQuery, workDetailsQuery, workListQuery, workQueryOf, type ListPage } from '@/pages/work/queries';
 import { prefetchRoute } from './prefetch';
 
 /** The list keys `prefetchRoute` starts for `href`, without fetching anything. */
@@ -15,6 +15,8 @@ function prefetchedListKeys(href: string) {
   const keys: QueryKey[] = [];
   vi.spyOn(client, 'prefetchQuery').mockResolvedValue();
   vi.spyOn(client, 'prefetchInfiniteQuery').mockImplementation(async (options) => void keys.push(options.queryKey));
+  // Pull request lists fetch theirs, to start the details after; an empty list has none.
+  vi.spyOn(client, 'fetchInfiniteQuery').mockImplementation(async (options) => (keys.push(options.queryKey), { pages: [], pageParams: [] }));
   const url = new URL(href);
   const route = matchRoute(url);
   if (!route) throw new Error(`no route for ${href}`);
@@ -31,6 +33,29 @@ describe('prefetchRoute for lists', () => {
     ['https://github.com/Owner/Repo/issues?q=is:issue+is:closed', repoListQuery('issues'), 'Owner/Repo'],
   ])('starts the page’s list for %s', (href, fallback, repo) => {
     expect(prefetchedListKeys(href)).toEqual([workListQuery(workQueryOf(new URL(href), fallback), repo).queryKey]);
+  });
+});
+
+// The pull request table's details start once its results are in, as the requests the page makes for them.
+describe('prefetchRoute for pull request lists', () => {
+  it('starts the details of the results', async () => {
+    const client = new QueryClient();
+    const nodes = Array.from({ length: 12 }, (_, i) => ({ id: `PR_${i}` }));
+    const page = { results: { issueCount: 12, pageInfo: { hasNextPage: false, endCursor: null }, nodes } } as unknown as ListPage;
+    vi.spyOn(client, 'fetchInfiniteQuery').mockResolvedValue({ pages: [page], pageParams: [null] });
+    const details: QueryKey[] = [];
+    const started = new Promise<void>((resolve) =>
+      vi.spyOn(client, 'prefetchQuery').mockImplementation(async ({ queryKey }) => {
+        if (queryKey[0] === 'work-details' && details.push(queryKey) === 2) resolve();
+      }),
+    );
+    const url = new URL('https://github.com/o/r/pulls');
+    prefetchRoute(client, matchRoute(url)!, url);
+    await started;
+    expect(details).toEqual([
+      workDetailsQuery(nodes.slice(0, 10).map((n) => n.id)).queryKey,
+      workDetailsQuery(nodes.slice(10).map((n) => n.id)).queryKey,
+    ]);
   });
 });
 

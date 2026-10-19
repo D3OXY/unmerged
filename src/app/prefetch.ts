@@ -68,7 +68,7 @@ export function prefetchRoute(client: QueryClient, route: Route, url: URL) {
     case 'repo':
       if (route.view === 'issues' || route.view === 'pulls') {
         client.prefetchQuery(repoQuery(route.owner, route.repo));
-        prefetchWorkList(client, workQueryOf(url, repoListQuery(route.view)), `${route.owner}/${route.repo}`);
+        prefetchWorkList(client, route.view === 'pulls' ? 'pr' : 'issue', workQueryOf(url, repoListQuery(route.view)), `${route.owner}/${route.repo}`);
       } else prefetchRepo(client, route.owner, route.repo, route.view, route.rest);
       return;
     case 'issue':
@@ -107,7 +107,7 @@ export function prefetchRoute(client: QueryClient, route: Route, url: URL) {
       prefetchCompare(client, route);
       return;
     case 'work':
-      prefetchWorkList(client, workQueryOf(url, defaultQuery(route.type, route.filter)));
+      prefetchWorkList(client, route.type, workQueryOf(url, defaultQuery(route.type, route.filter)));
       for (const count of workTabCountQueries(route.type)) client.prefetchQuery(count);
       return;
     case 'notifications':

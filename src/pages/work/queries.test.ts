@@ -1,5 +1,18 @@
+import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it } from 'vitest';
-import { defaultQuery, qualifierOf, repoListQuery, withQualifier, workQueryOf, type Qualifier } from './queries';
+import {
+  defaultQuery,
+  detailChunks,
+  detailsById,
+  knownDetails,
+  qualifierOf,
+  repoListQuery,
+  withQualifier,
+  workDetailsQuery,
+  workQueryOf,
+  type Qualifier,
+  type WorkDetails,
+} from './queries';
 
 describe('workQueryOf', () => {
   it.each([
@@ -52,5 +65,51 @@ describe('qualifierOf', () => {
     ['is:pr', 'sort', ''],
   ])('%j, %s → %j', (q, name, expected) => {
     expect(qualifierOf(q, name)).toBe(expected);
+  });
+});
+
+const ids = (n: number, from = 0) => Array.from({ length: n }, (_, i) => `ID_${from + i}`);
+const issue = (id: string): WorkDetails => ({ __typename: 'Issue', id, comments: { totalCount: 1 } });
+
+describe('detailChunks', () => {
+  it('asks for 10 results a request, in list order', () => {
+    expect(detailChunks(ids(23).map((id) => ({ id })))).toEqual([ids(10), ids(10, 10), ids(3, 20)]);
+    expect(detailChunks([])).toEqual([]);
+  });
+});
+
+describe('detailsById', () => {
+  const chunks = [ids(2), ids(2, 2)];
+  const done = (data: (WorkDetails | null)[]) => ({ data, isError: false, isPlaceholderData: false });
+  const pending = { data: undefined, isError: false, isPlaceholderData: false };
+
+  it('leaves out the results whose request is still running', () => {
+    const byId = detailsById(chunks, [done([issue('ID_0'), issue('ID_1')]), pending]);
+    expect([...byId.keys()]).toEqual(['ID_0', 'ID_1']);
+  });
+
+  it('marks as null what failed or what GitHub had nothing for', () => {
+    const byId = detailsById(chunks, [done([issue('ID_0'), null]), { data: undefined, isError: true, isPlaceholderData: false }]);
+    expect(Object.fromEntries(byId)).toEqual({ ID_0: issue('ID_0'), ID_1: null, ID_2: null, ID_3: null });
+  });
+
+  it('keeps an earlier answer when a refetch fails', () => {
+    const byId = detailsById([ids(2)], [{ data: [issue('ID_0'), issue('ID_1')], isError: true, isPlaceholderData: false }]);
+    expect(Object.fromEntries(byId)).toEqual({ ID_0: issue('ID_0'), ID_1: issue('ID_1') });
+  });
+
+  it('shows placeholder data while the rest of the request runs', () => {
+    const byId = detailsById([ids(2)], [{ data: [issue('ID_1')], isError: false, isPlaceholderData: true }]);
+    expect(Object.fromEntries(byId)).toEqual({ ID_1: issue('ID_1') });
+  });
+});
+
+describe('knownDetails', () => {
+  it('finds the details of a reordered list in the requests before it', () => {
+    const client = new QueryClient();
+    client.setQueryData(workDetailsQuery(['ID_0', 'ID_1']).queryKey, [issue('ID_0'), null]);
+    client.setQueryData(workDetailsQuery(['ID_2']).queryKey, [issue('ID_2')]);
+    expect(knownDetails(client, ['ID_2', 'ID_0', 'ID_9'])).toEqual([issue('ID_0'), issue('ID_2')]);
+    expect(knownDetails(client, ['ID_9'])).toBeUndefined();
   });
 });
