@@ -13,6 +13,9 @@ import { toast } from '@/ui/toast';
 import { runOutcome, type CheckOutcome } from './checks';
 import { repoPath, type PullRequest } from './query';
 
+/** What the Checks tab reads of the pull request: the first part has it. */
+type ChecksPr = Pick<PullRequest, 'id' | 'number' | 'url' | 'headRefOid'>;
+
 const CHECKS_QUERY = /* GraphQL */ `
   query PrChecks($id: ID!, $number: Int!) {
     node(id: $id) {
@@ -113,7 +116,7 @@ export function OutcomeIcon({ outcome }: { outcome: CheckOutcome }) {
  * CI for the head commit: runs grouped by workflow on the left, the selected run's annotations on the right.
  * Polls while a run is unfinished, and throughout `watching` (just after a re-run, before GitHub queues it).
  */
-export function ChecksTab({ pr, watching, onRerun }: { pr: PullRequest; watching: boolean; onRerun: () => void }) {
+export function ChecksTab({ pr, watching, onRerun }: { pr: ChecksPr; watching: boolean; onRerun: () => void }) {
   const { data, isPending, error } = useQuery({
     queryKey: ['pr-checks', pr.id, pr.headRefOid],
     queryFn: () => gql<ChecksData>(CHECKS_QUERY, { id: pr.id, number: pr.number }),
@@ -183,7 +186,7 @@ function SuiteCard({
 }: {
   suite: Suite;
   runs: CheckRun[];
-  pr: PullRequest;
+  pr: ChecksPr;
   selectedId?: string;
   onSelect: (id: string) => void;
   onRerun: () => void;

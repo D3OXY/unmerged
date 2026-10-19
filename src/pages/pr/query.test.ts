@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import { gql, rest } from '@/github/client';
-import { prFilesQuery, prViewedQuery } from './query';
+import { joinPr, prFilesQuery, prMergeQuery, prQuery, prReviewQuery, prTimelineQuery, prViewedQuery } from './query';
 
 // Each page "returns" its own URL, so the result shows which pages were fetched and in what order.
 vi.mock('@/github/client', () => ({ gql: vi.fn(), rest: vi.fn(async (path: string) => [path]) }));
@@ -89,5 +89,50 @@ describe('prViewedQuery', () => {
     const paths = fakeGitHub(250, (n) => `opaque-${n}`);
     expect(Object.keys(await load())).toEqual(paths);
     expect(requests()).toEqual([1, 1, 1]);
+  });
+});
+
+describe('joinPr', () => {
+  type Parts = Parameters<typeof joinPr>;
+  const rollup = (contexts: object[]) => ({ totalCount: 2, nodes: [{ commit: { statusCheckRollup: { state: 'PENDING', contexts: { nodes: contexts } } } }] });
+  const head = {
+    repository: { nameWithOwner: 'o/r', isPrivate: false, pullRequest: { id: 'PR', title: 'Fix', commits: rollup([{ __typename: 'CheckRun' }]) } },
+  } as unknown as Parts[0];
+  const merge = {
+    repository: { squashMergeAllowed: true, pullRequest: { mergeable: 'MERGEABLE', commits: rollup([{ __typename: 'CheckRun', name: 'ci' }]) } },
+  } as unknown as Parts[1];
+  const review = { repository: { pullRequest: { reviewThreads: { totalCount: 0, nodes: [] } } } } as unknown as Parts[2];
+  const timeline = { repository: { pullRequest: { timelineItems: { totalCount: 0, nodes: [] } } } } as unknown as Parts[3];
+
+  it('waits for the first part, and tells a missing pull request apart', () => {
+    expect(joinPr(undefined, merge, review, timeline)).toBeUndefined();
+    expect(joinPr({ repository: null }, merge, review, timeline)).toBeNull();
+    expect(joinPr({ repository: { nameWithOwner: 'o/r', isPrivate: false, pullRequest: null } }, merge, review, timeline)).toBeNull();
+  });
+
+  it('shows the first part alone, then joins each other part to it as it lands', () => {
+    expect(joinPr(head, undefined, undefined, undefined)).toMatchObject({ pr: { title: 'Fix' }, merge: undefined, review: undefined, timelineItems: undefined, full: undefined });
+    const some = joinPr(head, merge, undefined, timeline);
+    expect(some?.merge).toMatchObject({ pr: { title: 'Fix', mergeable: 'MERGEABLE' }, repo: { nameWithOwner: 'o/r', squashMergeAllowed: true } });
+    expect(some?.timelineItems).toEqual({ totalCount: 0, nodes: [] });
+    expect(some?.full).toBeUndefined();
+  });
+
+  it('is full once every part is in, with the merge part’s checks in place of the first part’s states', () => {
+    const full = joinPr(head, merge, review, timeline)?.full;
+    expect(full?.pr).toMatchObject({ id: 'PR', mergeable: 'MERGEABLE', reviewThreads: { totalCount: 0 }, timelineItems: { totalCount: 0 } });
+    expect(full?.pr.commits.nodes[0]?.commit.statusCheckRollup?.contexts.nodes).toEqual([{ __typename: 'CheckRun', name: 'ci' }]);
+    expect(full?.repo).toEqual({ nameWithOwner: 'o/r', isPrivate: false, squashMergeAllowed: true });
+  });
+});
+
+// Mutations and the status poll invalidate the first part's key; that must refetch every part.
+describe('pull request parts', () => {
+  it('are all invalidated with the first part', async () => {
+    const client = new QueryClient();
+    const keys = [prQuery('O', 'R', 7).queryKey, prMergeQuery('O', 'R', 7).queryKey, prReviewQuery('O', 'R', 7).queryKey, prTimelineQuery('O', 'R', 7).queryKey];
+    for (const key of keys) client.setQueryData(key, { repository: null });
+    await client.invalidateQueries({ queryKey: prQuery('o', 'r', 7).queryKey, refetchType: 'none' });
+    expect(keys.map((key) => client.getQueryState(key)?.isInvalidated)).toEqual([true, true, true, true]);
   });
 });

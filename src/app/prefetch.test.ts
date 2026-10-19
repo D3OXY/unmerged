@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { matchRoute } from '@/lib/routes';
 import { runsQuery } from '@/pages/actions/query';
 import { branchIndexQuery } from '@/pages/branches/query';
-import { prFilesQuery, prHeadQuery, prQuery, prViewedQuery } from '@/pages/pr/query';
+import { prFilesQuery, prMergeQuery, prQuery, prReviewQuery, prTimelineQuery, prViewedQuery } from '@/pages/pr/query';
 import { releasesQuery, tagsQuery } from '@/pages/releases/query';
 import { codeSearchQuery, repoSearchQuery, workSearchQuery } from '@/pages/search/queries';
 import { defaultQuery, repoListQuery, workListQuery, workQueryOf } from '@/pages/work/queries';
@@ -80,9 +80,10 @@ describe('prefetchRoute for releases', () => {
   });
 });
 
-// Files changed starts from the head query that the page also reads; the patches start at its head commit.
+// A pull request starts all its parts; Files changed also starts the viewed marks, and the patches at the head
+// commit that the first part brings.
 describe('prefetchRoute for Files changed', () => {
-  it('starts the page’s head, viewed marks and patches', async () => {
+  it('starts the page’s parts, viewed marks and patches', async () => {
     const client = new QueryClient();
     const head = { number: 7, headRefOid: 'abc', changedFiles: 3 };
     const fetched: QueryKey[] = [];
@@ -100,7 +101,13 @@ describe('prefetchRoute for Files changed', () => {
     const url = new URL('https://github.com/O/R/pull/7/files');
     prefetchRoute(client, matchRoute(url)!, url);
     expect(await files).toEqual(prFilesQuery('O', 'R', head).queryKey);
-    expect(fetched).toEqual([prHeadQuery('O', 'R', 7).queryKey]);
-    expect(keys).toEqual([prQuery('O', 'R', 7).queryKey, prViewedQuery('O', 'R', 7).queryKey, prFilesQuery('O', 'R', head).queryKey]);
+    expect(fetched).toEqual([prQuery('O', 'R', 7).queryKey]);
+    expect(keys).toEqual([
+      prMergeQuery('O', 'R', 7).queryKey,
+      prReviewQuery('O', 'R', 7).queryKey,
+      prTimelineQuery('O', 'R', 7).queryKey,
+      prViewedQuery('O', 'R', 7).queryKey,
+      prFilesQuery('O', 'R', head).queryKey,
+    ]);
   });
 });
