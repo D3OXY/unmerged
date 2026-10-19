@@ -15,7 +15,6 @@ import {
   GithubIcon,
   GitPullRequestIcon,
   Home01Icon,
-  Key01Icon,
   Notification03Icon,
   Search01Icon,
   StopCircleIcon,
@@ -44,7 +43,6 @@ function Home() {
         <Pages />
         <Speed />
         <Keyboard />
-        <Privacy />
       </main>
       <Footer />
     </div>
@@ -54,7 +52,7 @@ function Home() {
 const NAV_LINKS = [
   { href: '#pages', label: 'Pages' },
   { href: '#speed', label: 'Speed' },
-  { href: '#privacy', label: 'Privacy' },
+  { href: '/privacy', label: 'Privacy' },
   { href: '/install', label: 'Install' },
 ];
 
@@ -390,30 +388,7 @@ function Palette() {
   );
 }
 
-function Privacy() {
-  return (
-    <Section
-      id="privacy"
-      title="Your token never leaves your browser."
-      lede="Unmerged has no server and no analytics. It talks to GitHub, and to another site only when you play a video linked from it."
-    >
-      <div className="grid gap-4 md:grid-cols-3">
-        <Fact icon={Key01Icon} title="Stored in the extension">
-          Your personal access token lives in extension storage, out of reach of github.com and other extensions.
-        </Fact>
-        <Fact icon={GithubIcon} title="Sent only to api.github.com">
-          The only requests that carry it go to GitHub's API. It is never in the page, a URL or github.com's storage.
-        </Fact>
-        <Fact icon={DatabaseIcon} title="Cache stays local">
-          Cached results sit in extension storage per account and expire after 7 days. Only your profile and recent
-          repository names are also kept on github.com, so the sidebar draws instantly.
-        </Fact>
-      </div>
-    </Section>
-  );
-}
-
-/** An icon, a title and a sentence or two; the cards in Speed and Privacy. */
+/** An icon, a title and a sentence or two; the cards in Speed. */
 function Fact({ icon, title, children }: { icon: IconSvgElement; title: string; children: ReactNode }) {
   return (
     <div className="rounded-2xl border border-line bg-panel/60 p-6">
