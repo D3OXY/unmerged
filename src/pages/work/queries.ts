@@ -1,9 +1,9 @@
-import { infiniteQueryOptions, queryOptions, type QueryClient } from '@tanstack/react-query';
+import { infiniteQueryOptions, queryOptions, useQueries, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { gql } from '@/github/client';
 import type { Actor } from '@/github/types';
 import { persisted } from '@/lib/persist';
 import type { Peek, WorkFilter } from '@/lib/routes';
-import { ISSUE_ROW_FIELDS, PR_ROW_FIELDS, type IssueRowData, type PrRowData } from '@/ui/WorkRow';
+import type { IssueRowDetails, IssueRowItem, PrRowDetails, PrRowItem } from '@/ui/WorkRow';
 
 export type WorkType = 'pr' | 'issue';
 
@@ -86,39 +86,28 @@ export const isPeek = (item: { number: number; repository: { nameWithOwner: stri
 
 const scoped = (q: string, repo?: string) => (repo ? `${q} repo:${repo}` : q);
 
-// Beyond the shared row fragments, the lists show diff size, reviewers, creation time and the repo's owner.
+// The search asks only for what GitHub finds fast: 50 results in about 0.6 s. Comments, review, CI and size it
+// works out one result after another (about 5 s for 50), so those come after, by id (`workDetailsQuery`).
+const ROW = 'id number title url updatedAt createdAt repository { nameWithOwner isPrivate owner { avatarUrl } } author { login avatarUrl } labels(first: 3) { nodes { name color } }';
+
 const LIST_QUERY = /* GraphQL */ `
   query WorkList($q: String!, $after: String) {
     results: search(type: ISSUE, query: $q, first: 50, after: $after) {
       issueCount
       pageInfo { hasNextPage endCursor }
       nodes {
-        __typename ...PrRow ...IssueRow
-        ... on PullRequest {
-          createdAt additions deletions
-          repository { owner { avatarUrl } }
-          latestOpinionatedReviews(first: 3) { nodes { author { login avatarUrl } } }
-          reviewRequests(first: 3) { nodes { requestedReviewer { ... on User { login avatarUrl } ... on Team { name avatarUrl } } } }
-        }
-        ... on Issue { createdAt repository { owner { avatarUrl } } }
+        __typename
+        ... on PullRequest { ${ROW} isDraft state }
+        ... on Issue { ${ROW} state stateReason }
       }
     }
   }
-  ${PR_ROW_FIELDS}
-  ${ISSUE_ROW_FIELDS}
 `;
 
 type ListFields = { createdAt: string; repository: { nameWithOwner: string; owner: { avatarUrl: string } } };
 
-export type PrItem = { __typename: 'PullRequest' } & PrRowData &
-  ListFields & {
-    additions: number;
-    deletions: number;
-    latestOpinionatedReviews: { nodes: { author: Actor }[] };
-    // A user or a team; bots and mannequins come back empty.
-    reviewRequests: { nodes: { requestedReviewer: { login?: string; name?: string; avatarUrl?: string } | null }[] };
-  };
-type IssueItem = { __typename: 'Issue' } & IssueRowData & ListFields;
+export type PrItem = { __typename: 'PullRequest' } & PrRowItem & ListFields;
+type IssueItem = { __typename: 'Issue' } & IssueRowItem & ListFields;
 /** A list result: a search can mix pull requests and issues whatever the page is for. */
 export type WorkItem = PrItem | IssueItem;
 
@@ -138,6 +127,86 @@ export const workListQuery = (q: string, repo?: string) =>
     // Infinite queries infer their data type from `persister` too; pin it.
     persister: persisted<ListPage>,
   });
+
+const DETAILS_QUERY = /* GraphQL */ `
+  query WorkDetails($ids: [ID!]!) {
+    nodes(ids: $ids) {
+      __typename
+      ... on PullRequest {
+        id comments { totalCount } reviewDecision additions deletions
+        commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+        latestOpinionatedReviews(first: 3) { nodes { author { login avatarUrl } } }
+        reviewRequests(first: 3) { nodes { requestedReviewer { ... on User { login avatarUrl } ... on Team { name avatarUrl } } } }
+      }
+      ... on Issue { id comments { totalCount } }
+    }
+  }
+`;
+
+export type PrDetails = { __typename: 'PullRequest'; id: string } & PrRowDetails & {
+    additions: number;
+    deletions: number;
+    latestOpinionatedReviews: { nodes: { author: Actor }[] };
+    // A user or a team; bots and mannequins come back empty.
+    reviewRequests: { nodes: { requestedReviewer: { login?: string; name?: string; avatarUrl?: string } | null }[] };
+  };
+/** What a result shows beyond its search fields, by id. */
+export type WorkDetails = PrDetails | ({ __typename: 'Issue'; id: string } & IssueRowDetails);
+
+/** Results whose details one request asks for. GitHub answers 10 in about 1 s, and a page's requests run at once. */
+const CHUNK = 10;
+
+/** The ids of `items` in requests of CHUNK, in list order. A page holds 50, so no request spans two pages. */
+export const detailChunks = (items: { id: string }[]) =>
+  Array.from({ length: Math.ceil(items.length / CHUNK) }, (_, i) => items.slice(i * CHUNK, (i + 1) * CHUNK).map((item) => item.id));
+
+/** The details of a few results (see `detailChunks`). A node GitHub can't give (deleted, or out of reach) is null. */
+export const workDetailsQuery = (ids: string[]) =>
+  queryOptions({
+    queryKey: ['work-details', ids],
+    queryFn: async ({ signal }) => (await gql<{ nodes: (WorkDetails | null)[] }>(DETAILS_QUERY, { ids }, true, signal)).nodes,
+    staleTime: 30_000,
+    persister: persisted,
+  });
+
+type ChunkResult = { data?: (WorkDetails | null)[]; isError: boolean; isPlaceholderData: boolean };
+
+/**
+ * Each result's details from the requests for `chunks`, in the same order: missing while its request runs,
+ * null when the request failed or GitHub had nothing for it.
+ */
+export function detailsById(chunks: string[][], results: ChunkResult[]) {
+  const byId = new Map<string, WorkDetails | null>();
+  chunks.forEach((ids, i) => {
+    const { data, isError, isPlaceholderData } = results[i] ?? {};
+    for (const node of data ?? []) if (node) byId.set(node.id, node);
+    // Placeholder data is only what was known before; the rest is still on its way.
+    if (isError || (data && !isPlaceholderData)) for (const id of ids) if (!byId.has(id)) byId.set(id, null);
+  });
+  return byId;
+}
+
+/**
+ * Details already in the cache for any of `ids`, from earlier requests. When a refetch reorders a list, its
+ * requests change; the rows keep what they showed until the new answers land.
+ */
+export function knownDetails(client: QueryClient, ids: string[]) {
+  const wanted = new Set(ids);
+  const known = client
+    .getQueriesData<(WorkDetails | null)[]>({ queryKey: ['work-details'] })
+    .flatMap(([, nodes]) => nodes?.filter((node) => node && wanted.has(node.id)) ?? []);
+  return known.length ? known : undefined;
+}
+
+/** The details of `items` (see `detailsById`), CHUNK at a time, all requests at once. */
+export function useWorkDetails(items: { id: string }[]) {
+  const client = useQueryClient();
+  const chunks = detailChunks(items);
+  return useQueries({
+    queries: chunks.map((ids) => ({ ...workDetailsQuery(ids), placeholderData: () => knownDetails(client, ids) })),
+    combine: (results) => detailsById(chunks, results),
+  });
+}
 
 // Each count is its own request: GitHub runs one query's searches one after another, so bundled they'd wait on
 // each other and on the list. Sort doesn't change a count, so it's dropped and equal counts share a cache entry
@@ -159,8 +228,19 @@ export const workStateCountQueries = (q: string, repo?: string) => (['open', 'cl
 /** The open count of each tab's default search, in `TABS` order. */
 export const workTabCountQueries = (type: WorkType) => TABS[type].map((tab) => workCountQuery(defaultQuery(type, tab.filter)));
 
-/** Starts everything a list shows for `q` at once: its results and its Open/Closed counts. */
-export function prefetchWorkList(client: QueryClient, q: string, repo?: string) {
-  client.prefetchInfiniteQuery(workListQuery(q, repo));
+/**
+ * Starts everything a list shows for `q` at once: its results and its Open/Closed counts. The pull request
+ * table's details follow the results; the issue list shows none.
+ */
+export function prefetchWorkList(client: QueryClient, kind: WorkType, q: string, repo?: string) {
+  const list = workListQuery(q, repo);
+  if (kind === 'issue') client.prefetchInfiniteQuery(list);
+  else
+    client
+      .fetchInfiniteQuery(list)
+      .then(({ pages }) => {
+        for (const ids of detailChunks(pages.flatMap((page) => page.results.nodes))) client.prefetchQuery(workDetailsQuery(ids));
+      })
+      .catch(() => {});
   for (const count of workStateCountQueries(q, repo)) client.prefetchQuery(count);
 }

@@ -87,6 +87,8 @@
   & ul.contains-task-list { list-style: none; padding-left: 0.25em; }
   & .task-list-item input { margin-right: 6px; vertical-align: middle; accent-color: var(--u-accent); }
   & img { max-width: 100%; display: inline-block; border-radius: 6px; }
+  /* GitHub's uploads have both sizes: keep their ratio when max-width shrinks them, and before they load. */
+  & img[width][height] { height: auto; }
   & hr { border: 0; border-top: 1px solid var(--u-border); margin: 20px 0; }
   & blockquote { border-left: 2px solid var(--u-border-strong); padding: 0 0 0 12px; color: var(--u-muted); }
   & code, & tt {

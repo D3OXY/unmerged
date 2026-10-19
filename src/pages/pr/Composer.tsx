@@ -5,7 +5,7 @@ import { useDraft } from '@/lib/drafts';
 import { Button } from '@/ui/Button';
 import { CommentBox } from '@/ui/CommentBox';
 import { Kbd, Pill } from '@/ui/primitives';
-import { MUTATIONS, type PullRequest } from './query';
+import { MUTATIONS, type PrWithReview } from './query';
 import { usePrMutation } from './usePrMutation';
 
 type ReviewEvent = 'COMMENT' | 'APPROVE' | 'REQUEST_CHANGES';
@@ -17,7 +17,7 @@ const REVIEWED: Record<ReviewEvent, string> = { COMMENT: 'Review submitted', APP
  * pending review (line comments added with "Add to review", here or on GitHub), ⌘↵ submits it instead,
  * with the text as its summary.
  */
-export function Composer({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey }) {
+export function Composer({ pr, queryKey }: { pr: PrWithReview; queryKey: QueryKey }) {
   const [body, setBody, clearBody] = useDraft(pr.id);
   const comment = usePrMutation(queryKey);
   const review = usePrMutation(queryKey);

@@ -10,6 +10,16 @@ const VISITS: { id: Visit; label: string }[] = [
   { id: 'warm', label: 'Repeat visit' },
 ];
 
+/**
+ * Page loads, then clicks inside a page (scenarios with `from`), timed from the click. Results with page loads
+ * only make one group, shown without its title.
+ */
+const LOADS = results.scenarios.filter((s) => !('from' in s));
+const GROUPS = [
+  { title: 'Page loads', note: 'from the start of the navigation', scenarios: LOADS },
+  { title: 'Clicks inside a page', note: 'from the click, after a 150 ms hover on the link', scenarios: results.scenarios.filter((s) => 'from' in s) },
+].filter((g) => g.scenarios.length > 0);
+
 /** The slowest time in the results: every lane shares this scale, so a second is the same width everywhere. */
 const LONGEST = Math.max(...results.scenarios.flatMap((s) => VISITS.flatMap((v) => [s.github[v.id].ms ?? 0, s.unmerged[v.id].ms ?? 0])));
 /** Seconds marked on each axis, and as faint lines across the lanes. */
@@ -96,8 +106,8 @@ export function Benchmark() {
             <Axis key={v.id} label={v.label} />
           ))}
         </Grid>
-        <ul className="divide-y divide-line">
-          {results.scenarios.map((s) => (
+        <Groups
+          row={(s) => (
             <Grid key={s.id} as="li" className="py-5">
               <PageLabel scenario={s} />
               {VISITS.map((v) => (
@@ -109,8 +119,8 @@ export function Benchmark() {
                 </div>
               ))}
             </Grid>
-          ))}
-        </ul>
+          )}
+        />
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-line bg-panel/60">
@@ -128,8 +138,8 @@ export function Benchmark() {
             </span>
           ))}
         </Grid>
-        <ul className="divide-y divide-line">
-          {results.scenarios.map((s) => (
+        <Groups
+          row={(s) => (
             <Grid key={s.id} as="li" className="py-5">
               <PageLabel scenario={s} />
               {VISITS.map((v) => (
@@ -140,11 +150,25 @@ export function Benchmark() {
                 </div>
               ))}
             </Grid>
-          ))}
-        </ul>
+          )}
+        />
       </div>
     </div>
   );
+}
+
+/** Each group's rows, under the group's title when there is more than one group. */
+function Groups({ row }: { row: (scenario: Scenario) => ReactNode }) {
+  return GROUPS.map((g) => (
+    <section key={g.title} className="border-line not-first:border-t">
+      {GROUPS.length > 1 && (
+        <p className="border-b border-line px-6 py-2.5 text-[12px] text-muted">
+          {g.title} <span className="text-subtle">· {g.note}</span>
+        </p>
+      )}
+      <ul className="divide-y divide-line">{g.scenarios.map(row)}</ul>
+    </section>
+  ));
 }
 
 /** Where the lanes and blocks line up: the page, then first and repeat visits. */
@@ -244,4 +268,4 @@ const time = (ms: number | null) => (ms === null ? 'over 60 s' : `${(ms / 1000).
 const size = (bytes: number) => (bytes >= 1e6 ? `${(bytes / 1e6).toFixed(1)} MB` : `${Math.round(bytes / 1e3)} KB`);
 
 /** How the results were measured, for the section's text. */
-export const benchmarkSetup = { pages: results.scenarios.length, runs: results.runs, date: results.date, signedIn: results.signedIn };
+export const benchmarkSetup = { pages: LOADS.length, runs: results.runs, date: results.date, signedIn: results.signedIn };

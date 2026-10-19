@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type ReactNode } from 'react';
+import { useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
 import { cx } from '@/lib/cx';
 import { frameVideos, openMedia } from './MediaViewer';
 
@@ -69,7 +69,17 @@ export function LanguageDot({ color }: { color: string | null }) {
 /** GitHub-rendered (already sanitized) HTML. Images and videos open in the media viewer. */
 export function Markdown({ html, className }: { html: string; className?: string }) {
   const ref = useRef<HTMLDivElement>(null);
+  const lazy = useMemo(() => lazyImages(html), [html]);
   // React rewrites the HTML only when it changes, so the videos are framed once per version.
   useLayoutEffect(() => frameVideos(ref.current!), [html]);
-  return <div ref={ref} className={cx('u-markdown', className)} onClick={openMedia} dangerouslySetInnerHTML={{ __html: html }} />;
+  return <div ref={ref} className={cx('u-markdown', className)} onClick={openMedia} dangerouslySetInnerHTML={{ __html: lazy }} />;
+}
+
+/**
+ * Makes each image in `html` load only near the screen and decode off the main thread, before the HTML goes
+ * into the page (an attribute set after that is too late). The values are unquoted, so even an `<img` inside an
+ * attribute value can't end that value.
+ */
+export function lazyImages(html: string) {
+  return html.replace(/<img(?=[\s/>])/gi, '<img loading=lazy decoding=async ');
 }

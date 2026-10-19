@@ -10,17 +10,17 @@ import { Menu } from '@/ui/Menu';
 import { Panel } from '@/ui/primitives';
 import { summarizeChecks } from './checks';
 import { defaultCommitMessage, isMergeReady, METHOD_LABEL, methodOptions, useMergeMethod } from './merge';
-import { MUTATIONS, type MergeMethod, type PullRequest, type Repo } from './query';
+import { MUTATIONS, type MergeMethod, type PrWithMerge, type Repo } from './query';
 import { usePrMutation } from './usePrMutation';
 
 /** Always-visible merge panel: requirements as a checklist, one obvious primary action. */
-export function MergeBox({ repo, pr, queryKey }: { repo: Repo; pr: PullRequest; queryKey: QueryKey }) {
+export function MergeBox({ repo, pr, queryKey }: { repo: Repo; pr: PrWithMerge; queryKey: QueryKey }) {
   if (pr.state === 'MERGED') return <MergedBox pr={pr} queryKey={queryKey} />;
   if (pr.state === 'CLOSED') return <ClosedBox pr={pr} queryKey={queryKey} />;
   return <OpenBox repo={repo} pr={pr} queryKey={queryKey} />;
 }
 
-function MergedBox({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey }) {
+function MergedBox({ pr, queryKey }: { pr: PrWithMerge; queryKey: QueryKey }) {
   const deleteBranch = usePrMutation(queryKey);
   return (
     <Panel className="overflow-hidden">
@@ -52,7 +52,7 @@ function MergedBox({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey }) {
   );
 }
 
-function ClosedBox({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey }) {
+function ClosedBox({ pr, queryKey }: { pr: PrWithMerge; queryKey: QueryKey }) {
   const reopen = usePrMutation(queryKey);
   return (
     <Panel className="flex items-center gap-3 px-4 py-3.5">
@@ -74,7 +74,7 @@ function ClosedBox({ pr, queryKey }: { pr: PullRequest; queryKey: QueryKey }) {
 
 type Tone = 'ok' | 'fail' | 'wait' | 'neutral';
 
-function OpenBox({ repo, pr, queryKey }: { repo: Repo; pr: PullRequest; queryKey: QueryKey }) {
+function OpenBox({ repo, pr, queryKey }: { repo: Repo; pr: PrWithMerge; queryKey: QueryKey }) {
   const { methods, method, setMethod } = useMergeMethod(pr, repo);
   const [confirming, setConfirming] = useState(false);
   const [headline, setHeadline] = useState('');

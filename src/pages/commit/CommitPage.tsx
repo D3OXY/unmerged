@@ -5,7 +5,6 @@ import { ArrowLeft01Icon, Copy01Icon, FolderTreeIcon } from '@hugeicons/core-fre
 import { openClassic } from '@/lib/classic';
 import { copy } from '@/lib/clipboard';
 import { loadDiffs } from '@/lib/diffs';
-import { useIsDark } from '@/lib/settings';
 import { fullDate, timeAgo } from '@/lib/time';
 import { useTitle } from '@/lib/useTitle';
 import { RepoFrame } from '@/pages/repo/RepoFrame';
@@ -25,12 +24,11 @@ type Props = { owner: string; repo: string; sha: string; pr?: number };
 export function CommitPage({ owner, repo, sha, pr }: Props) {
   // The diff renderer and the grammars these files need load alongside the files.
   const queryClient = useQueryClient();
-  const dark = useIsDark();
   useEffect(() => {
     Promise.all([loadDiffs(), queryClient.fetchQuery(commitFilesQuery(owner, repo, sha))])
-      .then(([renderer, files]) => renderer.preloadHighlighting(files.map((f) => f.filename), dark))
+      .then(([renderer, files]) => renderer.preloadHighlighting(files.map((f) => f.filename)))
       .catch(() => {});
-  }, [queryClient, owner, repo, sha, dark]);
+  }, [queryClient, owner, repo, sha]);
 
   const { data, error } = useQuery(commitQuery(owner, repo, sha, pr));
   const files = useQuery(commitFilesQuery(owner, repo, sha));

@@ -19,7 +19,7 @@ import { timeAgo } from '@/lib/time';
 import { useTitle } from '@/lib/useTitle';
 import { RepoRow } from '@/pages/profile/RepositoriesPage';
 import { PersonRow } from '@/pages/profile/FollowsPage';
-import { squash } from '@/pages/work/queries';
+import { squash, useWorkDetails } from '@/pages/work/queries';
 import { Button } from '@/ui/Button';
 import { Menu } from '@/ui/Menu';
 import { Avatar, Empty, Kbd, Panel, Skeleton } from '@/ui/primitives';
@@ -222,10 +222,17 @@ function UserResults({ q, sort }: { q: string; sort: string }) {
 function WorkResults({ q, type, sort }: { q: string; type: 'issues' | 'pullrequests'; sort: string }) {
   const query = useInfiniteQuery(workSearchQuery(q, type, sort));
   const items = query.data?.pages.flatMap((page) => page.results.nodes) ?? [];
+  const details = useWorkDetails(items);
   const repo = repoLabelFor(items);
   return (
     <Results query={query} total={query.data?.pages[0]?.results.issueCount}>
-      {items.map((item) => (item.__typename === 'PullRequest' ? <WorkRow key={item.id} kind="pr" item={item} repo={repo} /> : <WorkRow key={item.id} kind="issue" item={item} repo={repo} />))}
+      {items.map((item) =>
+        item.__typename === 'PullRequest' ? (
+          <WorkRow key={item.id} kind="pr" item={item} details={details.get(item.id)} repo={repo} />
+        ) : (
+          <WorkRow key={item.id} kind="issue" item={item} details={details.get(item.id)} repo={repo} />
+        ),
+      )}
     </Results>
   );
 }

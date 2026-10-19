@@ -8,6 +8,16 @@ export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   vite: () => ({
     plugins: [tailwindcss()],
+    // The highlighting worker (src/entrypoints/highlighter/worker.ts) only imports @pierre/diffs's worker
+    // script, which the package marks side-effect free like all its files. This keeps it in the bundle.
+    worker: {
+      plugins: () => [
+        {
+          name: 'keep-pierre-worker',
+          transform: { filter: { id: /@pierre\/diffs\/dist\/worker\/worker\.js$/ }, handler: (code: string) => ({ code, moduleSideEffects: true }) },
+        },
+      ],
+    },
     resolve: {
       alias: [
         // Slim Shiki for @pierre/diffs; see src/lib/shikiLite.ts.
@@ -35,7 +45,7 @@ export default defineConfig({
     // requests then (src/github/early.ts). Neither adds an install warning: the content script already runs there.
     permissions: ['storage', 'unlimitedStorage', 'webRequest'],
     host_permissions: ['https://api.github.com/*', 'https://github.com/*'],
-    web_accessible_resources: [{ resources: ['fonts/*', 'diffs.js', 'shiki-langs/*', 'player.html'], matches: ['https://github.com/*'] }],
+    web_accessible_resources: [{ resources: ['fonts/*', 'diffs.js', 'shiki-langs/*', 'player.html', 'highlighter.html'], matches: ['https://github.com/*'] }],
     // Firefox only: Chrome warns about the key. The id can't change once the add-on is on AMO. Data only goes
     // to GitHub, so the extension declares no data collection; 140 is the first Firefox that asks.
     ...(browser === 'firefox' && {

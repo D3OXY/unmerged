@@ -12,7 +12,7 @@ import { Empty, Kbd, Panel, Skeleton } from '@/ui/primitives';
 import { repoLabelFor } from '@/ui/WorkRow';
 import { IssueSplit } from './IssueSplit';
 import { PrTable } from './PrTable';
-import { qualifierOf, sortOf, SORTS, squash, withQualifier, workListQuery, workQueryOf, workStateCountQueries, type Qualifier, type Sort, type WorkType } from './queries';
+import { qualifierOf, sortOf, SORTS, squash, useWorkDetails, withQualifier, workListQuery, workQueryOf, workStateCountQueries, type Qualifier, type Sort, type WorkType } from './queries';
 
 /**
  * A searchable list of pull requests (`kind` 'pr': a table) or issues ('issue': a list beside the open issue).
@@ -41,6 +41,8 @@ export function WorkList({ kind, fallback, repo, peek }: { kind: WorkType; fallb
   const counts = useQueries({ queries: workStateCountQueries(q, repo) });
 
   const items = list.data?.pages.flatMap((page) => page.results.nodes) ?? [];
+  // Only the pull request table shows details.
+  const details = useWorkDetails(kind === 'pr' ? items : []);
   const repoLabel = repo ? 'none' : repoLabelFor(items);
   const author = qualifierOf(q, 'author');
   const label = qualifierOf(q, 'label');
@@ -141,7 +143,7 @@ export function WorkList({ kind, fallback, repo, peek }: { kind: WorkType; fallb
           <Empty>Nothing matches.</Empty>
         </Panel>
       ) : kind === 'pr' ? (
-        <PrTable items={items} q={q} onQuery={setQ} repoLabel={repoLabel} peek={sidePanel} open={peek} footer={footer} />
+        <PrTable items={items} details={details} q={q} onQuery={setQ} repoLabel={repoLabel} peek={sidePanel} open={peek} footer={footer} />
       ) : (
         <IssueSplit items={items} peek={peek} scoped={!!repo} byCreated={sort.startsWith('created')} footer={footer} />
       )}

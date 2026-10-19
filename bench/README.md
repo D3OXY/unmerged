@@ -11,6 +11,7 @@ pnpm exec playwright install chromium
 pnpm build
 pnpm bench                  # all pages, 5 runs each
 pnpm bench --runs 3 --only pr,issue
+pnpm bench --only to-pulls,to-pr,to-files   # only the clicks inside a page
 ```
 
 Unmerged needs a GitHub token: set `GITHUB_TOKEN` (a fine-grained, read-only token is enough), or sign in with
@@ -35,17 +36,27 @@ on GitHub (Settings → Sessions) when you're done.
 ## What it measures
 
 Every page is public, in `TanStack/query`, from a small pull request to one with 2,416 changed files (see
-`SCENARIOS` in `run.ts`).
+`SCENARIOS` in `run.ts`). There are two kinds of scenario:
 
-- **Time:** from the start of the navigation until a known piece of the page's content is visible: a sentence
-  from the README, the PR description, the newest comment, or a line from the first diff. Text inside
+- **Page loads** open a URL in a new tab, as when you follow a link from elsewhere or reload.
+- **Clicks inside a page** (the rows with "→") are how most navigations happen: on a page that has loaded and
+  settled for two seconds, the pointer rests on a link for 150 ms, as a user's does, then clicks. Unmerged
+  starts loading on hover; both sides swap the page in place, without a full load. The links: a repository's
+  Pull requests tab, a PR in a list of PRs merged on one day, and a PR's Files changed tab.
+
+What each one measures:
+
+- **Time:** from the start of the navigation (or from the click) until a known piece of the page's content is
+  visible: a sentence from the README, the PR description, the newest comment, a line from the first diff, or
+  the newest open PR's title, which the script reads from the API when that scenario starts. Text inside
   `<script>` and `<template>` doesn't count, so data that GitHub embeds before it renders doesn't count either.
-- **Data and requests:** what crossed the network for the page, compressed, from the navigation until two
-  seconds after the content showed.
-- **Blocking:** the part of each main-thread task past 50 ms, added up (as in Total Blocking Time), until the
-  content showed. That is how long the page couldn't respond to input.
+- **Data and requests:** what crossed the network for the page, compressed, from the navigation (or from the
+  hover) until two seconds after the content showed.
+- **Blocking:** the part of each main-thread task past 50 ms, added up (as in Total Blocking Time), from the
+  navigation (or the hover) until the content showed. That is how long the page couldn't respond to input.
 - **First and repeat visits:** each run uses a new browser profile. The first visit starts with empty caches;
-  the second loads the same page again, with the browser's cache and Unmerged's own cache filled.
+  the second loads the same page again, with the browser's cache and Unmerged's own cache filled. For a click,
+  each visit loads the start page in a new tab and clicks the same link.
 
 ## How to read it
 

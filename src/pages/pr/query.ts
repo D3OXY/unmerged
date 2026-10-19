@@ -32,105 +32,122 @@ const REACTIONS = 'viewerCanReact reactionGroups { content viewerHasReacted reac
 const ISSUE_REF = 'number title url state stateReason repository { nameWithOwner }';
 const REF = `__typename ... on Issue { ${ISSUE_REF} } ... on PullRequest { number title url state repository { nameWithOwner } }`;
 
-export const PR_QUERY = /* GraphQL */ `
-  query PullRequest($owner: String!, $repo: String!, $number: Int!) {
+// A pull request loads in four parts, asked for at once. GitHub resolves a query's fields one after another, so
+// four small queries finish sooner than one big one, and the page paints as soon as the first part is in.
+const prPart = (name: string, repoFields: string, prFields: string) => /* GraphQL */ `
+  query ${name}($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner, name: $repo) {
-      nameWithOwner isPrivate
-      mergeCommitAllowed squashMergeAllowed rebaseMergeAllowed autoMergeAllowed
-      viewerDefaultMergeMethod viewerPermission
-      pullRequest(number: $number) {
-        id number title url state isDraft createdAt mergedAt closedAt bodyHTML body ${REACTIONS}
-        author { login avatarUrl }
-        baseRefName headRefName headRefOid isCrossRepository
-        headRepositoryOwner { login }
-        headRef { id }
-        additions deletions changedFiles
-        mergeable mergeStateStatus reviewDecision
-        isMergeQueueEnabled isInMergeQueue
-        mergeQueueEntry { position }
-        autoMergeRequest { mergeMethod enabledBy { login } }
-        mergedBy { login avatarUrl }
-        viewerDidAuthor viewerCanUpdate viewerCanMergeAsAdmin viewerCanUpdateBranch
-        viewerCanEnableAutoMerge viewerCanDisableAutoMerge viewerCanLabel viewerCanAssign
-        mergeHeadline: viewerMergeHeadlineText(mergeType: MERGE)
-        mergeBody: viewerMergeBodyText(mergeType: MERGE)
-        squashHeadline: viewerMergeHeadlineText(mergeType: SQUASH)
-        squashBody: viewerMergeBodyText(mergeType: SQUASH)
-        labels(first: 20) { nodes { id name color } }
-        assignees(first: 10) { nodes { id login avatarUrl } }
-        closingIssuesReferences(first: 10) { nodes { ${ISSUE_REF} } }
-        reviewRequests(first: 20) {
-          nodes { requestedReviewer { __typename ... on User { login avatarUrl } ... on Team { name avatarUrl } ... on Bot { login avatarUrl } } }
-        }
-        latestOpinionatedReviews(first: 20) { nodes { state author { login avatarUrl ... on User { id } } } }
-        viewerPendingReview: reviews(first: 1, states: PENDING) { nodes { id comments { totalCount } } }
-        commits(last: 1) {
-          totalCount
-          nodes {
-            commit {
-              statusCheckRollup { ${ROLLUP} }
-            }
-          }
-        }
-        files(first: 100) { totalCount nodes { path additions deletions changeType } }
-        reviewThreads(first: 50) {
-          totalCount
-          nodes {
-            id isResolved isOutdated path line diffSide viewerCanResolve viewerCanUnresolve viewerCanReply
-            comments(first: 30) {
-              totalCount
-              nodes { id author { login avatarUrl } bodyHTML body createdAt diffHunk state viewerCanUpdate viewerCanDelete ${REACTIONS} }
-            }
-          }
-        }
-        timelineItems(
-          last: 100
-          itemTypes: [
-            ISSUE_COMMENT, PULL_REQUEST_REVIEW, PULL_REQUEST_COMMIT, MERGED_EVENT, CLOSED_EVENT, REOPENED_EVENT,
-            HEAD_REF_FORCE_PUSHED_EVENT, LABELED_EVENT, REVIEW_REQUESTED_EVENT, READY_FOR_REVIEW_EVENT,
-            CONVERT_TO_DRAFT_EVENT, HEAD_REF_DELETED_EVENT, RENAMED_TITLE_EVENT, CROSS_REFERENCED_EVENT, CONNECTED_EVENT,
-            DISCONNECTED_EVENT, ASSIGNED_EVENT, UNASSIGNED_EVENT, UNLABELED_EVENT, REVIEW_DISMISSED_EVENT,
-            AUTO_MERGE_ENABLED_EVENT, AUTO_MERGE_DISABLED_EVENT, BASE_REF_FORCE_PUSHED_EVENT
-          ]
-        ) {
-          totalCount
-          nodes {
-            __typename
-            ... on IssueComment { id author { login avatarUrl } bodyHTML body createdAt viewerCanUpdate viewerCanDelete ${REACTIONS} }
-            ... on PullRequestReview { id author { login avatarUrl } state bodyHTML submittedAt createdAt }
-            ... on PullRequestCommit {
-              id
-              commit { oid abbreviatedOid messageHeadline committedDate url author { name user { login avatarUrl } } statusCheckRollup { state } }
-            }
-            ... on MergedEvent { id actor { login avatarUrl } createdAt commit { abbreviatedOid } mergeRefName }
-            ... on ClosedEvent { id actor { login avatarUrl } createdAt }
-            ... on ReopenedEvent { id actor { login avatarUrl } createdAt }
-            ... on HeadRefForcePushedEvent { id actor { login avatarUrl } createdAt }
-            ... on HeadRefDeletedEvent { id actor { login avatarUrl } createdAt }
-            ... on ReadyForReviewEvent { id actor { login avatarUrl } createdAt }
-            ... on ConvertToDraftEvent { id actor { login avatarUrl } createdAt }
-            ... on LabeledEvent { id actor { login avatarUrl } createdAt label { name color } }
-            ... on RenamedTitleEvent { id actor { login avatarUrl } createdAt previousTitle currentTitle }
-            ... on ReviewRequestedEvent {
-              id actor { login avatarUrl } createdAt
-              requestedReviewer { __typename ... on User { login } ... on Team { name } ... on Bot { login } }
-            }
-            ... on CrossReferencedEvent { id actor { login avatarUrl } createdAt source { ${REF} } }
-            ... on ConnectedEvent { id actor { login avatarUrl } createdAt subject { ${REF} } }
-            ... on DisconnectedEvent { id actor { login avatarUrl } createdAt subject { ${REF} } }
-            ... on AssignedEvent { id actor { login avatarUrl } createdAt assignee { ... on Actor { login } } }
-            ... on UnassignedEvent { id actor { login avatarUrl } createdAt assignee { ... on Actor { login } } }
-            ... on UnlabeledEvent { id actor { login avatarUrl } createdAt label { name color } }
-            ... on ReviewDismissedEvent { id actor { login avatarUrl } createdAt dismissalMessage review { author { login } } }
-            ... on AutoMergeEnabledEvent { id actor { login avatarUrl } createdAt }
-            ... on AutoMergeDisabledEvent { id actor { login avatarUrl } createdAt }
-            ... on BaseRefForcePushedEvent { id actor { login avatarUrl } createdAt ref { name } }
-          }
-        }
-      }
+      ${repoFields}
+      pullRequest(number: $number) { ${prFields} }
     }
   }
 `;
+
+// The header and the description: what every tab shows first.
+const PR_HEAD_QUERY = prPart(
+  'PullRequest',
+  'nameWithOwner isPrivate',
+  `id number title url state isDraft createdAt viewerCanUpdate bodyHTML body ${REACTIONS}
+  author { login avatarUrl }
+  baseRefName headRefName headRefOid isCrossRepository
+  headRepositoryOwner { login }
+  additions deletions changedFiles
+  commits(last: 1) { totalCount nodes { commit { statusCheckRollup { state contexts(first: 100) { nodes { __typename } } } } } }`,
+);
+
+// The merge box and the checks.
+const PR_MERGE_QUERY = prPart(
+  'PullRequestMerge',
+  'mergeCommitAllowed squashMergeAllowed rebaseMergeAllowed autoMergeAllowed viewerDefaultMergeMethod viewerPermission',
+  `mergedAt closedAt headRef { id }
+  mergeable mergeStateStatus reviewDecision
+  isMergeQueueEnabled isInMergeQueue
+  mergeQueueEntry { position }
+  autoMergeRequest { mergeMethod enabledBy { login } }
+  mergedBy { login avatarUrl }
+  viewerCanMergeAsAdmin viewerCanUpdateBranch viewerCanEnableAutoMerge viewerCanDisableAutoMerge
+  mergeHeadline: viewerMergeHeadlineText(mergeType: MERGE)
+  mergeBody: viewerMergeBodyText(mergeType: MERGE)
+  squashHeadline: viewerMergeHeadlineText(mergeType: SQUASH)
+  squashBody: viewerMergeBodyText(mergeType: SQUASH)
+  commits(last: 1) { totalCount nodes { commit { statusCheckRollup { ${ROLLUP} } } } }`,
+);
+
+// Who reviews and what they said on lines, the linked issues, and the files.
+const PR_REVIEW_QUERY = prPart(
+  'PullRequestReview',
+  '',
+  `viewerDidAuthor viewerCanLabel viewerCanAssign
+  labels(first: 20) { nodes { id name color } }
+  assignees(first: 10) { nodes { id login avatarUrl } }
+  closingIssuesReferences(first: 10) { nodes { ${ISSUE_REF} } }
+  reviewRequests(first: 20) {
+    nodes { requestedReviewer { __typename ... on User { login avatarUrl } ... on Team { name avatarUrl } ... on Bot { login avatarUrl } } }
+  }
+  latestOpinionatedReviews(first: 20) { nodes { state author { login avatarUrl ... on User { id } } } }
+  viewerPendingReview: reviews(first: 1, states: PENDING) { nodes { id comments { totalCount } } }
+  files(first: 100) { totalCount nodes { path additions deletions changeType } }
+  reviewThreads(first: 50) {
+    totalCount
+    nodes {
+      id isResolved isOutdated path line diffSide viewerCanResolve viewerCanUnresolve viewerCanReply
+      comments(first: 30) {
+        totalCount
+        nodes { id author { login avatarUrl } bodyHTML body createdAt diffHunk state viewerCanUpdate viewerCanDelete ${REACTIONS} }
+      }
+    }
+  }`,
+);
+
+// The activity: usually the slowest part.
+const PR_TIMELINE_QUERY = prPart(
+  'PullRequestTimeline',
+  '',
+  `timelineItems(
+    last: 100
+    itemTypes: [
+      ISSUE_COMMENT, PULL_REQUEST_REVIEW, PULL_REQUEST_COMMIT, MERGED_EVENT, CLOSED_EVENT, REOPENED_EVENT,
+      HEAD_REF_FORCE_PUSHED_EVENT, LABELED_EVENT, REVIEW_REQUESTED_EVENT, READY_FOR_REVIEW_EVENT,
+      CONVERT_TO_DRAFT_EVENT, HEAD_REF_DELETED_EVENT, RENAMED_TITLE_EVENT, CROSS_REFERENCED_EVENT, CONNECTED_EVENT,
+      DISCONNECTED_EVENT, ASSIGNED_EVENT, UNASSIGNED_EVENT, UNLABELED_EVENT, REVIEW_DISMISSED_EVENT,
+      AUTO_MERGE_ENABLED_EVENT, AUTO_MERGE_DISABLED_EVENT, BASE_REF_FORCE_PUSHED_EVENT
+    ]
+  ) {
+    totalCount
+    nodes {
+      __typename
+      ... on IssueComment { id author { login avatarUrl } bodyHTML body createdAt viewerCanUpdate viewerCanDelete ${REACTIONS} }
+      ... on PullRequestReview { id author { login avatarUrl } state bodyHTML submittedAt createdAt }
+      ... on PullRequestCommit {
+        id
+        commit { oid abbreviatedOid messageHeadline committedDate url author { name user { login avatarUrl } } statusCheckRollup { state } }
+      }
+      ... on MergedEvent { id actor { login avatarUrl } createdAt commit { abbreviatedOid } mergeRefName }
+      ... on ClosedEvent { id actor { login avatarUrl } createdAt }
+      ... on ReopenedEvent { id actor { login avatarUrl } createdAt }
+      ... on HeadRefForcePushedEvent { id actor { login avatarUrl } createdAt }
+      ... on HeadRefDeletedEvent { id actor { login avatarUrl } createdAt }
+      ... on ReadyForReviewEvent { id actor { login avatarUrl } createdAt }
+      ... on ConvertToDraftEvent { id actor { login avatarUrl } createdAt }
+      ... on LabeledEvent { id actor { login avatarUrl } createdAt label { name color } }
+      ... on RenamedTitleEvent { id actor { login avatarUrl } createdAt previousTitle currentTitle }
+      ... on ReviewRequestedEvent {
+        id actor { login avatarUrl } createdAt
+        requestedReviewer { __typename ... on User { login } ... on Team { name } ... on Bot { login } }
+      }
+      ... on CrossReferencedEvent { id actor { login avatarUrl } createdAt source { ${REF} } }
+      ... on ConnectedEvent { id actor { login avatarUrl } createdAt subject { ${REF} } }
+      ... on DisconnectedEvent { id actor { login avatarUrl } createdAt subject { ${REF} } }
+      ... on AssignedEvent { id actor { login avatarUrl } createdAt assignee { ... on Actor { login } } }
+      ... on UnassignedEvent { id actor { login avatarUrl } createdAt assignee { ... on Actor { login } } }
+      ... on UnlabeledEvent { id actor { login avatarUrl } createdAt label { name color } }
+      ... on ReviewDismissedEvent { id actor { login avatarUrl } createdAt dismissalMessage review { author { login } } }
+      ... on AutoMergeEnabledEvent { id actor { login avatarUrl } createdAt }
+      ... on AutoMergeDisabledEvent { id actor { login avatarUrl } createdAt }
+      ... on BaseRefForcePushedEvent { id actor { login avatarUrl } createdAt ref { name } }
+    }
+  }`,
+);
 
 export type MergeMethod = 'MERGE' | 'SQUASH' | 'REBASE';
 export type MergeStateStatus = 'BEHIND' | 'BLOCKED' | 'CLEAN' | 'DIRTY' | 'DRAFT' | 'HAS_HOOKS' | 'UNKNOWN' | 'UNSTABLE';
@@ -308,22 +325,46 @@ export type PullRequest = {
   timelineItems: { totalCount: number; nodes: TimelineItem[] };
 };
 
-export type PrData = {
-  repository: {
-    nameWithOwner: string;
-    isPrivate: boolean;
-    mergeCommitAllowed: boolean;
-    squashMergeAllowed: boolean;
-    rebaseMergeAllowed: boolean;
-    autoMergeAllowed: boolean;
-    viewerDefaultMergeMethod: MergeMethod;
-    /** Missing from a result stored before it was asked for. */
-    viewerPermission?: Permission | null;
-    pullRequest: PullRequest | null;
-  } | null;
-};
+// The fields of `PullRequest` that each part after the first brings. The first part brings `PrHead`.
+type MergeFields =
+  | 'mergedAt' | 'closedAt' | 'headRef' | 'mergeable' | 'mergeStateStatus' | 'reviewDecision' | 'isMergeQueueEnabled'
+  | 'isInMergeQueue' | 'mergeQueueEntry' | 'autoMergeRequest' | 'mergedBy' | 'viewerCanMergeAsAdmin' | 'viewerCanUpdateBranch'
+  | 'viewerCanEnableAutoMerge' | 'viewerCanDisableAutoMerge' | 'mergeHeadline' | 'mergeBody' | 'squashHeadline' | 'squashBody'
+  | 'commits';
+type ReviewFields =
+  | 'viewerDidAuthor' | 'viewerCanLabel' | 'viewerCanAssign' | 'labels' | 'assignees' | 'closingIssuesReferences'
+  | 'reviewRequests' | 'latestOpinionatedReviews' | 'viewerPendingReview' | 'files' | 'reviewThreads';
 
-export type Repo = NonNullable<PrData['repository']>;
+/**
+ * The first part of a pull request: the header and the description, which every tab shows first. Its checks
+ * are only their states; the merge part brings them in full. The whole `PullRequest` is a `PrHead` too.
+ */
+export type PrHead = Omit<PullRequest, MergeFields | ReviewFields | 'timelineItems'> & {
+  commits: { totalCount: number; nodes: { commit: { statusCheckRollup: { state: CheckState; contexts: { nodes: { __typename: string }[] } } | null } }[] };
+};
+/** The first part with the merge part: what the merge box needs. */
+export type PrWithMerge = Omit<PullRequest, ReviewFields | 'timelineItems'>;
+/** The first part with the review part: what the people card and the composer need. */
+export type PrWithReview = Omit<PullRequest, MergeFields | 'timelineItems'>;
+
+type RepoHead = { nameWithOwner: string; isPrivate: boolean };
+type RepoMerge = {
+  mergeCommitAllowed: boolean;
+  squashMergeAllowed: boolean;
+  rebaseMergeAllowed: boolean;
+  autoMergeAllowed: boolean;
+  viewerDefaultMergeMethod: MergeMethod;
+  /** Missing from a result stored before it was asked for. */
+  viewerPermission?: Permission | null;
+};
+export type Repo = RepoHead & RepoMerge;
+
+/** What a part's query returns: some of the repository's fields and some of the pull request's. */
+type Part<R, P> = { repository: (R & { pullRequest: P | null }) | null };
+type HeadPart = Part<RepoHead, PrHead>;
+type MergePart = Part<RepoMerge, Pick<PullRequest, MergeFields>>;
+type ReviewPart = Part<object, Pick<PullRequest, ReviewFields>>;
+type TimelinePart = Part<object, Pick<PullRequest, 'timelineItems'>>;
 
 /** "owner/repo" of a pull request, for REST paths. */
 export const repoPath = (pr: { url: string }) => new URL(pr.url).pathname.split('/').slice(1, 3).join('/');
@@ -390,14 +431,49 @@ export const EDIT_MUTATIONS = {
 
 const prKey = (owner: string, repo: string, number: number) => [owner.toLowerCase(), repo.toLowerCase(), number] as const;
 
-export const prQuery = (owner: string, repo: string, number: number) =>
+/**
+ * One part of a pull request, persisted, so a revisit shows every part at once. Each part's key starts with the
+ * first part's key (`prQuery`), so invalidating that key refetches the whole pull request.
+ */
+const partQuery = <T>(query: string, owner: string, repo: string, number: number, ...part: [] | [string]) =>
   queryOptions({
     // The version keeps results persisted by an older build (missing newer fields) from rendering.
-    // Bump it whenever PR_QUERY gains fields.
-    queryKey: ['pr', 3, ...prKey(owner, repo, number)],
-    queryFn: () => gql<PrData>(PR_QUERY, { owner, repo, number }, true),
+    // Bump it whenever a part gains fields.
+    queryKey: ['pr', 4, ...prKey(owner, repo, number), ...part],
+    queryFn: () => gql<T>(query, { owner, repo, number }, true),
     persister: persisted,
   });
+
+/** The first part: the header and the description. Its key is the whole pull request's; mutations invalidate it. */
+export const prQuery = (owner: string, repo: string, number: number) => partQuery<HeadPart>(PR_HEAD_QUERY, owner, repo, number);
+export const prMergeQuery = (owner: string, repo: string, number: number) => partQuery<MergePart>(PR_MERGE_QUERY, owner, repo, number, 'merge');
+export const prReviewQuery = (owner: string, repo: string, number: number) => partQuery<ReviewPart>(PR_REVIEW_QUERY, owner, repo, number, 'review');
+export const prTimelineQuery = (owner: string, repo: string, number: number) =>
+  partQuery<TimelinePart>(PR_TIMELINE_QUERY, owner, repo, number, 'timeline');
+
+/**
+ * What has loaded of a pull request, from its parts' results: the first part (`pr` and `repo`), each other part
+ * joined to it once it is in, and `full` once every part is in. Undefined until the first part is in; null
+ * when GitHub has no such pull request.
+ */
+export function joinPr(head: HeadPart | undefined, merge: MergePart | undefined, review: ReviewPart | undefined, timeline: TimelinePart | undefined) {
+  if (!head) return undefined;
+  if (!head.repository?.pullRequest) return null;
+  const { pullRequest: pr, ...repo } = head.repository;
+  let withMerge: { pr: PrWithMerge; repo: Repo } | undefined;
+  if (merge?.repository?.pullRequest) {
+    const { pullRequest, ...mergeRepo } = merge.repository;
+    // After the first part, so the checks in full replace the first part's states.
+    withMerge = { pr: { ...pr, ...pullRequest }, repo: { ...repo, ...mergeRepo } };
+  }
+  const reviewPr = review?.repository?.pullRequest;
+  const withReview: PrWithReview | undefined = reviewPr ? { ...pr, ...reviewPr } : undefined;
+  const timelineItems = timeline?.repository?.pullRequest?.timelineItems;
+  const full =
+    withMerge && reviewPr && timelineItems ? { pr: { ...withMerge.pr, ...reviewPr, timelineItems } satisfies PullRequest, repo: withMerge.repo } : undefined;
+  return { pr, repo, merge: withMerge, review: withReview, timelineItems, full };
+}
+export type LoadedPr = NonNullable<ReturnType<typeof joinPr>>;
 
 const PR_STATUS_QUERY = /* GraphQL */ `
   query PullRequestStatus($owner: String!, $repo: String!, $number: Int!) {
@@ -418,7 +494,7 @@ type PrStatus = Pick<PullRequest, 'state' | 'headRefOid' | 'mergeable' | 'mergeS
 };
 
 /** True while GitHub is still deciding something about an open PR: its checks, mergeability or queue spot. */
-export const isSettling = (pr: PullRequest) =>
+export const isSettling = (pr: PrWithMerge) =>
   pr.state === 'OPEN' &&
   (summarizeChecks(pr.commits.nodes[0]?.commit.statusCheckRollup?.contexts.nodes ?? []).PENDING > 0 ||
     pr.mergeable === 'UNKNOWN' ||
@@ -426,8 +502,8 @@ export const isSettling = (pr: PullRequest) =>
 
 /**
  * The few PR fields that change while CI runs, polled by PrPage instead of the full PR. Each result is
- * written into the cached full PR, so everything reading it (merge box, Checks tab icon) stays current. When
- * the head commit, state or timeline moved, the full PR is refetched instead.
+ * written into the cached merge part, so everything reading it (merge box, Checks tab icon) stays current.
+ * When the head commit, state or timeline moved, the whole PR is refetched instead.
  */
 export const prStatusQuery = (owner: string, repo: string, number: number) =>
   queryOptions({
@@ -437,20 +513,22 @@ export const prStatusQuery = (owner: string, repo: string, number: number) =>
       const status = repository?.pullRequest ?? null;
       const previous = client.getQueryData<PrStatus | null>(queryKey);
       const full = prQuery(owner, repo, number).queryKey;
-      const cached = client.getQueryData(full)?.repository;
+      const head = client.getQueryData(full)?.repository?.pullRequest;
+      const merge = prMergeQuery(owner, repo, number).queryKey;
+      const cached = client.getQueryData(merge)?.repository;
       const pr = cached?.pullRequest;
-      if (!status || !cached || !pr) return status;
+      if (!status || !head || !cached || !pr) return status;
 
-      const { commits, timelineItems, ...fields } = status;
-      // This counts every timeline item, the full PR only some kinds, so compare it with the last poll.
+      const { state, headRefOid, commits, timelineItems, ...fields } = status;
+      // This counts every timeline item, the timeline part only some kinds, so compare it with the last poll.
       const timelineMoved = previous && previous.timelineItems.totalCount !== timelineItems.totalCount;
-      if (status.headRefOid !== pr.headRefOid || status.state !== pr.state || timelineMoved) {
+      if (headRefOid !== head.headRefOid || state !== head.state || timelineMoved) {
         // A slow refetch can outlast one poll; let it finish rather than restart it.
         client.invalidateQueries({ queryKey: full }, { cancelRefetch: false });
       } else {
-        // Keep the PR's own age, so this doesn't hold off its next refetch on focus or mount.
-        const updatedAt = client.getQueryState(full)?.dataUpdatedAt;
-        client.setQueryData(full, { repository: { ...cached, pullRequest: { ...pr, ...fields, commits: { ...pr.commits, nodes: commits.nodes } } } }, { updatedAt });
+        // Keep the part's own age, so this doesn't hold off its next refetch on focus or mount.
+        const updatedAt = client.getQueryState(merge)?.dataUpdatedAt;
+        client.setQueryData(merge, { repository: { ...cached, pullRequest: { ...pr, ...fields, commits: { ...pr.commits, nodes: commits.nodes } } } }, { updatedAt });
       }
       return status;
     },
@@ -534,51 +612,15 @@ export const prViewedQuery = (owner: string, repo: string, number: number) =>
     persister: persisted,
   });
 
-// What the page header and Files changed need, in a fraction of the full pull request's time.
-const PR_HEAD_QUERY = /* GraphQL */ `
-  query PullRequestHead($owner: String!, $repo: String!, $number: Int!) {
-    repository(owner: $owner, name: $repo) {
-      isPrivate
-      pullRequest(number: $number) {
-        id number title url state isDraft createdAt viewerCanUpdate
-        author { login avatarUrl }
-        baseRefName headRefName headRefOid isCrossRepository
-        headRepositoryOwner { login }
-        additions deletions changedFiles
-        commits(last: 1) { totalCount nodes { commit { statusCheckRollup { state contexts(first: 100) { nodes { __typename } } } } } }
-      }
-    }
-  }
-`;
-
-/** The part of a pull request that the header and Files changed show. The full `PullRequest` is one too. */
-export type PrHead = Pick<
-  PullRequest,
-  | 'id' | 'number' | 'title' | 'url' | 'state' | 'isDraft' | 'createdAt' | 'viewerCanUpdate' | 'author' | 'baseRefName' | 'headRefName'
-  | 'headRefOid' | 'isCrossRepository' | 'headRepositoryOwner' | 'additions' | 'deletions' | 'changedFiles'
-> & {
-  commits: { totalCount: number; nodes: { commit: { statusCheckRollup: { state: CheckState; contexts: { nodes: { __typename: string }[] } } | null } }[] };
-};
-type PrHeadData = { repository: { isPrivate: boolean; pullRequest: PrHead | null } | null };
-
-/**
- * The header and Files changed before the full pull request loads, which takes seconds on a large one. Not
- * persisted: a revisit has the persisted full pull request.
- */
-export const prHeadQuery = (owner: string, repo: string, number: number) =>
-  queryOptions({
-    queryKey: ['pr-head', ...prKey(owner, repo, number)],
-    queryFn: () => gql<PrHeadData>(PR_HEAD_QUERY, { owner, repo, number }),
-  });
-
 /** What a pull request URL will show, started early (page load, link hover) by src/app/prefetch.ts. */
 export function prefetchPr(client: QueryClient, owner: string, repo: string, number: number, tab: PrTab) {
-  client.prefetchQuery(prQuery(owner, repo, number));
+  const head = client.fetchQuery(prQuery(owner, repo, number));
+  head.catch(() => {});
+  client.prefetchQuery(prMergeQuery(owner, repo, number));
+  client.prefetchQuery(prReviewQuery(owner, repo, number));
+  client.prefetchQuery(prTimelineQuery(owner, repo, number));
   if (tab !== 'files') return;
   client.prefetchQuery(prViewedQuery(owner, repo, number));
-  // Patches are keyed by the head commit; look it up on its own so they don't wait for the full pull request.
-  client
-    .fetchQuery(prHeadQuery(owner, repo, number))
-    .then(({ repository }) => repository?.pullRequest && client.prefetchQuery(prFilesQuery(owner, repo, repository.pullRequest)))
-    .catch(() => {});
+  // Patches are keyed by the head commit, which the first part brings.
+  head.then(({ repository }) => repository?.pullRequest && client.prefetchQuery(prFilesQuery(owner, repo, repository.pullRequest))).catch(() => {});
 }

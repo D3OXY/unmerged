@@ -7,8 +7,8 @@ import { timeAgo } from '@/lib/time';
 import { Menu, type MenuOption } from '@/ui/Menu';
 import { Avatar, Panel, Pill } from '@/ui/primitives';
 import { CheckIcon, IssueIcon, PrStateIcon } from '@/ui/status';
-import type { RepoLabel } from '@/ui/WorkRow';
-import { isPeek, qualifierOf, sortOf, SORTS, withQualifier, type PrItem, type Sort, type WorkItem } from './queries';
+import { NotLoaded, type Details, type RepoLabel } from '@/ui/WorkRow';
+import { isPeek, qualifierOf, sortOf, SORTS, withQualifier, type PrDetails, type Sort, type WorkDetails, type WorkItem } from './queries';
 
 const REVIEWS: MenuOption<string>[] = [
   { value: '', label: 'Any' },
@@ -40,10 +40,12 @@ const COL = {
 /**
  * Pull requests as a table: state, title, repository (or author, inside a repo), review, CI, size, comments and
  * time. The headers carry the list's controls: Review and CI filter, Comments and the time column sort, each by
- * rewriting one qualifier of `q`. With `peek` (the side panel setting) rows open beside the list.
+ * rewriting one qualifier of `q`. With `peek` (the side panel setting) rows open beside the list. Review, CI,
+ * size and comments come from `details`, which land after the rows.
  */
-export function PrTable({ items, q, onQuery, repoLabel, peek, open, footer }: {
+export function PrTable({ items, details, q, onQuery, repoLabel, peek, open, footer }: {
   items: WorkItem[];
+  details: Map<string, WorkDetails | null>;
   q: string;
   onQuery: (q: string) => void;
   repoLabel: RepoLabel;
@@ -89,7 +91,7 @@ export function PrTable({ items, q, onQuery, repoLabel, peek, open, footer }: {
         </span>
       </div>
       {items.map((item) => (
-        <PrRow key={item.id} item={item} repoLabel={repoLabel} byCreated={byCreated} peek={peek} selected={isPeek(item, open)} />
+        <PrRow key={item.id} item={item} details={details.get(item.id)} repoLabel={repoLabel} byCreated={byCreated} peek={peek} selected={isPeek(item, open)} />
       ))}
       {footer}
     </Panel>
@@ -117,9 +119,18 @@ function HeaderFilter({ label, value, options, onChange, className }: { label: s
 }
 
 /** One row. Issues can turn up too (the search is editable); they leave the pull request columns empty. */
-function PrRow({ item, repoLabel, byCreated, peek, selected }: { item: WorkItem; repoLabel: RepoLabel; byCreated: boolean; peek: boolean; selected: boolean }) {
+function PrRow({ item, details, repoLabel, byCreated, peek, selected }: {
+  item: WorkItem;
+  details: Details<WorkDetails>;
+  repoLabel: RepoLabel;
+  byCreated: boolean;
+  peek: boolean;
+  selected: boolean;
+}) {
   const pr = item.__typename === 'PullRequest' ? item : null;
-  const comments = item.comments.totalCount;
+  const prDetails = details?.__typename === 'PullRequest' ? details : undefined;
+  const comments = details?.comments.totalCount ?? 0;
+  const missing = (className: string) => !details && <NotLoaded failed={details === null} className={className} />;
   return (
     <a
       href={item.url}
@@ -161,12 +172,11 @@ function PrRow({ item, repoLabel, byCreated, peek, selected }: { item: WorkItem;
           <span data-private="repos" className="truncate">{repoLabel === 'full' ? item.repository.nameWithOwner : item.repository.nameWithOwner.split('/')[1]}</span>
         )}
       </span>
-      <span className={cx(COL.review, 'items-center gap-2')}>{pr && <Review pr={pr} />}</span>
-      <span className={COL.ci}>
-        <CheckIcon state={pr?.commits.nodes[0]?.commit.statusCheckRollup?.state} />
-      </span>
-      <span className={COL.size}>{pr && <Size pr={pr} />}</span>
+      <span className={cx(COL.review, 'items-center gap-2')}>{pr && (prDetails ? <Review pr={prDetails} /> : missing('w-12'))}</span>
+      <span className={cx(COL.ci, 'items-center')}>{pr && (prDetails ? <CheckIcon state={prDetails.commits.nodes[0]?.commit.statusCheckRollup?.state} /> : missing('w-3.5'))}</span>
+      <span className={cx(COL.size, 'items-center')}>{pr && (prDetails ? <Size pr={prDetails} /> : missing('w-10'))}</span>
       <span className={cx(COL.comments, 'items-center gap-1 text-[12px] text-subtle tabular-nums')}>
+        {missing('w-5')}
         {comments > 0 && (
           <>
             <HugeiconsIcon icon={Comment01Icon} className="size-3" />
@@ -186,7 +196,7 @@ const DECISIONS = {
 } as const;
 
 /** The review decision, and the faces behind it: who reviewed, then who's still asked. */
-function Review({ pr }: { pr: PrItem }) {
+function Review({ pr }: { pr: PrDetails }) {
   const decision = pr.reviewDecision && DECISIONS[pr.reviewDecision];
   const people = [
     ...pr.latestOpinionatedReviews.nodes.flatMap(({ author }) => (author ? [{ name: author.login, avatarUrl: author.avatarUrl }] : [])),
@@ -215,7 +225,7 @@ const SIZES = [
 ] as const;
 
 /** Lines changed as a four-step bar; the exact counts are in its tooltip. */
-function Size({ pr }: { pr: PrItem }) {
+function Size({ pr }: { pr: PrDetails }) {
   const step = SIZES.findIndex(([max]) => pr.additions + pr.deletions < max);
   return (
     <span className="flex items-center gap-1.5 text-[12px] text-subtle" title={`+${pr.additions} −${pr.deletions}`}>

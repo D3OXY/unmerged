@@ -7,6 +7,7 @@ import { installKeyboard } from '@/app/keyboard';
 import { appState, authRejected, onApiError, type AppState } from '@/app/state';
 import { GitHubError } from '@/github/client';
 import { takeEarlyAnswers } from '@/github/early';
+import { preloadCode } from '@/lib/diffs';
 import { loadFonts } from '@/lib/fonts';
 import { classicPath, clearClassicUnless } from '@/lib/classic';
 import { emitNavigate, isModifiedClick, navigate, onNavigate, setOwns, withPeek } from '@/lib/navigation';
@@ -136,8 +137,13 @@ export default defineContentScript({
       queryCache: new QueryCache({ onError: onApiError }),
       mutationCache: new MutationCache({ onError: onApiError }),
     });
+    // A page's requests and, for a page of code, what it draws with.
+    const prefetch = (route: Route, url: URL) => {
+      prefetchRoute(queryClient, route, url);
+      preloadCode(route);
+    };
     const start = resolve(new URL(location.href));
-    if (start?.owning) prefetchRoute(queryClient, start.route, new URL(location.href));
+    if (start?.owning) prefetch(start.route, new URL(location.href));
 
     setPageAccount(await account);
     // A new token or Disconnect (in the settings page): everything this tab holds is the old account's.
@@ -245,7 +251,7 @@ export default defineContentScript({
       if (!anchor?.href) return;
       const url = new URL(anchor.href);
       const target = url.origin === location.origin && url.href !== location.href ? resolve(url) : null;
-      return target?.owning ? () => prefetchRoute(queryClient, target.route, url) : undefined;
+      return target?.owning ? () => prefetch(target.route, url) : undefined;
     };
     let hover: ReturnType<typeof setTimeout> | undefined;
     ctx.addEventListener(document, 'pointerover', (event) => {

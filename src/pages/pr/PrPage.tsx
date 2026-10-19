@@ -8,7 +8,6 @@ import { openClassic } from '@/lib/classic';
 import { copy } from '@/lib/clipboard';
 import { cx } from '@/lib/cx';
 import { loadDiffs } from '@/lib/diffs';
-import { useIsDark } from '@/lib/settings';
 import { navigate } from '@/lib/navigation';
 import type { PrTab } from '@/lib/routes';
 import { timeAgo } from '@/lib/time';
@@ -21,7 +20,22 @@ import { ChecksTab } from './ChecksTab';
 import { CommitsTab } from './CommitsTab';
 import { ConversationTab } from './ConversationTab';
 import { FilesTab } from './files/FilesTab';
-import { EDIT_MUTATIONS, isSettling, MUTATIONS, prFilesQuery, prHeadQuery, prQuery, prStatusQuery, prViewedQuery, type PrHead, type PullRequest, type Repo } from './query';
+import {
+  EDIT_MUTATIONS,
+  isSettling,
+  joinPr,
+  MUTATIONS,
+  prFilesQuery,
+  prMergeQuery,
+  prQuery,
+  prReviewQuery,
+  prStatusQuery,
+  prTimelineQuery,
+  prViewedQuery,
+  type LoadedPr,
+  type PrHead,
+  type PrWithMerge,
+} from './query';
 import { SlideToMerge } from './SlideToMerge';
 import { usePrMutation } from './usePrMutation';
 
@@ -32,7 +46,7 @@ const IDLE_PREFETCH_MAX_FILES = 300;
 
 /** A pull request: shared header and tab bar over Conversation, Commits, Checks and Files changed. */
 export function PrPage({ owner, repo, number, tab }: Props) {
-  const { shown } = usePr(owner, repo, number, tab);
+  const shown = useQuery(prQuery(owner, repo, number)).data?.repository;
   const pr = shown?.pullRequest;
   useTitle(pr && `${pr.title} · Pull Request #${number} · ${owner}/${repo}`);
   const base = `/${owner}/${repo}`;
@@ -61,31 +75,24 @@ export function PrPage({ owner, repo, number, tab }: Props) {
 }
 
 /**
- * The full pull request, and the repository and pull request that the header shows (`shown`): the full one once
- * it loads. Before that, on Files changed, `shown` comes from the small head query, so the header and the
- * patches don't wait seconds for the full pull request of a large one.
- */
-function usePr(owner: string, repo: string, number: number, tab: PrTab) {
-  const query = prQuery(owner, repo, number);
-  const full = useQuery(query);
-  const head = useQuery({ ...prHeadQuery(owner, repo, number), enabled: tab === 'files' && !full.data });
-  return { query, full, shown: full.data?.repository ?? head.data?.repository };
-}
-
-/**
  * The pull request without the page's frame: on its own page and in a list's side panel (`panel`), where its
  * tabs switch the panel instead of leaving the list.
  */
 export function PrContent({ owner, repo, number, tab, panel }: Props & { panel?: boolean }) {
-  const { query, full: { data, error }, shown } = usePr(owner, repo, number, tab);
+  const query = prQuery(owner, repo, number);
   const { queryKey } = query;
-  const repository = data?.repository;
-  const pr = repository?.pullRequest;
+  const head = useQuery(query);
+  const merge = useQuery(prMergeQuery(owner, repo, number));
+  const review = useQuery(prReviewQuery(owner, repo, number));
+  const timeline = useQuery(prTimelineQuery(owner, repo, number));
+  const error = head.error ?? merge.error ?? review.error ?? timeline.error;
+  // Each part's data keeps its identity until it changes, so the joined objects do too.
+  const loaded = useMemo(() => joinPr(head.data, merge.data, review.data, timeline.data), [head.data, merge.data, review.data, timeline.data]);
+  const pr = loaded?.pr;
 
   // While the reader is on another tab, get Files changed ready: the diff renderer, the viewed marks, and
   // (unless there are too many) the files themselves and the grammars for their languages.
   const queryClient = useQueryClient();
-  const dark = useIsDark();
   const headRefOid = pr?.headRefOid;
   const changedFiles = pr?.changedFiles;
   useEffect(() => {
@@ -94,15 +101,15 @@ export function PrContent({ owner, repo, number, tab, panel }: Props & { panel?:
       queryClient.prefetchQuery(prViewedQuery(owner, repo, number));
       const files = changedFiles > IDLE_PREFETCH_MAX_FILES ? [] : queryClient.fetchQuery(prFilesQuery(owner, repo, { number, headRefOid, changedFiles }));
       Promise.all([loadDiffs(), files])
-        .then(([renderer, list]) => renderer.preloadHighlighting(list.map((f) => f.filename), dark))
+        .then(([renderer, list]) => renderer.preloadHighlighting(list.map((f) => f.filename)))
         .catch(() => {});
     });
     return () => cancelIdleCallback(id);
-  }, [queryClient, owner, repo, number, headRefOid, changedFiles, dark]);
+  }, [queryClient, owner, repo, number, headRefOid, changedFiles]);
 
-  const poll = useStatusPoll(owner, repo, number, pr);
+  const poll = useStatusPoll(owner, repo, number, loaded?.merge?.pr);
 
-  if (error || (data && !pr)) {
+  if (error || loaded === null) {
     return (
       <div className="p-10 text-[13px]">
         <p className="text-danger">{error?.message ?? 'Pull request not found.'}</p>
@@ -112,12 +119,11 @@ export function PrContent({ owner, repo, number, tab, panel }: Props & { panel?:
       </div>
     );
   }
-  const head = shown?.pullRequest;
-  if (!head) return <PrSkeleton />;
-  const full = pr && repository ? { pr, repo: repository } : undefined;
+  if (!loaded) return <PrSkeleton />;
+  const { full } = loaded;
   return (
     <>
-      <PrView pr={head} full={full} tab={tab} queryKey={queryKey} poll={poll} panel={panel} />
+      <PrView loaded={loaded} tab={tab} queryKey={queryKey} poll={poll} panel={panel} />
       {/* Outside PrView: its entry animation's transform would pin the fixed slider to the page, not the window. */}
       {full && <SlideToMerge pr={full.pr} repo={full.repo} queryKey={queryKey} />}
     </>
@@ -128,10 +134,10 @@ type StatusPoll = ReturnType<typeof useStatusPoll>;
 
 /**
  * Keeps an open PR's checks, mergeability and queue spot live: polls the small status query (which writes
- * into the full PR) while GitHub is still deciding. `watch()` polls for a minute regardless, because a re-run
+ * into the merge part) while GitHub is still deciding. `watch()` polls for a minute regardless, because a re-run
  * GitHub hasn't queued yet still looks finished.
  */
-function useStatusPoll(owner: string, repo: string, number: number, pr: PullRequest | null | undefined) {
+function useStatusPoll(owner: string, repo: string, number: number, pr: PrWithMerge | undefined) {
   const queryClient = useQueryClient();
   const status = prStatusQuery(owner, repo, number);
   const [watchedAt, setWatchedAt] = useState<number>();
@@ -150,12 +156,11 @@ function useStatusPoll(owner: string, repo: string, number: number, pr: PullRequ
 }
 
 /**
- * The header and the open tab. `pr` is enough for the header and Files changed; the other tabs, and Approve,
- * wait for `full`.
+ * The header and the open tab. The first part is enough for the header, Commits, Checks and Files changed;
+ * Conversation fills in each other part as it lands, and Approve waits for `full`.
  */
-function PrView({ pr, full, tab, queryKey, poll, panel }: {
-  pr: PrHead;
-  full?: { pr: PullRequest; repo: Repo };
+function PrView({ loaded, tab, queryKey, poll, panel }: {
+  loaded: LoadedPr;
   tab: PrTab;
   queryKey: QueryKey;
   poll: StatusPoll;
@@ -163,6 +168,7 @@ function PrView({ pr, full, tab, queryKey, poll, panel }: {
 }) {
   const approve = usePrMutation(queryKey);
   const draft = usePrMutation(queryKey);
+  const { pr, full } = loaded;
   const total = pr.additions + pr.deletions || 1;
   const fullPr = full?.pr;
 
@@ -209,7 +215,8 @@ function PrView({ pr, full, tab, queryKey, poll, panel }: {
   }, [pr, fullPr]);
   useRegisterCommands('pr', commands);
 
-  const rollup = pr.commits.nodes[0]?.commit.statusCheckRollup;
+  // The merge part's checks are the ones the status poll keeps current.
+  const rollup = (loaded.merge?.pr ?? pr).commits.nodes[0]?.commit.statusCheckRollup;
 
   return (
     <div className="mx-auto max-w-[1600px] animate-enter px-6 pt-8 pb-8">
@@ -260,11 +267,9 @@ function PrView({ pr, full, tab, queryKey, poll, panel }: {
         <Tab href={`${pr.url}/files`} peek={panel} active={tab === 'files'} icon={<HugeiconsIcon icon={FileDiffIcon} />} label="Files changed" count={pr.changedFiles} />
       </TabBar>
 
-      {/* Each tab keeps its slot, so Files changed doesn't mount again when the full pull request lands. */}
-      {!full && tab !== 'files' && <TabSkeleton />}
-      {full && tab === 'conversation' && <ConversationTab pr={full.pr} repo={full.repo} queryKey={queryKey} />}
-      {full && tab === 'commits' && <CommitsTab pr={full.pr} />}
-      {full && tab === 'checks' && <ChecksTab pr={full.pr} watching={poll.watching} onRerun={poll.watch} />}
+      {tab === 'conversation' && <ConversationTab loaded={loaded} queryKey={queryKey} />}
+      {tab === 'commits' && <CommitsTab pr={pr} />}
+      {tab === 'checks' && <ChecksTab pr={pr} watching={poll.watching} onRerun={poll.watch} />}
       {tab === 'files' && <FilesTab pr={pr} full={full?.pr} queryKey={queryKey} />}
     </div>
   );
