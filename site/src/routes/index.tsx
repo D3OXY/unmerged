@@ -280,8 +280,8 @@ function Speed() {
     >
       <Benchmark />
       <p className="mt-3 text-[12.5px] leading-relaxed text-subtle">
-        Time is from the start of the navigation until the page's content is on screen; data is what crossed the network,
-        compressed. Median of {setup.runs} runs on {setup.date}, {setup.signedIn ? 'signed in to' : 'signed out of'} github.com,
+        Time is until the page's content is on screen: for a page load from the start of the navigation, for a click from
+        the click, after a 150 ms hover on the link. Data is what crossed the network, compressed. Median of {setup.runs} runs on {setup.date}, {setup.signedIn ? 'signed in to' : 'signed out of'} github.com,
         in headless Chromium.{' '}
         <a href={`${REPO_URL}/tree/main/bench`} className="text-muted underline underline-offset-2 hover:text-fg">
           How it's measured, and run it yourself

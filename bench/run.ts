@@ -18,6 +18,7 @@ import { chromium, type BrowserContext, type Request } from 'playwright';
 export type Scenario = {
   id: string;
   label: string;
+  /** One short line under the label on the site, which cuts it off past about 30 characters. */
   detail: string;
   url: string;
   marker: string | ((token: string) => Promise<string>);
@@ -28,35 +29,35 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'repo',
     label: 'Repository',
-    detail: 'TanStack/query, up to its README',
+    detail: 'TanStack/query',
     url: 'https://github.com/TanStack/query',
     marker: 'An async state management library built to simplify fetching',
   },
   {
     id: 'pr',
     label: 'Pull request',
-    detail: 'A small PR, up to its description (#12030)',
+    detail: 'A small PR · #12030',
     url: 'https://github.com/TanStack/query/pull/12030',
     marker: 'failed type checking with',
   },
   {
     id: 'issue',
     label: 'Long issue',
-    detail: '91 comments, up to the newest one (#1657)',
+    detail: '91 comments · #1657',
     url: 'https://github.com/TanStack/query/issues/1657',
     marker: 'the two identical requests can clobber the same key',
   },
   {
     id: 'files',
     label: 'Files changed, 133 files',
-    detail: '+1 −668 lines, up to the first diff (#11827)',
+    detail: '+1 −668 lines · #11827',
     url: 'https://github.com/TanStack/query/pull/11827/files',
     marker: 'flat/recommended-typescript',
   },
   {
     id: 'huge',
     label: 'Files changed, 2,416 files',
-    detail: '+56,023 −39,471 lines, up to the first diff (#12054)',
+    detail: '+56k −39k lines · #12054',
     url: 'https://github.com/TanStack/query/pull/12054/files',
     marker: 'incorporate upstream adapter fixes',
   },
@@ -64,14 +65,14 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'bun-pr',
     label: 'Very long pull request',
-    detail: '707 comments and 170 reviews, up to its description (oven-sh/bun#30412)',
+    detail: '707 comments · bun#30412',
     url: 'https://github.com/oven-sh/bun/pull/30412',
     marker: 'compiler-assisted tools for catching',
   },
   {
     id: 'bun-files',
     label: 'Files changed, 2,188 files',
-    detail: '+1,009,257 −4,024 lines, up to the first diff (oven-sh/bun#30412)',
+    detail: '+1M lines · bun#30412',
     url: 'https://github.com/oven-sh/bun/pull/30412/files',
     marker: 'Serialize Apply-phase agents',
   },
@@ -80,7 +81,7 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'to-pulls',
     label: 'Repository → Pull requests',
-    detail: 'The Pull requests tab, up to the newest open PR',
+    detail: 'TanStack/query',
     url: 'https://github.com/TanStack/query/pulls',
     marker: newestOpenPr,
     from: { url: 'https://github.com/TanStack/query', link: 'a[href$="/TanStack/query/pulls"]:visible' },
@@ -88,7 +89,7 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'to-pr',
     label: 'Pull requests → a PR',
-    detail: 'From a list of merged PRs, up to its description (#12030)',
+    detail: 'From merged PRs · #12030',
     url: 'https://github.com/TanStack/query/pull/12030',
     marker: 'failed type checking with',
     // Merged on one day: a list that doesn't change.
@@ -97,7 +98,7 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'to-files',
     label: 'Pull request → Files changed',
-    detail: 'The Files changed tab, 133 files, up to the first diff (#11827)',
+    detail: '133 files · #11827',
     url: 'https://github.com/TanStack/query/pull/11827/files',
     marker: 'flat/recommended-typescript',
     // GitHub's newer Files changed lives at /changes; either link counts.
