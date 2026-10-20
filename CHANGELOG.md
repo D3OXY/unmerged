@@ -1,5 +1,36 @@
 # unmerged
 
+## 0.1.1 (2026-10-20)
+
+### Patch Changes
+
+- [New][Actions] The Actions page opens in Unmerged: every workflow's runs or one workflow's, with GitHub's filters (is:, branch:, event:, actor:), a status menu, and runs that update while they're in progress.
+- [Improved][Speed] Pages that Unmerged shows open sooner when you open them in a new tab, reload them or follow a link from another site: Unmerged no longer waits for GitHub to build its full page (up to 7 seconds on a very large pull request). Chrome only for now.
+- [Improved][Pull requests] Files changed, commits and comparisons show diffs sooner. The text of a diff shows at once, and its colors follow a moment later. Highlighting no longer blocks scrolling or typing.
+- [Improved][Speed] Pages you open from the address bar, a bookmark or another site load sooner: their data starts loading as soon as you open the link, instead of after GitHub's own page starts to arrive.
+- [Improved][Pull request & issue lists] Pull request and issue lists show their rows sooner, in about a second instead of about five. Review, CI, size and comments fill in a moment later.
+- [Improved][Pull requests] On a large pull request, Files changed shows the header and the first diffs sooner. It no longer waits for the full pull request to load. Line comments become available a moment later.
+- [Fixed][Pull requests] Files changed shows the latest push right away, instead of the diff from a minute before.
+- [Improved][Pull requests] Files changed on a pull request with thousands of files opens without freezing the page.
+- [Improved][Issues] An issue opens faster. Its description, details and newest comments show first, and older comments and events show a moment later.
+- [Improved][Issues] Issue lists keep the open issue beside them, with its labels, assignees and milestone under the title; j/k moves through the list.
+- [Improved][Speed] Images in issues, pull requests, comments, READMEs and release notes load when you scroll near them, not all at once. A long issue with many screenshots loads much less data, and uploaded images keep their shape and space while they load.
+- [Improved][Speed] GitHub's own pages, the ones that Unmerged leaves to GitHub, open as fast as without the extension: Unmerged's code no longer runs on them.
+- [Improved][Settings] The on/off switches in settings move like a drop of liquid: the knob springs across and stretches while it moves.
+- [Improved][Pull requests] A pull request shows its description about three times sooner on a first visit. The merge box, checks, reviews and activity fill in as each one loads, and the Commits and Checks tabs no longer wait for the whole pull request.
+- [Improved][Pull requests] Pull request lists are a table: review, CI, size and comments in columns, with filters and sorting in the headers.
+- [Improved][Pull request & issue lists] A pull request or issue in a list opens almost at once, also without a hover. When a list (Pull requests, Issues, a repository's lists, Notifications) stays still for a moment, Unmerged gets the first 10 rows on screen ready. It does not do this on touch-only devices, with Data Saver, or on a slow connection.
+- [New][Settings] Privacy blurs details you may not want to show when you share your screen: organizations in the sidebar and on profiles, the names of private repositories, commit messages and pull request and issue titles in private repositories, and email addresses. Hover a detail to show it. Privacy is on by default; turn it off, or choose what it blurs, in Settings → Privacy.
+- [Improved][Pull requests] Files changed on a large pull request shows the first diffs as soon as they load, instead of after every file is in.
+- [New][Repositories] Releases and tags open in Unmerged: every release with its notes, assets and reactions, one release or the latest, and every tag with its commit and source code downloads.
+- [Improved][Repositories] Go to file and the Code menu sit on the branch row, so the sidebar starts with About.
+- [New][Repositories] Contributors open in Unmerged: commits, additions and deletions per week over any period, ranked by author, for private repositories too.
+- [Improved][Repositories] Repository lists filter by type, language and topic from a rail beside the list.
+- [Fixed][Repositories] The activity cards on a repository's front page fit with any font and repository size, keep still when you hover a week, and line up with each other.
+- [New][Repositories] A repository's front page opens with its last 12 weeks: commits, merged pull requests, issues and lines changed per week, CI on the default branch, and the latest release. Turn it off in Settings → General.
+- [New][Pull requests] Slide to merge: when a pull request is ready to merge, a slider in the bottom-right corner merges it from any tab. You can turn it off in settings.
+- [Improved][Pull requests] On pull requests with many files, Viewed marks load in two requests instead of one request for every 100 files.
+
 ## 0.1.0 (2026-10-18)
 
 The first release: Unmerged re-skins github.com in place, with the same URLs and session.
