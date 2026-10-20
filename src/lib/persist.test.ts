@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { storage, type StorageItemKey } from '#imports';
-import { persisted, saveToken, trimPersisted } from './persist';
+import { persisted, readPersisted, saveToken, trimPersisted } from './persist';
 import { accountItem, tokenItem } from './settings';
 
 const NOW = new Date('2026-06-01').getTime();
@@ -60,6 +60,17 @@ describe('persisted', () => {
 
     await fetchRepo({ stars: 2 });
     expect(await storage.getItem(KEY)).toEqual({ at: NOW + 60_000, data: { stars: 2 } });
+  });
+});
+
+describe('readPersisted', () => {
+  it("reads the account's stored results for the given queries, except expired ones", async () => {
+    await new QueryClient().fetchQuery({ queryKey: ['viewer'], queryFn: () => 'octocat', persister: persisted });
+    await trimPersisted();
+    await storage.setItem('local:query:a:["expired"]', { at: NOW - 8 * DAY, data: 'old' });
+
+    expect(await readPersisted('a', [['viewer'], ['expired'], ['missing']])).toEqual([{ queryKey: ['viewer'], at: NOW, data: 'octocat' }]);
+    expect(await readPersisted('b', [['viewer']])).toEqual([]);
   });
 });
 

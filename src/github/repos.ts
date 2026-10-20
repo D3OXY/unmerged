@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { cachedQuery } from '@/lib/localCache';
-import { persisted } from '@/lib/persist';
+import { persisted, recentReposKey } from '@/lib/persist';
 import { gql, rest } from './client';
 
 /** What the sidebar needs to draw a repo. */
@@ -64,16 +63,17 @@ export async function lookupRepos(names: string[]): Promise<RepoSummary[]> {
   return parts.flatMap((_, i) => data[`r${i}`] ?? []);
 }
 
-const recentCache = cachedQuery<RepoSummary[]>('unmerged:recent-repos');
-
+/**
+ * The sidebar's recent repos. `login` isn't in the key: it is the account's, and the query client is cleared when
+ * the account changes. A fixed key lets the content script read the stored result before the login is known.
+ */
 export function useRecentRepos(login: string | undefined) {
   return useQuery({
-    queryKey: ['recent-repos', login],
-    queryFn: () => recentCache.save(fetchRecentRepos(login!)),
+    queryKey: recentReposKey,
+    queryFn: () => fetchRecentRepos(login!),
     enabled: !!login,
-    initialData: recentCache.initialData,
-    initialDataUpdatedAt: recentCache.initialDataUpdatedAt,
     staleTime: 5 * 60_000,
+    persister: persisted,
   });
 }
 

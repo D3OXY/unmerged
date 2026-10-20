@@ -1,4 +1,4 @@
-import type { Query } from '@tanstack/react-query';
+import { hashKey, type Query, type QueryKey } from '@tanstack/react-query';
 import { storage, type StorageItemKey } from '#imports';
 import { clearDrafts } from './drafts';
 import { accountItem, tokenItem } from './settings';
@@ -45,6 +45,25 @@ export async function persisted<T>(queryFn: (context: never) => T | Promise<T>, 
   const data = await fresh;
   enqueue(() => store(key, data));
   return data;
+}
+
+// The sidebar's queries. It shows on every owned page, so the content script reads their stored results with the
+// account (see `readPersisted`) and the app puts them in the query client before its first render.
+export const viewerKey = ['viewer'] as const;
+export const recentReposKey = ['recent-repos'] as const;
+
+/** A stored result, with the query it belongs to. */
+export type Seed = { queryKey: QueryKey } & Entry;
+
+/**
+ * Reads `account`'s stored results for `queryKeys` in one storage call. Results older than MAX_AGE are left out,
+ * as `persisted` leaves them out.
+ */
+export async function readPersisted(account: string, queryKeys: QueryKey[]): Promise<Seed[]> {
+  const entries = await storage.getItems(queryKeys.map((queryKey) => `${prefix(account)}${hashKey(queryKey)}` as const));
+  return entries.flatMap(({ value }: { value: Entry | null }, i) =>
+    value && Date.now() - value.at < MAX_AGE ? [{ queryKey: queryKeys[i]!, ...value }] : [],
+  );
 }
 
 /** Drops other accounts' results, expired ones, and the oldest past MAX_BYTES. Reads only the index. */
