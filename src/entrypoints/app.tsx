@@ -12,9 +12,9 @@ import { GitHubError } from '@/github/client';
 import { takeEarlyAnswers } from '@/github/early';
 import { preloadCode } from '@/lib/diffs';
 import { loadFonts } from '@/lib/fonts';
-import { localCache, setPageAccount } from '@/lib/localCache';
+import { localCache } from '@/lib/localCache';
 import { emitNavigate, navigate, onNavigate, setOwns } from '@/lib/navigation';
-import { trimPersisted } from '@/lib/persist';
+import { trimPersisted, type Seed } from '@/lib/persist';
 import type { Route } from '@/lib/routes';
 import { accountItem, blurredKinds, DEFAULT_PRIVACY, fontItem, privacyItem, type Font, type Privacy } from '@/lib/settings';
 
@@ -27,8 +27,8 @@ const TRIMMED_KEY = 'unmerged:trimmed-at';
 type Boot = {
   /** The shadow root's host, which our UI renders in. */
   host: HTMLElement;
-  /** The extension's account, read at document_start. */
-  account: string;
+  /** Stored results that the first render shows: the sidebar's (see `readPersisted`). */
+  seeds: Seed[];
   owns: (url: URL) => boolean;
   /** Whether our page is showing (GitHub's is hidden) now. */
   isOwning: () => boolean;
@@ -37,12 +37,13 @@ type Boot = {
 };
 
 /** Starts the app once per page; the content script calls what it returns. */
-function start({ host, account, owns, isOwning, sync }: Boot) {
+function start({ host, seeds, owns, isOwning, sync }: Boot) {
   // The background may have started the first requests already (see github/early.ts).
   takeEarlyAnswers();
   setOwns(owns);
-  // Before anything renders: API data cached in the page must be this account's.
-  setPageAccount(account);
+  // Unmerged 0.1.1 and earlier kept the sidebar's API data in github.com's localStorage, where the page's scripts
+  // can read it. Remove it.
+  for (const key of ['unmerged:viewer', 'unmerged:recent-repos', 'unmerged:account']) localStorage.removeItem(key);
 
   // Only network failures and 5xx are retried: a 4xx (or a GraphQL error) would answer the same again.
   // Mutations run even while queries are paused for a rate limit (see onApiError), so an action fails
@@ -55,10 +56,11 @@ function start({ host, account, owns, isOwning, sync }: Boot) {
     queryCache: new QueryCache({ onError: onApiError }),
     mutationCache: new MutationCache({ onError: onApiError }),
   });
+  // Dated when each was fetched, so the queries' `staleTime` holds across page loads.
+  for (const { queryKey, data, at } of seeds) queryClient.setQueryData(queryKey, data, { updatedAt: at });
 
   // A new token or Disconnect (in the settings page): everything this tab holds is the old account's.
-  accountItem.watch((id) => {
-    setPageAccount(id);
+  accountItem.watch(() => {
     if (isOwning()) return location.reload();
     queryClient.clear();
     authRejected.set(false);

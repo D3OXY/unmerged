@@ -8,6 +8,7 @@ import { isModifiedClick, withPeek } from '@/lib/navigation';
 import { matchRoute, type Route } from '@/lib/routes';
 import { sessionLogin } from '@/lib/session';
 import { localCache } from '@/lib/localCache';
+import { readPersisted, recentReposKey, viewerKey } from '@/lib/persist';
 import { accountItem, DEFAULT_SURFACES, followTheme, surfaceOf, surfacesItem, type Surfaces } from '@/lib/settings';
 import { paintPalette } from '@/lib/theme';
 
@@ -54,8 +55,10 @@ export default defineContentScript({
       html.append(Object.assign(document.createElement('title'), { textContent: 'GitHub' }));
     }
     const reloaded = reloadedOnGitHub();
-    // Read now, given to the app before anything renders: API data cached in the page must be this account's.
+    // Read now, in parallel with loading the app: the account, then the sidebar's stored results, which the app
+    // shows on its first render.
     const account = accountItem.getValue();
+    const seeds = account.then((id) => readPersisted(id, [viewerKey, recentReposKey])).catch(() => []);
     const style = document.createElement('style');
     html.append(style);
 
@@ -116,7 +119,7 @@ export default defineContentScript({
     let loading: Promise<NonNullable<typeof shell>> | undefined;
     const load = () => {
       loading ??= (async () => {
-        const [start, ui, accountId] = await Promise.all([
+        const [start, ui, seeded] = await Promise.all([
           loadApp(),
           createShadowRootUi(ctx, {
             name: 'unmerged-app',
@@ -132,9 +135,9 @@ export default defineContentScript({
             },
             onRemove: (unmount?: () => void) => unmount?.(),
           }),
-          account,
+          seeds,
         ]);
-        const app = start({ host: ui.shadowHost, account: accountId, owns: (url) => !!resolve(url)?.owning, isOwning, sync });
+        const app = start({ host: ui.shadowHost, seeds: seeded, owns: (url) => !!resolve(url)?.owning, isOwning, sync });
         // The page's requests start now, not after React has rendered.
         const url = new URL(location.href);
         const page = resolve(url);
