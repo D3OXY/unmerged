@@ -4,6 +4,7 @@ import { ArrowExpand01Icon } from '@hugeicons/core-free-icons';
 import { cx } from '@/lib/cx';
 import { navigate, withPeek } from '@/lib/navigation';
 import { peekAt, type Peek } from '@/lib/routes';
+import { issueSplitItem, useStorageItem } from '@/lib/settings';
 import { timeAgo } from '@/lib/time';
 import { useMedia } from '@/lib/useMedia';
 import { Button } from '@/ui/Button';
@@ -13,34 +14,36 @@ import { PeekContent, peekPage, usePrivatePeek } from './PeekPanel';
 import { isPeek, type WorkItem } from './queries';
 
 /**
- * Whether the window is wide enough (Tailwind's `xl`) for an issue list to keep the open issue beside it.
- * Narrower, an opened issue goes to the shell's side panel instead, as a pull request does.
+ * Whether issue lists show the split (the setting is on) and the window is wide enough for it (Tailwind's
+ * `xl`). Otherwise an issue list is a table like pull requests, and an opened issue goes to the side panel.
  */
-export const useIssueSplit = () => useMedia('(min-width: 80rem)');
+export function useIssueSplit() {
+  const wide = useMedia('(min-width: 80rem)');
+  return useStorageItem(issueSplitItem) === true && wide;
+}
 
 /**
  * Issues as a compact list beside the one that's open: `peek`, or the first issue until one is picked. j/k
  * opens the issue it lands on. Rows always open beside the list, whatever the side panel setting says.
  */
 export function IssueSplit({ items, peek, scoped, byCreated, footer }: { items: WorkItem[]; peek?: Peek; scoped: boolean; byCreated: boolean; footer: ReactNode }) {
-  const split = useIssueSplit();
   const first = items[0];
-  const open = peek ?? (split && first ? peekAt(new URL(first.url)) : undefined);
+  const open = peek ?? (first ? peekAt(new URL(first.url)) : undefined);
   return (
-    <div className="mt-4 grid items-start gap-4 xl:grid-cols-[minmax(340px,2fr)_minmax(0,3fr)]">
+    <div className="mt-4 grid grid-cols-[minmax(340px,2fr)_minmax(0,3fr)] items-start gap-4">
       <Panel className="animate-enter overflow-hidden">
         {items.map((item) => (
-          <IssueRow key={item.id} item={item} scoped={scoped} byCreated={byCreated} selected={isPeek(item, open)} follow={split} />
+          <IssueRow key={item.id} item={item} scoped={scoped} byCreated={byCreated} selected={isPeek(item, open)} />
         ))}
         {footer}
       </Panel>
-      {split && open && <Reader peek={open} />}
+      {open && <Reader peek={open} />}
     </div>
   );
 }
 
 /** One line per issue: state, the repo's owner (across repos), number, title, label dots and time. */
-function IssueRow({ item, scoped, byCreated, selected, follow }: { item: WorkItem; scoped: boolean; byCreated: boolean; selected: boolean; follow: boolean }) {
+function IssueRow({ item, scoped, byCreated, selected }: { item: WorkItem; scoped: boolean; byCreated: boolean; selected: boolean }) {
   return (
     <a
       href={item.url}
@@ -49,7 +52,7 @@ function IssueRow({ item, scoped, byCreated, selected, follow }: { item: WorkIte
       data-repo-private={item.repository.isPrivate !== false || undefined}
       aria-current={selected || undefined}
       // Keyboard focus (j/k) opens the issue; a click does that itself.
-      onFocus={follow ? (e) => e.currentTarget.matches(':focus-visible') && navigate(withPeek(location.href, new URL(item.url).pathname)) : undefined}
+      onFocus={(e) => e.currentTarget.matches(':focus-visible') && navigate(withPeek(location.href, new URL(item.url).pathname))}
       className={cx(
         'relative flex h-9 items-center gap-2 border-b border-line px-3 text-[13px] transition-colors last:border-b-0 hover:bg-hover focus:bg-hover focus:outline-none',
         selected && 'bg-hover before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-accent',

@@ -3,6 +3,7 @@ import { gql } from '@/github/client';
 import type { Actor } from '@/github/types';
 import { persisted } from '@/lib/persist';
 import type { Peek, WorkFilter } from '@/lib/routes';
+import { issueSplitItem } from '@/lib/settings';
 import type { IssueRowDetails, IssueRowItem, PrRowDetails, PrRowItem } from '@/ui/WorkRow';
 
 export type WorkType = 'pr' | 'issue';
@@ -229,18 +230,16 @@ export const workStateCountQueries = (q: string, repo?: string) => (['open', 'cl
 export const workTabCountQueries = (type: WorkType) => TABS[type].map((tab) => workCountQuery(defaultQuery(type, tab.filter)));
 
 /**
- * Starts everything a list shows for `q` at once: its results and its Open/Closed counts. The pull request
- * table's details follow the results; the issue list shows none.
+ * Starts everything a list shows for `q` at once: its results and its Open/Closed counts. The table's details
+ * follow the results; a split issue list shows none. Resolves once the details have started.
  */
 export function prefetchWorkList(client: QueryClient, kind: WorkType, q: string, repo?: string) {
-  const list = workListQuery(q, repo);
-  if (kind === 'issue') client.prefetchInfiniteQuery(list);
-  else
-    client
-      .fetchInfiniteQuery(list)
-      .then(({ pages }) => {
-        for (const ids of detailChunks(pages.flatMap((page) => page.results.nodes))) client.prefetchQuery(workDetailsQuery(ids));
-      })
-      .catch(() => {});
+  const details = Promise.all([client.fetchInfiniteQuery(workListQuery(q, repo)), kind === 'issue' && issueSplitItem.getValue()])
+    .then(([{ pages }, split]) => {
+      if (split) return;
+      for (const ids of detailChunks(pages.flatMap((page) => page.results.nodes))) client.prefetchQuery(workDetailsQuery(ids));
+    })
+    .catch(() => {});
   for (const count of workStateCountQueries(q, repo)) client.prefetchQuery(count);
+  return details;
 }

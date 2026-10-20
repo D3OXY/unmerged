@@ -53,6 +53,9 @@ export const surfacesItem = storage.defineItem<Surfaces>('local:surfaces', { fal
 /** Whether a list opens its pull requests and issues in a side panel instead of in place of the list. */
 export const sidePanelItem = storage.defineItem<boolean>('local:sidePanel', { fallback: true });
 
+/** Whether an issue list is a compact list with the open issue beside it, instead of a table like pull requests. */
+export const issueSplitItem = storage.defineItem<boolean>('local:issueSplit', { fallback: false });
+
 /** Whether a repository's front page shows its last 12 weeks of activity (RepoPulse) above the files. */
 export const repoPulseItem = storage.defineItem<boolean>('local:repoPulse', { fallback: true });
 
