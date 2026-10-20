@@ -1,13 +1,15 @@
 import { QueryClient, type QueryKey } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { matchRoute } from '@/lib/routes';
+import { issueSplitItem } from '@/lib/settings';
 import { runsQuery } from '@/pages/actions/query';
 import { branchIndexQuery } from '@/pages/branches/query';
 import { issueQuery, issueTimelineQuery } from '@/pages/issue/query';
 import { prFilesQuery, prMergeQuery, prQuery, prReviewQuery, prTimelineQuery, prViewedQuery } from '@/pages/pr/query';
 import { releasesQuery, tagsQuery } from '@/pages/releases/query';
 import { codeSearchQuery, repoSearchQuery, workSearchQuery } from '@/pages/search/queries';
-import { defaultQuery, repoListQuery, workDetailsQuery, workListQuery, workQueryOf, type ListPage } from '@/pages/work/queries';
+import { defaultQuery, prefetchWorkList, repoListQuery, workDetailsQuery, workListQuery, workQueryOf, type ListPage } from '@/pages/work/queries';
 import { prefetchRoute, prefetchVisibleRows, rowsToPrefetch } from './prefetch';
 
 /** The list keys `prefetchRoute` starts for `href`, without fetching anything. */
@@ -16,7 +18,7 @@ function prefetchedListKeys(href: string) {
   const keys: QueryKey[] = [];
   vi.spyOn(client, 'prefetchQuery').mockResolvedValue();
   vi.spyOn(client, 'prefetchInfiniteQuery').mockImplementation(async (options) => void keys.push(options.queryKey));
-  // Pull request lists fetch theirs, to start the details after; an empty list has none.
+  // Pull request and issue lists fetch theirs, to start the details after; an empty list has none.
   vi.spyOn(client, 'fetchInfiniteQuery').mockImplementation(async (options) => (keys.push(options.queryKey), { pages: [], pageParams: [] }));
   const url = new URL(href);
   const route = matchRoute(url);
@@ -37,11 +39,13 @@ describe('prefetchRoute for lists', () => {
   });
 });
 
-// The pull request table's details start once its results are in, as the requests the page makes for them.
-describe('prefetchRoute for pull request lists', () => {
-  it('starts the details of the results', async () => {
+// The table's details start once its results are in, as the requests the page makes for them.
+describe('prefetchRoute for list tables', () => {
+  const nodes = Array.from({ length: 12 }, (_, i) => ({ id: `ID_${i}` }));
+
+  /** A client whose list fetch returns `nodes`, the details keys it prefetches, and a promise for when both chunks start. */
+  function listClient() {
     const client = new QueryClient();
-    const nodes = Array.from({ length: 12 }, (_, i) => ({ id: `PR_${i}` }));
     const page = { results: { issueCount: 12, pageInfo: { hasNextPage: false, endCursor: null }, nodes } } as unknown as ListPage;
     vi.spyOn(client, 'fetchInfiniteQuery').mockResolvedValue({ pages: [page], pageParams: [null] });
     const details: QueryKey[] = [];
@@ -50,13 +54,27 @@ describe('prefetchRoute for pull request lists', () => {
         if (queryKey[0] === 'work-details' && details.push(queryKey) === 2) resolve();
       }),
     );
-    const url = new URL('https://github.com/o/r/pulls');
+    return { client, details, started };
+  }
+
+  beforeEach(() => fakeBrowser.reset());
+
+  it.each(['https://github.com/o/r/pulls', 'https://github.com/o/r/issues'])('starts the details of the results for %s', async (href) => {
+    const { client, details, started } = listClient();
+    const url = new URL(href);
     prefetchRoute(client, matchRoute(url)!, url);
     await started;
     expect(details).toEqual([
       workDetailsQuery(nodes.slice(0, 10).map((n) => n.id)).queryKey,
       workDetailsQuery(nodes.slice(10).map((n) => n.id)).queryKey,
     ]);
+  });
+
+  it('starts no details for a split issue list', async () => {
+    await issueSplitItem.setValue(true);
+    const { client, details } = listClient();
+    await prefetchWorkList(client, 'issue', repoListQuery('issues'), 'o/r');
+    expect(details).toEqual([]);
   });
 });
 

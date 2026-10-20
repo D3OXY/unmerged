@@ -8,7 +8,7 @@ import { Menu, type MenuOption } from '@/ui/Menu';
 import { Avatar, Panel, Pill } from '@/ui/primitives';
 import { CheckIcon, IssueIcon, PrStateIcon } from '@/ui/status';
 import { NotLoaded, type Details, type RepoLabel } from '@/ui/WorkRow';
-import { isPeek, qualifierOf, sortOf, SORTS, withQualifier, type PrDetails, type Sort, type WorkDetails, type WorkItem } from './queries';
+import { isPeek, qualifierOf, sortOf, SORTS, withQualifier, type PrDetails, type Sort, type WorkDetails, type WorkItem, type WorkType } from './queries';
 
 const REVIEWS: MenuOption<string>[] = [
   { value: '', label: 'Any' },
@@ -38,12 +38,13 @@ const COL = {
 };
 
 /**
- * Pull requests as a table: state, title, repository (or author, inside a repo), review, CI, size, comments and
- * time. The headers carry the list's controls: Review and CI filter, Comments and the time column sort, each by
- * rewriting one qualifier of `q`. With `peek` (the side panel setting) rows open beside the list. Review, CI,
- * size and comments come from `details`, which land after the rows.
+ * Pull requests or issues (`kind`) as a table: state, title, repository (or author, inside a repo), for pull
+ * requests review, CI and size, then comments and time. The headers carry the list's controls: Review and CI
+ * filter, Comments and the time column sort, each by rewriting one qualifier of `q`. With `peek` (the side panel
+ * setting) rows open beside the list. Review, CI, size and comments come from `details`, which land after the rows.
  */
-export function PrTable({ items, details, q, onQuery, repoLabel, peek, open, footer }: {
+export function WorkTable({ kind, items, details, q, onQuery, repoLabel, peek, open, footer }: {
+  kind: WorkType;
   items: WorkItem[];
   details: Map<string, WorkDetails | null>;
   q: string;
@@ -62,9 +63,13 @@ export function PrTable({ items, details, q, onQuery, repoLabel, peek, open, foo
         <span className="w-4 shrink-0" />
         <span className="min-w-0 flex-1">Title</span>
         <span className={COL.who}>{repoLabel === 'none' ? 'Author' : 'Repository'}</span>
-        <HeaderFilter className={COL.review} label="Review" value={qualifierOf(q, 'review')} options={REVIEWS} onChange={(token) => onQuery(withQualifier(q, 'review', token))} />
-        <HeaderFilter className={COL.ci} label="CI" value={qualifierOf(q, 'ci')} options={CHECKS} onChange={(token) => onQuery(withQualifier(q, 'ci', token))} />
-        <span className={COL.size}>Size</span>
+        {kind === 'pr' && (
+          <>
+            <HeaderFilter className={COL.review} label="Review" value={qualifierOf(q, 'review')} options={REVIEWS} onChange={(token) => onQuery(withQualifier(q, 'review', token))} />
+            <HeaderFilter className={COL.ci} label="CI" value={qualifierOf(q, 'ci')} options={CHECKS} onChange={(token) => onQuery(withQualifier(q, 'ci', token))} />
+            <span className={COL.size}>Size</span>
+          </>
+        )}
         <span className={COL.comments}>
           <button
             type="button"
@@ -91,7 +96,7 @@ export function PrTable({ items, details, q, onQuery, repoLabel, peek, open, foo
         </span>
       </div>
       {items.map((item) => (
-        <PrRow key={item.id} item={item} details={details.get(item.id)} repoLabel={repoLabel} byCreated={byCreated} peek={peek} selected={isPeek(item, open)} />
+        <Row key={item.id} item={item} details={details.get(item.id)} prColumns={kind === 'pr'} repoLabel={repoLabel} byCreated={byCreated} peek={peek} selected={isPeek(item, open)} />
       ))}
       {footer}
     </Panel>
@@ -118,10 +123,14 @@ function HeaderFilter({ label, value, options, onChange, className }: { label: s
   );
 }
 
-/** One row. Issues can turn up too (the search is editable); they leave the pull request columns empty. */
-function PrRow({ item, details, repoLabel, byCreated, peek, selected }: {
+/**
+ * One row. `prColumns` is whether the table has the pull request columns; an issue in such a table (the search
+ * is editable) leaves them empty.
+ */
+function Row({ item, details, prColumns, repoLabel, byCreated, peek, selected }: {
   item: WorkItem;
   details: Details<WorkDetails>;
+  prColumns: boolean;
   repoLabel: RepoLabel;
   byCreated: boolean;
   peek: boolean;
@@ -172,9 +181,13 @@ function PrRow({ item, details, repoLabel, byCreated, peek, selected }: {
           <span data-private="repos" className="truncate">{repoLabel === 'full' ? item.repository.nameWithOwner : item.repository.nameWithOwner.split('/')[1]}</span>
         )}
       </span>
-      <span className={cx(COL.review, 'items-center gap-2')}>{pr && (prDetails ? <Review pr={prDetails} /> : missing('w-12'))}</span>
-      <span className={cx(COL.ci, 'items-center')}>{pr && (prDetails ? <CheckIcon state={prDetails.commits.nodes[0]?.commit.statusCheckRollup?.state} /> : missing('w-3.5'))}</span>
-      <span className={cx(COL.size, 'items-center')}>{pr && (prDetails ? <Size pr={prDetails} /> : missing('w-10'))}</span>
+      {prColumns && (
+        <>
+          <span className={cx(COL.review, 'items-center gap-2')}>{pr && (prDetails ? <Review pr={prDetails} /> : missing('w-12'))}</span>
+          <span className={cx(COL.ci, 'items-center')}>{pr && (prDetails ? <CheckIcon state={prDetails.commits.nodes[0]?.commit.statusCheckRollup?.state} /> : missing('w-3.5'))}</span>
+          <span className={cx(COL.size, 'items-center')}>{pr && (prDetails ? <Size pr={prDetails} /> : missing('w-10'))}</span>
+        </>
+      )}
       <span className={cx(COL.comments, 'items-center gap-1 text-[12px] text-subtle tabular-nums')}>
         {missing('w-5')}
         {comments > 0 && (

@@ -9,7 +9,7 @@ import { RepoFrame, useRepo } from './RepoFrame';
 
 /**
  * A repo's issues or pull requests (`/owner/repo/issues`, `/pulls`): the shared list, scoped to the repo, and
- * the pull request or issue in `peek` in a side panel (unless the issue list has it beside itself). Pull
+ * the pull request or issue in `peek` in a side panel (unless a split issue list has it beside itself). Pull
  * requests also offer to open one for a branch the viewer just pushed.
  */
 export function RepoListPage({ owner, repo, tab, peek }: { owner: string; repo: string; tab: 'issues' | 'pulls'; peek?: Peek }) {

@@ -12,7 +12,7 @@ import { WorkList } from './WorkList';
 
 /**
  * Your pull requests or issues (`/pulls`, `/issues/assigned`, …): a tab per filter over the shared list, and
- * the pull request or issue in `peek` in a side panel (unless the issue list has it beside itself).
+ * the pull request or issue in `peek` in a side panel (unless a split issue list has it beside itself).
  */
 export function WorkListPage({ type, filter, peek }: { type: WorkType; filter: WorkFilter; peek?: Peek }) {
   const title = type === 'pr' ? 'Pull requests' : 'Issues';
