@@ -7,7 +7,7 @@ import { timeAgo } from '@/lib/time';
 import { Menu, type MenuOption } from '@/ui/Menu';
 import { Avatar, Panel, Pill } from '@/ui/primitives';
 import { CheckIcon, IssueIcon, PrStateIcon } from '@/ui/status';
-import { NotLoaded, type Details, type RepoLabel } from '@/ui/WorkRow';
+import { IssueRelations, NotLoaded, type Details, type RepoLabel } from '@/ui/WorkRow';
 import { isPeek, qualifierOf, sortOf, SORTS, withQualifier, type PrDetails, type Sort, type WorkDetails, type WorkItem, type WorkType } from './queries';
 
 const REVIEWS: MenuOption<string>[] = [
@@ -158,6 +158,7 @@ function Row({ item, details, prColumns, repoLabel, byCreated, peek, selected }:
         <span data-private="titles" className={cx('min-w-0 truncate', pr?.isDraft ? 'text-muted' : 'font-medium text-fg/95')}>
           {item.title}
         </span>
+        {details && <IssueRelations details={details} />}
         {/*
           Labels give way long before the title does. One that doesn't fit wraps out of sight rather than being cut:
           the empty first item (full height, so the first line is) gives even the first label a line to wrap from.

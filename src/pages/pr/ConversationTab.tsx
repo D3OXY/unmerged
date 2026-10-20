@@ -42,7 +42,7 @@ export function ConversationTab({ loaded, queryKey }: { loaded: LoadedPr; queryK
         {review ? (
           <>
             <PeopleCard pr={review} queryKey={queryKey} />
-            <LinkedIssuesCard issues={review.closingIssuesReferences.nodes} />
+            <LinkedIssuesCard pr={review} queryKey={queryKey} />
             <FilesCard pr={review} />
           </>
         ) : (

@@ -78,9 +78,10 @@ const PR_REVIEW_QUERY = prPart(
   'PullRequestReview',
   '',
   `viewerDidAuthor viewerCanLabel viewerCanAssign
+  baseRepository { defaultBranchRef { name } }
   labels(first: 20) { nodes { id name color } }
   assignees(first: 10) { nodes { id login avatarUrl } }
-  closingIssuesReferences(first: 10) { nodes { ${ISSUE_REF} } }
+  closingIssuesReferences(first: 10) { nodes { id ${ISSUE_REF} } }
   reviewRequests(first: 20) {
     nodes { requestedReviewer { __typename ... on User { login avatarUrl } ... on Team { name avatarUrl } ... on Bot { login avatarUrl } } }
   }
@@ -308,7 +309,8 @@ export type PullRequest = {
   squashBody: string;
   labels: { nodes: (Label & { id: string })[] };
   assignees: { nodes: (NonNullable<Actor> & { id: string })[] };
-  closingIssuesReferences: { nodes: IssueRef[] };
+  closingIssuesReferences: { nodes: (IssueRef & { id: string })[] };
+  baseRepository: { defaultBranchRef: { name: string } | null } | null;
   reviewRequests: { nodes: { requestedReviewer: Reviewer | null }[] };
   latestOpinionatedReviews: { nodes: { state: ReviewState; author: (NonNullable<Actor> & { id?: string }) | null }[] };
   /**
@@ -332,7 +334,7 @@ type MergeFields =
   | 'viewerCanEnableAutoMerge' | 'viewerCanDisableAutoMerge' | 'mergeHeadline' | 'mergeBody' | 'squashHeadline' | 'squashBody'
   | 'commits';
 type ReviewFields =
-  | 'viewerDidAuthor' | 'viewerCanLabel' | 'viewerCanAssign' | 'labels' | 'assignees' | 'closingIssuesReferences'
+  | 'viewerDidAuthor' | 'viewerCanLabel' | 'viewerCanAssign' | 'baseRepository' | 'labels' | 'assignees' | 'closingIssuesReferences'
   | 'reviewRequests' | 'latestOpinionatedReviews' | 'viewerPendingReview' | 'files' | 'reviewThreads';
 
 /**
@@ -439,7 +441,7 @@ const partQuery = <T>(query: string, owner: string, repo: string, number: number
   queryOptions({
     // The version keeps results persisted by an older build (missing newer fields) from rendering.
     // Bump it whenever a part gains fields.
-    queryKey: ['pr', 4, ...prKey(owner, repo, number), ...part],
+    queryKey: ['pr', 5, ...prKey(owner, repo, number), ...part],
     queryFn: () => gql<T>(query, { owner, repo, number }, true),
     persister: persisted,
   });

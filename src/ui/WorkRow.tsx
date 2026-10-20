@@ -1,5 +1,5 @@
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Comment01Icon } from '@hugeicons/core-free-icons';
+import { Comment01Icon, HierarchyIcon, UnavailableIcon } from '@hugeicons/core-free-icons';
 import type { Actor, CheckState, IssueState, IssueStateReason, Label, PrState, ReviewDecision } from '@/github/types';
 import { cx } from '@/lib/cx';
 import { timeAgo } from '@/lib/time';
@@ -43,7 +43,13 @@ export type PrRowItem = RowBase & { isDraft: boolean; state: PrState };
 export type IssueRowItem = RowBase & { state: IssueState; stateReason: IssueStateReason | null };
 
 /** What a row shows that GitHub's search works out slowly, so a list can ask for it after the rows (by id). */
-export type IssueRowDetails = { comments: { totalCount: number } };
+export type IssueRowDetails = {
+  comments: { totalCount: number };
+  /** Issues only, and only from lists that ask for them (not from results stored before they were asked for). */
+  subIssuesSummary?: { total: number; completed: number };
+  /** `blockedBy` counts the open issues that block this one. */
+  issueDependenciesSummary?: { blockedBy: number };
+};
 export type PrRowDetails = IssueRowDetails & {
   reviewDecision: ReviewDecision;
   commits: { nodes: { commit: { statusCheckRollup: { state: CheckState } | null } }[] };
@@ -61,6 +67,29 @@ export type RepoLabel = 'none' | 'name' | 'full';
 /** `full` when the rows come from more than one owner, so forks and same-named repos don't look alike. */
 export const repoLabelFor = (items: { repository: { nameWithOwner: string } }[]): RepoLabel =>
   new Set(items.map((item) => item.repository.nameWithOwner.split('/')[0])).size > 1 ? 'full' : 'name';
+
+/** An issue's open blockers and sub-issue progress, beside its title. Nothing when it has neither. */
+export function IssueRelations({ details }: { details: IssueRowDetails }) {
+  const blockers = details.issueDependenciesSummary?.blockedBy ?? 0;
+  const subs = details.subIssuesSummary;
+  return (
+    <>
+      {blockers > 0 && (
+        <span title={`Blocked by ${blockers} open ${blockers === 1 ? 'issue' : 'issues'}`} className="flex shrink-0 items-center text-danger">
+          <HugeiconsIcon icon={UnavailableIcon} className="size-3.5" />
+          <span className="sr-only">Blocked</span>
+        </span>
+      )}
+      {subs && subs.total > 0 && (
+        <span title={`${subs.completed} of ${subs.total} sub-issues closed`} className="flex shrink-0 items-center gap-1 text-[12px] text-subtle tabular-nums">
+          <HugeiconsIcon icon={HierarchyIcon} className="size-3" />
+          {subs.completed}/{subs.total}
+          <span className="sr-only"> sub-issues closed</span>
+        </span>
+      )}
+    </>
+  );
+}
 
 /**
  * Stands in for details a row doesn't have: a still bar while they load (no animation: a list has many), a
@@ -109,8 +138,11 @@ export function WorkRow(
         {repo !== 'none' && <span data-private="repos" className="truncate">{repo === 'full' ? item.repository.nameWithOwner : item.repository.nameWithOwner.split('/')[1]}</span>}
         <span className="shrink-0">#{item.number}</span>
       </span>
-      <span data-private="titles" className="min-w-0 flex-1 truncate font-medium text-fg/95">
-        {item.title}
+      <span className="flex min-w-0 flex-1 items-center gap-2">
+        <span data-private="titles" className="min-w-0 truncate font-medium text-fg/95">
+          {item.title}
+        </span>
+        {details && <IssueRelations details={details} />}
       </span>
       <span className="hidden shrink-0 items-center gap-1 @4xl:flex">
         {item.labels.nodes.map((label) => (

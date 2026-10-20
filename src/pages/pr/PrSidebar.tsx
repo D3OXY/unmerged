@@ -14,7 +14,9 @@ import { statusDot } from './files/status';
 import { Avatar, Panel, Pill } from '@/ui/primitives';
 import { CheckIcon, IssueIcon } from '@/ui/status';
 import { checkName, checkUrl, outcomeOf, type CheckOutcome } from './checks';
-import { EDIT_MUTATIONS, repoPath, type CheckContext, type IssueRef, type PrWithReview, type ReviewState } from './query';
+import { IssuePicker } from '@/pages/issue/IssuePicker';
+import { useLinkPullRequest } from '@/pages/issue/useLinkPullRequest';
+import { EDIT_MUTATIONS, repoPath, type CheckContext, type PrWithReview, type ReviewState } from './query';
 import { usePrMutation } from './usePrMutation';
 
 const ORDER: Record<CheckOutcome, number> = { FAILURE: 0, PENDING: 1, SUCCESS: 2, NEUTRAL: 3 };
@@ -285,11 +287,32 @@ function Picker({
   );
 }
 
-/** Issues this PR closes when it merges. */
-export function LinkedIssuesCard({ issues }: { issues: IssueRef[] }) {
-  if (!issues.length) return null;
+/**
+ * Issues this PR closes when it merges. While it's open, people who can edit it link another issue of the repo
+ * ("Closes #<issue>" in its description). GitHub reads that keyword only in a PR into the default branch.
+ */
+export function LinkedIssuesCard({ pr, queryKey }: { pr: PrWithReview; queryKey: QueryKey }) {
+  const issues = pr.closingIssuesReferences.nodes;
+  const link = useLinkPullRequest(queryKey);
+  const linkable = pr.state === 'OPEN' && pr.viewerCanUpdate && pr.baseRefName === pr.baseRepository?.defaultBranchRef?.name;
+  if (!issues.length && !linkable) return null;
   return (
-    <Card title="Linked issues" count={issues.length}>
+    <Card
+      title="Linked issues"
+      count={issues.length || undefined}
+      action={
+        linkable && (
+          <IssuePicker
+            repo={repoPath(pr)}
+            kind="issue"
+            title="Link an issue"
+            hide={issues.map((issue) => issue.id)}
+            onPick={(issue) => link.mutate({ pr: pr.id, issue: issue.number })}
+          />
+        )
+      }
+    >
+      {issues.length === 0 && <p className="px-2 pb-1 text-[12.5px] text-subtle">None</p>}
       {issues.map((issue) => (
         <a
           key={issue.url}
@@ -347,12 +370,13 @@ export function FilesCard({ pr }: { pr: PrWithReview }) {
   );
 }
 
-export function Card({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
+export function Card({ title, count, action, children }: { title: string; count?: number; action?: ReactNode; children: ReactNode }) {
   return (
     <Panel className="p-2">
       <div className="flex h-7 items-center gap-1.5 px-2 text-[12px] font-medium text-muted">
         {title}
         {count !== undefined && <span className="font-normal text-subtle tabular-nums">{count}</span>}
+        {action && <span className="ml-auto">{action}</span>}
       </div>
       {children}
     </Panel>
