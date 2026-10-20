@@ -118,7 +118,7 @@ jobs:
       - id: version
         env:
           SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
-          DRY_RUN: ${{ inputs.dry_run }}
+          RELEASE_DRY_RUN: ${{ inputs.dry_run }}
         run: |
           git fetch --tags origin main
           VERSION="$(node -p "require('./package.json').version")"
@@ -127,7 +127,7 @@ jobs:
           if [ "$SHA" != "$(git rev-parse origin/main)" ]; then
             echo "A newer main commit superseded $SHA; its run publishes."
             echo "publish=false" >> "$GITHUB_OUTPUT"
-          elif [ "$DRY_RUN" = "true" ]; then
+          elif [ "$RELEASE_DRY_RUN" = "true" ]; then
             echo "publish=true" >> "$GITHUB_OUTPUT"
           elif git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
             echo "v$VERSION is already released."
@@ -172,13 +172,14 @@ jobs:
           CHROME_PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
           CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL: ${{ secrets.CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL }}
           PRIVATE_KEY: ${{ secrets.CHROME_SERVICE_ACCOUNT_PRIVATE_KEY }}
-          DRY_RUN: ${{ inputs.dry_run }}
+          # Not DRY_RUN: wxt submit reads that variable as its own setting, and an empty one fails its config check.
+          RELEASE_DRY_RUN: ${{ inputs.dry_run }}
         run: |
           # The key holds either real line breaks or literal \n (as copied from the JSON key file); %b gives
           # line breaks either way.
           export CHROME_SERVICE_ACCOUNT_PRIVATE_KEY="$(printf '%b' "$PRIVATE_KEY")"
           args=(--chrome-zip "$ZIP")
-          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          if [ "$RELEASE_DRY_RUN" = "true" ]; then args+=(--dry-run); fi
           pnpm exec wxt submit "${args[@]}"
 
       - name: Tag and release on GitHub
