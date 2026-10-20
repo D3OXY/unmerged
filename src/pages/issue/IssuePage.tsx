@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useQuery, type QueryKey } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { BrowserIcon, Link02Icon, MilestoneIcon, UndoIcon } from '@hugeicons/core-free-icons';
+import { BrowserIcon, Link02Icon, MilestoneIcon, UnavailableIcon, UndoIcon } from '@hugeicons/core-free-icons';
 import { useRegisterCommands, type Command } from '@/app/commands';
 import { openClassic } from '@/lib/classic';
 import { copy } from '@/lib/clipboard';
@@ -17,6 +17,7 @@ import { Button } from '@/ui/Button';
 import { Avatar, Skeleton } from '@/ui/primitives';
 import { IssueIcon } from '@/ui/status';
 import { CLOSE_REASONS, IssueComposer } from './IssueComposer';
+import { SubIssuesCard } from './IssueRelations';
 import { IssueSidebar } from './IssueSidebar';
 import { IssueTimeline, RefLink } from './IssueTimeline';
 import { issueKey, issueQuery, issueTimelineQuery, notPlanned, stateChange, type Issue, type IssueTimelineItems } from './query';
@@ -102,6 +103,7 @@ function IssueView({ issue, timeline, timelineFailed, queryKey, panel }: {
   const thread = (
     <div className="flex min-w-0 flex-col gap-6">
       <CommentCard author={issue.author} createdAt={issue.createdAt} html={issue.bodyHTML} />
+      <SubIssuesCard issue={issue} queryKey={queryKey} />
       <IssueTimeline issue={issue} timeline={timeline} failed={timelineFailed} />
       <IssueComposer issue={issue} queryKey={queryKey} />
     </div>
@@ -135,7 +137,7 @@ function IssueView({ issue, timeline, timelineFailed, queryKey, panel }: {
         <div className="mt-6 grid gap-8 @3xl:grid-cols-[minmax(0,1fr)_340px]">
           {thread}
           <aside className="flex flex-col gap-4 *:shrink-0 @3xl:sticky @3xl:top-[108px] @3xl:max-h-[calc(100vh-124px)] @3xl:self-start @3xl:overflow-y-auto">
-            <IssueSidebar issue={issue} />
+            <IssueSidebar issue={issue} queryKey={queryKey} />
           </aside>
         </div>
       )}
@@ -145,9 +147,12 @@ function IssueView({ issue, timeline, timelineFailed, queryKey, panel }: {
 
 const detail = 'inline-flex h-7 max-w-full items-center gap-1.5 rounded-md border border-line px-2 text-[12px] text-fg';
 
-/** The sidebar's details as one row of chips under the title: state, assignees, labels, milestone, linked PRs. */
+/**
+ * The sidebar's details as one row of chips under the title: state, assignees, labels, milestone, linked PRs,
+ * parent and dependencies.
+ */
 function IssueDetails({ issue }: { issue: Issue }) {
-  const { assignees, labels, milestone } = issue;
+  const { assignees, labels, milestone, parent, blockedBy, blocking } = issue;
   return (
     <div className="mt-3 flex flex-wrap items-center gap-1.5">
       <IssueStateBadge issue={issue} />
@@ -176,7 +181,25 @@ function IssueDetails({ issue }: { issue: Issue }) {
           <RefLink subject={pr} here={repoPath(issue)} />
         </span>
       ))}
+      {parent && (
+        <span className={cx(detail, 'hover:bg-hover')} title="Parent issue">
+          <span className="shrink-0 text-subtle">Parent</span>
+          <RefLink subject={parent} here={repoPath(issue)} />
+        </span>
+      )}
+      {blockedBy.totalCount > 0 && <Dependencies label="Blocked by" issues={blockedBy} />}
+      {blocking.totalCount > 0 && <Dependencies label="Blocking" issues={blocking} />}
     </div>
+  );
+}
+
+/** How many issues block this one, or it blocks; their numbers and titles in the tooltip. */
+function Dependencies({ label, issues }: { label: string; issues: Issue['blockedBy'] }) {
+  return (
+    <span className={detail} title={issues.nodes.map((other) => `#${other.number} ${other.title}`).join('\n')}>
+      <HugeiconsIcon icon={UnavailableIcon} className="size-3.5 shrink-0 text-subtle" />
+      {label} {issues.totalCount}
+    </span>
   );
 }
 

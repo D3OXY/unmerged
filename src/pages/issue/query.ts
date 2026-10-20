@@ -13,11 +13,15 @@ const REF = /* GraphQL */ `
 
 const COMMENT = /* GraphQL */ `fragment Comment on IssueComment { __typename id author { login avatarUrl } bodyHTML createdAt }`;
 
+// A parent, sub-issue or dependency. The id is what the relationship mutations take.
+const RELATED = /* GraphQL */ `fragment Related on Issue { __typename id number title url state stateReason repository { nameWithOwner } }`;
+
 // The first request: the issue, its sidebar and its newest comments, in a third of the full timeline's time.
 // `issueOrPullRequest`: `/issues/<n>` of a pull request is a redirect on GitHub, so the page needs to know.
 const ISSUE_QUERY = /* GraphQL */ `
   ${REF}
   ${COMMENT}
+  ${RELATED}
   query Issue($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner, name: $repo) {
       isPrivate
@@ -27,11 +31,16 @@ const ISSUE_QUERY = /* GraphQL */ `
         ... on Issue {
           id number title url state stateReason createdAt bodyHTML
           author { login avatarUrl }
-          viewerCanClose viewerCanReopen
+          viewerCanClose viewerCanReopen viewerCanUpdateMetadata
           labels(first: 20) { nodes { name color } }
           assignees(first: 10) { nodes { login avatarUrl } }
           milestone { title url }
-          closedByPullRequestsReferences(first: 10, includeClosedPrs: true) { nodes { ...Ref } }
+          closedByPullRequestsReferences(first: 10, includeClosedPrs: true) { nodes { ...Ref ... on PullRequest { id } } }
+          parent { ...Related }
+          subIssuesSummary { total completed }
+          subIssues(first: 50) { nodes { ...Related } }
+          blockedBy(first: 20) { totalCount nodes { ...Related } }
+          blocking(first: 20) { totalCount nodes { ...Related } }
           comments(last: 10) { nodes { ...Comment } }
         }
       }
@@ -51,7 +60,9 @@ const TIMELINE_QUERY = /* GraphQL */ `
             last: 100
             itemTypes: [
               ISSUE_COMMENT, CLOSED_EVENT, REOPENED_EVENT, LABELED_EVENT, UNLABELED_EVENT, ASSIGNED_EVENT,
-              UNASSIGNED_EVENT, CROSS_REFERENCED_EVENT, RENAMED_TITLE_EVENT, CONNECTED_EVENT
+              UNASSIGNED_EVENT, CROSS_REFERENCED_EVENT, RENAMED_TITLE_EVENT, CONNECTED_EVENT, DISCONNECTED_EVENT,
+              PARENT_ISSUE_ADDED_EVENT, PARENT_ISSUE_REMOVED_EVENT, SUB_ISSUE_ADDED_EVENT, SUB_ISSUE_REMOVED_EVENT,
+              BLOCKED_BY_ADDED_EVENT, BLOCKED_BY_REMOVED_EVENT, BLOCKING_ADDED_EVENT, BLOCKING_REMOVED_EVENT
             ]
           ) {
             totalCount
@@ -70,6 +81,15 @@ const TIMELINE_QUERY = /* GraphQL */ `
               ... on CrossReferencedEvent { id actor { login avatarUrl } createdAt source { ...Ref } }
               ... on RenamedTitleEvent { id actor { login avatarUrl } createdAt previousTitle }
               ... on ConnectedEvent { id actor { login avatarUrl } createdAt source { ...Ref } subject { ...Ref } }
+              ... on DisconnectedEvent { id actor { login avatarUrl } createdAt source { ...Ref } subject { ...Ref } }
+              ... on ParentIssueAddedEvent { id actor { login avatarUrl } createdAt issue: parent { ...Ref } }
+              ... on ParentIssueRemovedEvent { id actor { login avatarUrl } createdAt issue: parent { ...Ref } }
+              ... on SubIssueAddedEvent { id actor { login avatarUrl } createdAt issue: subIssue { ...Ref } }
+              ... on SubIssueRemovedEvent { id actor { login avatarUrl } createdAt issue: subIssue { ...Ref } }
+              ... on BlockedByAddedEvent { id actor { login avatarUrl } createdAt issue: blockingIssue { ...Ref } }
+              ... on BlockedByRemovedEvent { id actor { login avatarUrl } createdAt issue: blockingIssue { ...Ref } }
+              ... on BlockingAddedEvent { id actor { login avatarUrl } createdAt issue: blockedIssue { ...Ref } }
+              ... on BlockingRemovedEvent { id actor { login avatarUrl } createdAt issue: blockedIssue { ...Ref } }
             }
           }
         }
@@ -99,11 +119,22 @@ export type IssueTimelineItem =
   | Event<'AssignedEvent' | 'UnassignedEvent', { assignee: { login?: string } | null }>
   | Event<'CrossReferencedEvent', { source: Ref }>
   | Event<'RenamedTitleEvent', { previousTitle: string }>
-  | Event<'ConnectedEvent', { source: Ref; subject: Ref }>;
+  | Event<'ConnectedEvent' | 'DisconnectedEvent', { source: Ref; subject: Ref }>
+  /** `issue` is the other issue of the relationship; null when the viewer can't see it. */
+  | Event<RelationEvent, { issue: Ref | null }>;
+
+/** The timeline events for parents, sub-issues and dependencies. */
+export type RelationEvent =
+  | 'ParentIssueAddedEvent' | 'ParentIssueRemovedEvent' | 'SubIssueAddedEvent' | 'SubIssueRemovedEvent'
+  | 'BlockedByAddedEvent' | 'BlockedByRemovedEvent' | 'BlockingAddedEvent' | 'BlockingRemovedEvent';
 
 export type IssueComment = Extract<IssueTimelineItem, { __typename: 'IssueComment' }>;
 
-export type LinkedPr = Extract<Ref, { __typename: 'PullRequest' }>;
+/** A pull request that closes the issue when it merges. */
+export type LinkedPr = Extract<Ref, { __typename: 'PullRequest' }> & { id: string };
+
+/** A parent, sub-issue or dependency of an issue. */
+export type RelatedIssue = Extract<Ref, { __typename: 'Issue' }> & { id: string };
 
 /** The newest timeline items, and how many there are in all. */
 export type IssueTimelineItems = { totalCount: number; nodes: IssueTimelineItem[] };
@@ -121,10 +152,18 @@ export type Issue = {
   author: Actor;
   viewerCanClose: boolean;
   viewerCanReopen: boolean;
+  /** Whether the viewer may change the parent, sub-issues and dependencies (triage access). */
+  viewerCanUpdateMetadata: boolean;
   labels: { nodes: Label[] };
   assignees: { nodes: NonNullable<Actor>[] };
   milestone: { title: string; url: string } | null;
   closedByPullRequestsReferences: { nodes: LinkedPr[] };
+  parent: RelatedIssue | null;
+  subIssuesSummary: { total: number; completed: number };
+  /** In the order the maintainers gave them. */
+  subIssues: { nodes: RelatedIssue[] };
+  blockedBy: { totalCount: number; nodes: RelatedIssue[] };
+  blocking: { totalCount: number; nodes: RelatedIssue[] };
   /** The newest comments, shown until the timeline loads. */
   comments: { nodes: IssueComment[] };
 };
@@ -146,8 +185,11 @@ export const stateChange = (id: string, reason?: ClosedReason) =>
     ? { query: CLOSE, variables: { id, reason }, success: reason === 'COMPLETED' ? 'Closed as completed' : 'Closed as not planned' }
     : { query: REOPEN, variables: { id }, success: 'Issue reopened' };
 
-/** What both of an issue's queries start with: invalidating it refetches the issue and its timeline. */
-export const issueKey = (owner: string, repo: string, number: number) => ['issue', owner.toLowerCase(), repo.toLowerCase(), number] as const;
+/**
+ * What both of an issue's queries start with: invalidating it refetches the issue and its timeline. The version
+ * keeps results persisted by an older build (missing newer fields) from rendering; bump it when the issue gains fields.
+ */
+export const issueKey = (owner: string, repo: string, number: number) => ['issue', 2, owner.toLowerCase(), repo.toLowerCase(), number] as const;
 
 /** The issue and its newest comments: what the page shows first. */
 export const issueQuery = (owner: string, repo: string, number: number) =>

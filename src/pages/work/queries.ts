@@ -139,7 +139,7 @@ const DETAILS_QUERY = /* GraphQL */ `
         latestOpinionatedReviews(first: 3) { nodes { author { login avatarUrl } } }
         reviewRequests(first: 3) { nodes { requestedReviewer { ... on User { login avatarUrl } ... on Team { name avatarUrl } } } }
       }
-      ... on Issue { id comments { totalCount } }
+      ... on Issue { id comments { totalCount } subIssuesSummary { total completed } issueDependenciesSummary { blockedBy } }
     }
   }
 `;

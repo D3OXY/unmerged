@@ -1,5 +1,17 @@
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckmarkCircle02Icon, Comment01Icon, Link02Icon, PencilEdit02Icon, Tag01Icon, UnavailableIcon, UndoIcon, UserAdd01Icon, UserRemove01Icon } from '@hugeicons/core-free-icons';
+import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
+import {
+  CheckmarkCircle02Icon,
+  Comment01Icon,
+  HierarchyIcon,
+  Link02Icon,
+  PencilEdit02Icon,
+  Tag01Icon,
+  UnavailableIcon,
+  UndoIcon,
+  Unlink02Icon,
+  UserAdd01Icon,
+  UserRemove01Icon,
+} from '@hugeicons/core-free-icons';
 import type { IssueStateReason } from '@/github/types';
 import { openClassic } from '@/lib/classic';
 import { cx } from '@/lib/cx';
@@ -7,7 +19,7 @@ import { repoPath } from '@/pages/pr/query';
 import { CommentCard, EventLine } from '@/pages/pr/Timeline';
 import { Pill } from '@/ui/primitives';
 import { IssueIcon, PrStateIcon } from '@/ui/status';
-import { mergeTimeline, notPlanned, type Issue, type IssueTimelineItem, type IssueTimelineItems, type Ref } from './query';
+import { mergeTimeline, notPlanned, type Issue, type IssueTimelineItem, type IssueTimelineItems, type Ref, type RelationEvent } from './query';
 
 /**
  * The issue's activity on the PR timeline's rail: comments as cards, everything else as one-liners. Until
@@ -106,14 +118,35 @@ function Entry({ item, issueUrl, here }: { item: IssueTimelineItem; issueUrl: st
         </EventLine>
       );
     case 'ConnectedEvent':
+    case 'DisconnectedEvent':
       return (
-        <EventLine icon={<HugeiconsIcon icon={Link02Icon} />} actor={item.actor} at={item.createdAt}>
-          <span className="shrink-0">linked</span>
+        <EventLine icon={<HugeiconsIcon icon={item.__typename === 'ConnectedEvent' ? Link02Icon : Unlink02Icon} />} actor={item.actor} at={item.createdAt}>
+          <span className="shrink-0">{item.__typename === 'ConnectedEvent' ? 'linked' : 'unlinked'}</span>
           <RefLink subject={item.source.url === issueUrl ? item.subject : item.source} here={here} />
         </EventLine>
       );
+    default: {
+      const [verb, icon] = RELATION_EVENTS[item.__typename];
+      return (
+        <EventLine icon={<HugeiconsIcon icon={icon} />} actor={item.actor} at={item.createdAt}>
+          <span className="shrink-0">{verb}</span>
+          {item.issue ? <RefLink subject={item.issue} here={here} /> : <span className="text-subtle">an issue you can't see</span>}
+        </EventLine>
+      );
+    }
   }
 }
+
+const RELATION_EVENTS: Record<RelationEvent, [verb: string, icon: IconSvgElement]> = {
+  ParentIssueAddedEvent: ['added parent issue', HierarchyIcon],
+  ParentIssueRemovedEvent: ['removed parent issue', HierarchyIcon],
+  SubIssueAddedEvent: ['added sub-issue', HierarchyIcon],
+  SubIssueRemovedEvent: ['removed sub-issue', HierarchyIcon],
+  BlockedByAddedEvent: ['marked this as blocked by', UnavailableIcon],
+  BlockedByRemovedEvent: ['removed blocked by', UnavailableIcon],
+  BlockingAddedEvent: ['marked this as blocking', UnavailableIcon],
+  BlockingRemovedEvent: ['removed blocking', UnavailableIcon],
+};
 
 /** Another issue or pull request: state icon, title and number (with its repo when it's elsewhere). */
 export function RefLink({ subject, here, className }: { subject: Ref; here: string; className?: string }) {
