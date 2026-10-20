@@ -75,6 +75,10 @@ export default defineContentScript({
 
     /** Decides, for a URL, whether Unmerged owns the page, shows the classic pill, or stays out of the way. */
     const resolve = (url: URL): { owning: boolean; route: Route } | null => {
+      // After an update (or a dev reload), this script stays in open tabs, but the package now holds the new
+      // version's app, which this script can't start. So it owns no page, and the next navigation is a full
+      // load that the new version runs. The check also removes this script's listeners.
+      if (ctx.isInvalid) return null;
       const route = matchRoute(url);
       // `?? true`: settings saved before a surface existed don't list it.
       if (!route || !(surfaces[surfaceOf(route)] ?? true)) return null;
