@@ -122,7 +122,7 @@ function GeneralPage() {
               onClick={() => issueSplitItem.setValue(!issueSplit)}
               icon={<HugeiconsIcon icon={Layout2ColumnIcon} />}
               label="Split issue lists"
-              path="On a wide window, issues show as a compact list with the open issue beside it"
+              path="A compact list with the open issue beside it, on a wide window"
             />
           )}
         </div>
