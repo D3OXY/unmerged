@@ -1,6 +1,10 @@
 # Runs after Check passes on main. Pending changesets create or refresh one draft d3oxy/release pull
-# request that bumps the version and writes CHANGELOG.md; merging it records the release. Store
-# delivery (Chrome Web Store, Firefox Add-ons) will join this workflow once that version reaches main.
+# request that bumps the version and writes CHANGELOG.md. Merging it releases: the new version has no
+# v<version> tag yet, so it goes to the Chrome Web Store, then gets its tag and GitHub Release (CHANGELOG.md
+# notes, the zip attached). Firefox Add-ons will join once the listing is live.
+#
+# Run by hand (Actions → Release → Run workflow) with dry_run to check the store sign-in without uploading,
+# or without it to retry a release whose upload failed.
 name: Release
 
 on:
@@ -8,10 +12,12 @@ on:
     workflows: [Check]
     types: [completed]
     branches: [main]
-
-concurrency:
-  group: release
-  cancel-in-progress: true
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Check the Chrome Web Store sign-in only; upload and release nothing
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -22,6 +28,10 @@ jobs:
     name: Create or refresh d3oxy/release
     if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     runs-on: ubuntu-latest
+    # A newer main commit makes this run's release pull request out of date.
+    concurrency:
+      group: release-prepare
+      cancel-in-progress: true
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
@@ -85,3 +95,98 @@ jobs:
           else
             gh pr create --base main --head d3oxy/release --draft --title "$TITLE" --body "$BODY"
           fi
+
+  # A version without its v<version> tag is one the store doesn't have yet. The tag is created last, after the
+  # upload, so a failed upload leaves the version unpublished for a retry.
+  detect:
+    name: Find an unpublished version
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      sha: ${{ steps.version.outputs.sha }}
+      publish: ${{ steps.version.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - id: version
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          git fetch --tags origin main
+          VERSION="$(node -p "require('./package.json').version")"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          if [ "$SHA" != "$(git rev-parse origin/main)" ]; then
+            echo "A newer main commit superseded $SHA; its run publishes."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          elif [ "$DRY_RUN" = "true" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          elif git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+            echo "v$VERSION is already released."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  publish:
+    name: Publish to the Chrome Web Store
+    needs: detect
+    if: needs.detect.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Holds the store credentials; only main may deploy to it.
+    environment: chrome-web-store
+    # Never cancel an upload halfway; a second release waits for the first.
+    concurrency:
+      group: release-publish
+      cancel-in-progress: false
+    env:
+      VERSION: ${{ needs.detect.outputs.version }}
+      ZIP: .output/unmerged-${{ needs.detect.outputs.version }}-chrome.zip
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.detect.outputs.sha }}
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 12
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm zip
+
+      - name: Submit to the Chrome Web Store
+        env:
+          CHROME_API_VERSION: v2
+          CHROME_EXTENSION_ID: dimbendmcjfgoldbcebkepgonkfopcab
+          CHROME_PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
+          CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL: ${{ secrets.CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL }}
+          PRIVATE_KEY: ${{ secrets.CHROME_SERVICE_ACCOUNT_PRIVATE_KEY }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          # The key holds either real line breaks or literal \n (as copied from the JSON key file); %b gives
+          # line breaks either way.
+          export CHROME_SERVICE_ACCOUNT_PRIVATE_KEY="$(printf '%b' "$PRIVATE_KEY")"
+          args=(--chrome-zip "$ZIP")
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          pnpm exec wxt submit "${args[@]}"
+
+      - name: Tag and release on GitHub
+        if: inputs.dry_run != true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ needs.detect.outputs.sha }}
+        run: |
+          # This version's section of CHANGELOG.md: from its "## <version> (date)" heading to the next one.
+          awk -v v="$VERSION" '$1 == "##" { if (found) exit; found = ($2 == v); next } found' CHANGELOG.md > notes.md
+          gh release create "v$VERSION" "$ZIP" --target "$SHA" --title "Unmerged $VERSION" --notes-file notes.md
