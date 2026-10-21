@@ -10,8 +10,9 @@ import { useMedia } from '@/lib/useMedia';
 import { Button } from '@/ui/Button';
 import { Avatar, Panel } from '@/ui/primitives';
 import { IssueIcon, PrStateIcon } from '@/ui/status';
+import { ParentGroups } from './ParentGroups';
 import { PeekContent, peekPage, usePrivatePeek } from './PeekPanel';
-import { isPeek, type WorkItem } from './queries';
+import { groupByParent, isPeek, type WorkItem } from './queries';
 
 /**
  * Whether issue lists show the split (the setting is on) and the window is wide enough for it (Tailwind's
@@ -25,16 +26,21 @@ export function useIssueSplit() {
 /**
  * Issues as a compact list beside the one that's open: `peek`, or the first issue until one is picked. j/k
  * opens the issue it lands on. Rows always open beside the list, whatever the side panel setting says.
+ * `grouped` puts them under their parent issues.
  */
-export function IssueSplit({ items, peek, scoped, byCreated, footer }: { items: WorkItem[]; peek?: Peek; scoped: boolean; byCreated: boolean; footer: ReactNode }) {
-  const first = items[0];
+export function IssueSplit({ items, peek, scoped, byCreated, grouped, footer }: { items: WorkItem[]; peek?: Peek; scoped: boolean; byCreated: boolean; grouped: boolean; footer: ReactNode }) {
+  // The first row on screen, which with `grouped` is the first of the first group.
+  const first = grouped ? groupByParent(items)[0]?.items[0] : items[0];
   const open = peek ?? (first ? peekAt(new URL(first.url)) : undefined);
   return (
     <div className="mt-4 grid grid-cols-[minmax(340px,2fr)_minmax(0,3fr)] items-start gap-4">
       <Panel className="animate-enter overflow-hidden">
-        {items.map((item) => (
-          <IssueRow key={item.id} item={item} scoped={scoped} byCreated={byCreated} selected={isPeek(item, open)} />
-        ))}
+        <ParentGroups
+          items={items}
+          grouped={grouped}
+          peek
+          row={(item) => <IssueRow key={item.id} item={item} scoped={scoped} byCreated={byCreated} selected={isPeek(item, open)} />}
+        />
         {footer}
       </Panel>
       {open && <Reader peek={open} />}

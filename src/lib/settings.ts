@@ -56,6 +56,9 @@ export const sidePanelItem = storage.defineItem<boolean>('local:sidePanel', { fa
 /** Whether an issue list is a compact list with the open issue beside it, instead of a table like pull requests. */
 export const issueSplitItem = storage.defineItem<boolean>('local:issueSplit', { fallback: false });
 
+/** Whether an issue list shows its issues under their parent issues. */
+export const issueGroupItem = storage.defineItem<boolean>('local:issueGroup', { fallback: false });
+
 /** Whether a repository's front page shows its last 12 weeks of activity (RepoPulse) above the files. */
 export const repoPulseItem = storage.defineItem<boolean>('local:repoPulse', { fallback: true });
 
