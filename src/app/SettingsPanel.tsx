@@ -4,7 +4,7 @@ import { Analytics01Icon, ArrowUpRight01Icon, Book02Icon, Building03Icon, CheckL
 import { GitHubError, rest } from '@/github/client';
 import { cx } from '@/lib/cx';
 import { saveToken } from '@/lib/persist';
-import { appearanceItem, customThemesItem, DEFAULT_PRIVACY, fontItem, issueGroupItem, issueSplitItem, NEW_TOKEN_URL, openSettingsPage, privacyItem, repoPulseItem, sidePanelItem, slideToMergeItem, surfacesItem, themeIdItem, tokenItem, useStorageItem, type Appearance, type Blur, type Font, type Surface } from '@/lib/settings';
+import { appearanceItem, customThemesItem, DEFAULT_PRIVACY, fontItem, issueSplitItem, nestIssuesItem, NEW_TOKEN_URL, openSettingsPage, privacyItem, repoPulseItem, sidePanelItem, slideToMergeItem, surfacesItem, themeIdItem, tokenItem, useStorageItem, type Appearance, type Blur, type Font, type Surface } from '@/lib/settings';
 import { Switch } from '@/ui/Switch';
 import { ThemePicker } from './ThemePicker';
 
@@ -99,7 +99,7 @@ function GeneralPage() {
   const token = useStorageItem(tokenItem);
   const sidePanel = useStorageItem(sidePanelItem);
   const issueSplit = useStorageItem(issueSplitItem);
-  const issueGroup = useStorageItem(issueGroupItem);
+  const nestIssues = useStorageItem(nestIssuesItem);
   const repoPulse = useStorageItem(repoPulseItem);
   const slideToMerge = useStorageItem(slideToMergeItem);
 
@@ -126,13 +126,13 @@ function GeneralPage() {
               path="A compact list with the open issue beside it, on a wide window"
             />
           )}
-          {issueGroup !== null && (
+          {nestIssues !== null && (
             <ToggleRow
-              on={issueGroup}
-              onClick={() => issueGroupItem.setValue(!issueGroup)}
+              on={nestIssues}
+              onClick={() => nestIssuesItem.setValue(!nestIssues)}
               icon={<HugeiconsIcon icon={HierarchyIcon} />}
-              label="Group issues by parent"
-              path="Sub-issues show under their parent issue"
+              label="Nest sub-issues"
+              path="Issue lists show sub-issues under their parent, in GitHub's order"
             />
           )}
         </div>

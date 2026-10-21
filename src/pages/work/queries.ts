@@ -3,7 +3,7 @@ import { gql } from '@/github/client';
 import type { Actor } from '@/github/types';
 import { persisted } from '@/lib/persist';
 import type { Peek, WorkFilter } from '@/lib/routes';
-import { issueSplitItem } from '@/lib/settings';
+import { issueSplitItem, nestIssuesItem } from '@/lib/settings';
 import type { IssueRowDetails, IssueRowItem, PrRowDetails, PrRowItem } from '@/ui/WorkRow';
 
 export type WorkType = 'pr' | 'issue';
@@ -91,7 +91,10 @@ const scoped = (q: string, repo?: string) => (repo ? `${q} repo:${repo}` : q);
 // works out one result after another (about 5 s for 50), so those come after, by id (`workDetailsQuery`).
 const ROW = 'id number title url updatedAt createdAt repository { nameWithOwner isPrivate owner { avatarUrl } } author { login avatarUrl } labels(first: 3) { nodes { name color } }';
 
-const LIST_QUERY = /* GraphQL */ `
+// What a nested list also needs: which results are sub-issues (`parent`) and which have sub-issues of their own.
+const NESTING = 'parent { id number title url state stateReason repository { nameWithOwner isPrivate } } subIssues { totalCount }';
+
+const listQuery = (nested: boolean) => /* GraphQL */ `
   query WorkList($q: String!, $after: String) {
     results: search(type: ISSUE, query: $q, first: 50, after: $after) {
       issueCount
@@ -99,7 +102,7 @@ const LIST_QUERY = /* GraphQL */ `
       nodes {
         __typename
         ... on PullRequest { ${ROW} isDraft state }
-        ... on Issue { ${ROW} state stateReason parent { id number title url state stateReason repository { nameWithOwner isPrivate } } }
+        ... on Issue { ${ROW} state stateReason ${nested ? NESTING : ''} }
       }
     }
   }
@@ -110,7 +113,8 @@ type ListFields = { createdAt: string; repository: { nameWithOwner: string; owne
 export type PrItem = { __typename: 'PullRequest' } & PrRowItem & ListFields;
 /** The issue an issue is a sub-issue of. */
 export type IssueParent = Pick<IssueRowItem, 'id' | 'number' | 'title' | 'url' | 'state' | 'stateReason' | 'repository'>;
-type IssueItem = { __typename: 'Issue'; parent: IssueParent | null } & IssueRowItem & ListFields;
+/** `parent` and `subIssues` come only in a nested list (see `NESTING`). */
+type IssueItem = { __typename: 'Issue'; parent?: IssueParent | null; subIssues?: { totalCount: number } } & IssueRowItem & ListFields;
 /** A list result: a search can mix pull requests and issues whatever the page is for. */
 export type WorkItem = PrItem | IssueItem;
 
@@ -118,12 +122,15 @@ export type ListPage = {
   results: { issueCount: number; pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: WorkItem[] };
 };
 
-/** One search, 50 results a page. `repo` ("owner/name") scopes the search without being part of `q`, as on GitHub. */
-export const workListQuery = (q: string, repo?: string) =>
+/**
+ * One search, 50 results a page. `repo` ("owner/name") scopes the search without being part of `q`, as on GitHub.
+ * `nested` (the Nest sub-issues setting, issue lists only) also asks for what nesting needs.
+ */
+export const workListQuery = (q: string, repo?: string, nested = false) =>
   infiniteQueryOptions({
     // Stored results paint before the request returns, so the key changes whenever their shape does.
-    queryKey: ['work-list', 2, repo?.toLowerCase(), q],
-    queryFn: ({ pageParam }) => gql<ListPage>(LIST_QUERY, { q: scoped(q, repo), after: pageParam }),
+    queryKey: ['work-list', repo?.toLowerCase(), q, nested],
+    queryFn: ({ pageParam }) => gql<ListPage>(listQuery(nested), { q: scoped(q, repo), after: pageParam }),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => (last.results.pageInfo.hasNextPage ? last.results.pageInfo.endCursor : null),
     staleTime: 30_000,
@@ -131,21 +138,34 @@ export const workListQuery = (q: string, repo?: string) =>
     persister: persisted<ListPage>,
   });
 
-/**
- * `items` under their parent issues, as GitHub Projects groups by parent: each group in the order its first
- * item comes in the list, then the items with no parent (pull requests too) in a group whose `parent` is null.
- */
-export function groupByParent(items: WorkItem[]) {
-  const groups = new Map<string, { parent: IssueParent | null; items: WorkItem[] }>();
+/** The parents whose sub-issues a nested list shows: each result's parent, and each result that has sub-issues. */
+export function familyIds(items: WorkItem[]) {
+  const ids = new Set<string>();
   for (const item of items) {
-    const parent = item.__typename === 'Issue' ? item.parent : null;
-    const key = parent?.id ?? '';
-    const group = groups.get(key) ?? groups.set(key, { parent, items: [] }).get(key)!;
-    group.items.push(item);
+    if (item.__typename !== 'Issue') continue;
+    if (item.parent) ids.add(item.parent.id);
+    if (item.subIssues?.totalCount) ids.add(item.id);
   }
-  // The sort is stable, so the groups keep their order.
-  return [...groups.values()].sort((a, b) => Number(!a.parent) - Number(!b.parent));
+  return [...ids];
 }
+
+// GitHub allows 100 sub-issues per issue, so one page holds them all.
+const FAMILY_QUERY = /* GraphQL */ `
+  query IssueFamily($id: ID!) {
+    node(id: $id) { ... on Issue { subIssues(first: 100) { nodes { __typename ${ROW} state stateReason } } } }
+  }
+`;
+
+/** All sub-issues of the issue `id`, in GitHub's order (the order on the issue's page). */
+export const issueFamilyQuery = (id: string) =>
+  queryOptions({
+    queryKey: ['issue-family', id],
+    // A sub-issue the token can't see comes back null.
+    queryFn: async ({ signal }) =>
+      (await gql<{ node: { subIssues: { nodes: (WorkItem | null)[] } } | null }>(FAMILY_QUERY, { id }, true, signal)).node?.subIssues.nodes.filter((node) => node !== null) ?? [],
+    staleTime: 30_000,
+    persister: persisted,
+  });
 
 const DETAILS_QUERY = /* GraphQL */ `
   query WorkDetails($ids: [ID!]!) {
@@ -248,16 +268,19 @@ export const workStateCountQueries = (q: string, repo?: string) => (['open', 'cl
 export const workTabCountQueries = (type: WorkType) => TABS[type].map((tab) => workCountQuery(defaultQuery(type, tab.filter)));
 
 /**
- * Starts everything a list shows for `q` at once: its results and its Open/Closed counts. The table's details
- * follow the results; a split issue list shows none. Resolves once the details have started.
+ * Starts everything a list shows for `q` at once: its results and its Open/Closed counts. Then the table's
+ * details follow the results; a nested issue list starts its families instead, and a split one neither.
+ * Resolves once those have started.
  */
-export function prefetchWorkList(client: QueryClient, kind: WorkType, q: string, repo?: string) {
-  const details = Promise.all([client.fetchInfiniteQuery(workListQuery(q, repo)), kind === 'issue' && issueSplitItem.getValue()])
-    .then(([{ pages }, split]) => {
-      if (split) return;
-      for (const ids of detailChunks(pages.flatMap((page) => page.results.nodes))) client.prefetchQuery(workDetailsQuery(ids));
-    })
-    .catch(() => {});
+export async function prefetchWorkList(client: QueryClient, kind: WorkType, q: string, repo?: string) {
   for (const count of workStateCountQueries(q, repo)) client.prefetchQuery(count);
-  return details;
+  try {
+    const [split, nested] = kind === 'issue' ? await Promise.all([issueSplitItem.getValue(), nestIssuesItem.getValue()]) : [false, false];
+    const { pages } = await client.fetchInfiniteQuery(workListQuery(q, repo, nested));
+    const items = pages.flatMap((page) => page.results.nodes);
+    if (nested) for (const id of familyIds(items)) client.prefetchQuery(issueFamilyQuery(id));
+    else if (!split) for (const ids of detailChunks(items)) client.prefetchQuery(workDetailsQuery(ids));
+  } catch {
+    // The page shows the error when it asks again.
+  }
 }

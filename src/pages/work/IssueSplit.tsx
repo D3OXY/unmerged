@@ -10,9 +10,10 @@ import { useMedia } from '@/lib/useMedia';
 import { Button } from '@/ui/Button';
 import { Avatar, Panel } from '@/ui/primitives';
 import { IssueIcon, PrStateIcon } from '@/ui/status';
-import { ParentGroups } from './ParentGroups';
+import { indent, IssueTreeRows } from './IssueTree';
 import { PeekContent, peekPage, usePrivatePeek } from './PeekPanel';
-import { groupByParent, isPeek, type WorkItem } from './queries';
+import { isPeek, type WorkItem } from './queries';
+import type { IssueTree } from './tree';
 
 /**
  * Whether issue lists show the split (the setting is on) and the window is wide enough for it (Tailwind's
@@ -26,21 +27,17 @@ export function useIssueSplit() {
 /**
  * Issues as a compact list beside the one that's open: `peek`, or the first issue until one is picked. j/k
  * opens the issue it lands on. Rows always open beside the list, whatever the side panel setting says.
- * `grouped` puts them under their parent issues.
+ * With `tree` (the Nest sub-issues setting) the rows are its lines.
  */
-export function IssueSplit({ items, peek, scoped, byCreated, grouped, footer }: { items: WorkItem[]; peek?: Peek; scoped: boolean; byCreated: boolean; grouped: boolean; footer: ReactNode }) {
-  // The first row on screen, which with `grouped` is the first of the first group.
-  const first = grouped ? groupByParent(items)[0]?.items[0] : items[0];
+export function IssueSplit({ items, tree, peek, scoped, byCreated, footer }: { items: WorkItem[]; tree: IssueTree | null; peek?: Peek; scoped: boolean; byCreated: boolean; footer: ReactNode }) {
+  // The first issue on screen, which in a tree may not be the first result.
+  const first = tree ? tree.rows.find((line) => line.kind === 'item')?.item : items[0];
   const open = peek ?? (first ? peekAt(new URL(first.url)) : undefined);
+  const row = (item: WorkItem, depth: number) => <IssueRow key={item.id} item={item} depth={depth} scoped={scoped} byCreated={byCreated} selected={isPeek(item, open)} />;
   return (
     <div className="mt-4 grid grid-cols-[minmax(340px,2fr)_minmax(0,3fr)] items-start gap-4">
       <Panel className="animate-enter overflow-hidden">
-        <ParentGroups
-          items={items}
-          grouped={grouped}
-          peek
-          row={(item) => <IssueRow key={item.id} item={item} scoped={scoped} byCreated={byCreated} selected={isPeek(item, open)} />}
-        />
+        {tree ? <IssueTreeRows tree={tree} peek inset={12} row={row} /> : items.map((item) => row(item, 0))}
         {footer}
       </Panel>
       {open && <Reader peek={open} />}
@@ -48,8 +45,8 @@ export function IssueSplit({ items, peek, scoped, byCreated, grouped, footer }: 
   );
 }
 
-/** One line per issue: state, the repo's owner (across repos), number, title, label dots and time. */
-function IssueRow({ item, scoped, byCreated, selected }: { item: WorkItem; scoped: boolean; byCreated: boolean; selected: boolean }) {
+/** One line per issue, `depth` levels into a nested list: state, the repo's owner (across repos), number, title, label dots and time. */
+function IssueRow({ item, depth, scoped, byCreated, selected }: { item: WorkItem; depth: number; scoped: boolean; byCreated: boolean; selected: boolean }) {
   return (
     <a
       href={item.url}
@@ -59,6 +56,7 @@ function IssueRow({ item, scoped, byCreated, selected }: { item: WorkItem; scope
       aria-current={selected || undefined}
       // Keyboard focus (j/k) opens the issue; a click does that itself.
       onFocus={(e) => e.currentTarget.matches(':focus-visible') && navigate(withPeek(location.href, new URL(item.url).pathname))}
+      style={depth ? { paddingLeft: indent(12, depth) } : undefined}
       className={cx(
         'relative flex h-9 items-center gap-2 border-b border-line px-3 text-[13px] transition-colors last:border-b-0 hover:bg-hover focus:bg-hover focus:outline-none',
         selected && 'bg-hover before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-accent',

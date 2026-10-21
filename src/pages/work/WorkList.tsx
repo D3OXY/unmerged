@@ -6,18 +6,19 @@ import { usePageHotkey } from '@/app/keyboard';
 import { prefetchVisibleRows } from '@/app/prefetch';
 import { cx } from '@/lib/cx';
 import type { Peek } from '@/lib/routes';
-import { issueGroupItem, sidePanelItem, useStorageItem } from '@/lib/settings';
+import { nestIssuesItem, sidePanelItem, useStorageItem } from '@/lib/settings';
 import { Button } from '@/ui/Button';
 import { Menu, type MenuOption } from '@/ui/Menu';
 import { Empty, Kbd, Panel, Skeleton } from '@/ui/primitives';
 import { repoLabelFor } from '@/ui/WorkRow';
 import { IssueSplit, useIssueSplit } from './IssueSplit';
 import { qualifierOf, sortOf, SORTS, squash, useWorkDetails, withQualifier, workListQuery, workQueryOf, workStateCountQueries, type Qualifier, type Sort, type WorkType } from './queries';
+import { useIssueTree } from './tree';
 import { WorkTable } from './WorkTable';
 
 /**
  * A searchable list of pull requests or issues (`kind`): a table, or for issues with the split setting on, a
- * list beside the open issue. With the group setting on, issues sit under their parent issues.
+ * list beside the open issue. With the Nest sub-issues setting on, an issue list is a tree of parents and sub-issues.
  * The GitHub search query is the whole state: Open/Closed, the filters and the sort each rewrite one qualifier
  * of it, it can be typed directly, and it lives in `?q=` like GitHub's. `fallback` is the query for a bare URL;
  * `repo` ("owner/name") scopes the search without showing up in the query, as on GitHub. `peek` is the pull
@@ -40,22 +41,25 @@ export function WorkList({ kind, fallback, repo, peek }: { kind: WorkType; fallb
 
   const sidePanel = useStorageItem(sidePanelItem) ?? false;
   const split = useIssueSplit() && kind === 'issue';
-  const grouped = useStorageItem(issueGroupItem) === true && kind === 'issue';
-  const list = useInfiniteQuery(workListQuery(q, repo));
+  const nest = useStorageItem(nestIssuesItem);
+  const nested = nest === true && kind === 'issue';
+  // An issue list's search depends on the setting, so it waits for it rather than ask twice.
+  const list = useInfiniteQuery({ ...workListQuery(q, repo, nested), enabled: kind === 'pr' || nest !== null });
+  const state = qualifierOf(q, 'state').split(':')[1];
+  const tree = useIssueTree(list.data?.pages, state ?? '', nested);
   const counts = useQueries({ queries: workStateCountQueries(q, repo) });
 
   // The rows on screen get their pages' first paint ready; again whenever the rows change.
   const queryClient = useQueryClient();
   const rowsRef = useRef<HTMLDivElement>(null);
-  useEffect(() => (rowsRef.current ? prefetchVisibleRows(queryClient, rowsRef.current) : undefined), [queryClient, list.data]);
+  useEffect(() => (rowsRef.current ? prefetchVisibleRows(queryClient, rowsRef.current) : undefined), [queryClient, list.data, tree?.waiting]);
 
   const items = list.data?.pages.flatMap((page) => page.results.nodes) ?? [];
   // Only the table shows details.
-  const details = useWorkDetails(split ? [] : items);
+  const details = useWorkDetails(split ? [] : tree ? tree.rows.flatMap((line) => (line.kind === 'item' ? [line.item] : [])) : items);
   const repoLabel = repo ? 'none' : repoLabelFor(items);
   const author = qualifierOf(q, 'author');
   const label = qualifierOf(q, 'label');
-  const state = qualifierOf(q, 'state').split(':')[1];
   const sort = sortOf(q);
 
   /** Applies a chip's pick; "Other…" (a bare `key:`) is left in the search box to finish typing. */
@@ -66,9 +70,10 @@ export function WorkList({ kind, fallback, repo, peek }: { kind: WorkType; fallb
     setDraft(`${withQualifier(q, name, '')} ${token}`);
   };
 
-  const footer = list.hasNextPage && (
+  // A tree holds back a page until its families are in.
+  const footer = (list.hasNextPage || tree?.waiting) && (
     <div className="flex justify-center border-t border-line p-3">
-      <Button size="sm" variant="ghost" loading={list.isFetchingNextPage} onClick={() => list.fetchNextPage()}>
+      <Button size="sm" variant="ghost" loading={list.isFetchingNextPage || tree?.waiting} onClick={() => list.fetchNextPage()}>
         Load more
       </Button>
     </div>
@@ -142,7 +147,7 @@ export function WorkList({ kind, fallback, repo, peek }: { kind: WorkType; fallb
       <div ref={rowsRef}>
         {list.error ? (
           <p className="py-10 text-[13px] text-danger">{list.error.message}</p>
-        ) : list.isPending ? (
+        ) : list.isPending || (tree?.waiting && tree.rows.length === 0) ? (
           <Panel className="mt-4 flex flex-col gap-3 p-4">
             {Array.from({ length: 8 }, (_, i) => (
               <Skeleton key={i} className="h-4" />
@@ -153,9 +158,9 @@ export function WorkList({ kind, fallback, repo, peek }: { kind: WorkType; fallb
             <Empty>Nothing matches.</Empty>
           </Panel>
         ) : split ? (
-          <IssueSplit items={items} peek={peek} scoped={!!repo} byCreated={sort.startsWith('created')} grouped={grouped} footer={footer} />
+          <IssueSplit items={items} peek={peek} scoped={!!repo} byCreated={sort.startsWith('created')} tree={tree} footer={footer} />
         ) : (
-          <WorkTable kind={kind} items={items} details={details} q={q} onQuery={setQ} repoLabel={repoLabel} peek={sidePanel} grouped={grouped} open={peek} footer={footer} />
+          <WorkTable kind={kind} items={items} tree={tree} details={details} q={q} onQuery={setQ} repoLabel={repoLabel} peek={sidePanel} open={peek} footer={footer} />
         )}
       </div>
     </>
