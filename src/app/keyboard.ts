@@ -64,10 +64,11 @@ const pageKeys = new Map<string, PageKey>();
 
 /**
  * Binds a single key (e.g. "t") while the calling page is mounted. Ignored while typing. `label` is what
- * the `?` overlay shows for it.
+ * the `?` overlay shows for it. A null `handler` leaves the key unbound, for an action the page can't take now.
  */
-export function usePageHotkey(key: string, handler: () => void, label?: string) {
+export function usePageHotkey(key: string, handler: (() => void) | null, label?: string) {
   useEffect(() => {
+    if (!handler) return;
     const entry = { handler, label };
     pageKeys.set(key, entry);
     return () => {

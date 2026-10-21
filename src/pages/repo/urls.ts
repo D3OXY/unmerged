@@ -7,6 +7,8 @@ export const blobUrl = (nameWithOwner: string, ref: string, path: string) => `/$
 
 export const blameUrl = (nameWithOwner: string, ref: string, path: string) => `/${nameWithOwner}/blame/${ref}/${encodePath(path)}`;
 
+export const editUrl = (nameWithOwner: string, ref: string, path: string) => `/${nameWithOwner}/edit/${ref}/${encodePath(path)}`;
+
 export const rawUrl = (nameWithOwner: string, ref: string, path: string) => `https://github.com/${nameWithOwner}/raw/${ref}/${encodePath(path)}`;
 
 export const commitsUrl = (nameWithOwner: string, ref: string, path = '') => `/${nameWithOwner}/commits/${ref}${path ? `/${encodePath(path)}` : ''}`;

@@ -1,20 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Copy01Icon, Download01Icon, File02Icon, HistoryIcon, Link02Icon, UserGroupIcon } from '@hugeicons/core-free-icons';
+import { Copy01Icon, Download01Icon, File02Icon, HistoryIcon, Link02Icon, PencilEdit02Icon, UserGroupIcon } from '@hugeicons/core-free-icons';
 import { useRegisterCommands, type Command } from '@/app/commands';
 import { usePageHotkey } from '@/app/keyboard';
 import { copy } from '@/lib/clipboard';
 import { cx } from '@/lib/cx';
 import { loadDiffs } from '@/lib/diffs';
 import { useIsDark } from '@/lib/settings';
-import { onNavigate } from '@/lib/navigation';
+import { navigate, onNavigate } from '@/lib/navigation';
 import { formatBytes } from '@/lib/time';
 import { Markdown, Panel, Skeleton } from '@/ui/primitives';
 import { LoadError } from './LoadError';
 import { CommitBar } from './TreeView';
 import { repoMarkdownQuery, type LastCommit } from './query';
-import { blameUrl, blobUrl, commitsUrl, rawUrl } from './urls';
+import { blameUrl, blobUrl, commitsUrl, editUrl, rawUrl } from './urls';
 
 type Blob = { oid: string; byteSize: number; isBinary: boolean | null; isTruncated: boolean; text: string | null };
 
@@ -34,13 +34,14 @@ function parseLines(hash: string): [number, number] | null {
 /** [10, 20] → "#L10-L20"; [10, 10] → "#L10". */
 const linesHash = ([a, b]: [number, number]) => (a === b ? `#L${a}` : `#L${a}-L${b}`);
 
-type Props = { nameWithOwner: string; gitRef: string; path: string; blob: Blob; lastCommit?: LastCommit; commitOid?: string };
+type Props = { nameWithOwner: string; gitRef: string; path: string; blob: Blob; lastCommit?: LastCommit; commitOid?: string; editable?: boolean };
 
 /**
  * A file: highlighted code with linkable lines, rendered Markdown, or an image. `commitOid` is the commit
- * `gitRef` pointed at when the file was read, for permalinks.
+ * `gitRef` pointed at when the file was read, for permalinks. `editable` (a branch of a repo that isn't
+ * archived) adds Edit, which opens GitHub's editor; GitHub offers a fork to viewers who can't push.
  */
-export function BlobView({ nameWithOwner, gitRef, path, blob, lastCommit, commitOid }: Props) {
+export function BlobView({ nameWithOwner, gitRef, path, blob, lastCommit, commitOid, editable }: Props) {
   const isMarkdown = MARKDOWN.test(path);
   const [preview, setPreview] = useState(isMarkdown);
   const [selection, setSelection] = useState(() => parseLines(location.hash));
@@ -63,9 +64,16 @@ export function BlobView({ nameWithOwner, gitRef, path, blob, lastCommit, commit
     if (commitOid) copy(`https://github.com${blobUrl(nameWithOwner, commitOid, path)}${selection ? linesHash(selection) : ''}`, 'permalink');
   }, [nameWithOwner, commitOid, path, selection]);
   usePageHotkey('y', copyPermalink);
+  // GitHub's editor can't open binary or truncated files.
+  const edit = editable && blob.text !== null && !blob.isBinary && !blob.isTruncated ? editUrl(nameWithOwner, gitRef, path) : null;
+  const openEditor = useMemo(() => (edit ? () => navigate(edit) : null), [edit]);
+  usePageHotkey('e', openEditor, 'Edit file');
   const commands = useMemo<Command[]>(
-    () => [{ id: 'blob:permalink', group: 'File', title: 'Copy permalink', hint: 'Y', icon: <HugeiconsIcon icon={Link02Icon} />, perform: copyPermalink }],
-    [copyPermalink],
+    () => [
+      { id: 'blob:permalink', group: 'File', title: 'Copy permalink', hint: 'Y', icon: <HugeiconsIcon icon={Link02Icon} />, perform: copyPermalink },
+      ...(openEditor ? [{ id: 'blob:edit', group: 'File', title: 'Edit file', hint: 'E', icon: <HugeiconsIcon icon={PencilEdit02Icon} />, perform: openEditor }] : []),
+    ],
+    [copyPermalink, openEditor],
   );
   useRegisterCommands('blob', commands);
 
@@ -107,6 +115,7 @@ export function BlobView({ nameWithOwner, gitRef, path, blob, lastCommit, commit
         {blob.text !== null && <span className="tabular-nums">{lines.length.toLocaleString()} lines</span>}
         <span className="tabular-nums">{formatBytes(blob.byteSize)}</span>
         <span className="ml-auto flex items-center gap-1">
+          {edit && <Action href={edit} icon={<HugeiconsIcon icon={PencilEdit02Icon} />} label="Edit" />}
           <Action href={blameUrl(nameWithOwner, gitRef, path)} icon={<HugeiconsIcon icon={UserGroupIcon} />} label="Blame" />
           <Action href={commitsUrl(nameWithOwner, gitRef, path)} icon={<HugeiconsIcon icon={HistoryIcon} />} label="History" />
           <Action href={raw} icon={<HugeiconsIcon icon={Download01Icon} />} label="Raw" />
