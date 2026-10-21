@@ -68,7 +68,10 @@ These break without a clear error.
 - Logic changes (routes, prefetch, caching, themes, data shaping) require focused tests for that behavior. Tests sit next to the code as `*.test.ts`.
 - Async tests must wait on promises or observable state, never fixed sleeps or polling delays.
 - Give user-visible site changes one integrated pass in the T3 preview browser without asking, once after integration (`pnpm site`, port 3000). For extension UI, `pnpm dev` opens a separate browser profile with the extension loaded; ask permission before computer use to drive it. Do not start a dev server if one is already running.
-- In a pull request for a user-visible UI change, attach before and after screenshots or a recording that shows how it works. When the change only adds UI, a screenshot of the new UI is enough.
+
+## Opening a PR
+
+- When asked to open a PR for a user-visible change, attach before and after screenshots if thats enough or a recording if the change is interactive. When the change only adds UI, a screenshot of the new UI is enough.
 
 ## Taste
 
