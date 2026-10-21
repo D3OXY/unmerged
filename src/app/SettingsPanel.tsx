@@ -1,10 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
-import { Analytics01Icon, ArrowUpRight01Icon, Book02Icon, Building03Icon, CheckListIcon, CircleDotIcon, ComputerIcon, DashboardSquare01Icon, GitCommitHorizontalIcon, GitCompareIcon, GitMergeIcon, GitPullRequestIcon, Home01Icon, Key01Icon, Layout2ColumnIcon, LayoutRightIcon, Mail01Icon, Moon02Icon, Notification03Icon, PaintBoardIcon, PlayIcon, Search01Icon, Settings02Icon, SquareLock02Icon, Sun03Icon, UserIcon, ViewOffSlashIcon } from '@hugeicons/core-free-icons';
+import { Analytics01Icon, ArrowUpRight01Icon, Book02Icon, Building03Icon, CheckListIcon, CircleDotIcon, ComputerIcon, DashboardSquare01Icon, GitCommitHorizontalIcon, GitCompareIcon, GitMergeIcon, GitPullRequestIcon, HierarchyIcon, Home01Icon, Key01Icon, Layout2ColumnIcon, LayoutRightIcon, Mail01Icon, Moon02Icon, Notification03Icon, PaintBoardIcon, PlayIcon, Search01Icon, Settings02Icon, SquareLock02Icon, Sun03Icon, UserIcon, ViewOffSlashIcon } from '@hugeicons/core-free-icons';
 import { GitHubError, rest } from '@/github/client';
 import { cx } from '@/lib/cx';
 import { saveToken } from '@/lib/persist';
-import { appearanceItem, customThemesItem, DEFAULT_PRIVACY, fontItem, issueSplitItem, NEW_TOKEN_URL, openSettingsPage, privacyItem, repoPulseItem, sidePanelItem, slideToMergeItem, surfacesItem, themeIdItem, tokenItem, useStorageItem, type Appearance, type Blur, type Font, type Surface } from '@/lib/settings';
+import { appearanceItem, customThemesItem, DEFAULT_PRIVACY, fontItem, issueGroupItem, issueSplitItem, NEW_TOKEN_URL, openSettingsPage, privacyItem, repoPulseItem, sidePanelItem, slideToMergeItem, surfacesItem, themeIdItem, tokenItem, useStorageItem, type Appearance, type Blur, type Font, type Surface } from '@/lib/settings';
 import { Switch } from '@/ui/Switch';
 import { ThemePicker } from './ThemePicker';
 
@@ -99,6 +99,7 @@ function GeneralPage() {
   const token = useStorageItem(tokenItem);
   const sidePanel = useStorageItem(sidePanelItem);
   const issueSplit = useStorageItem(issueSplitItem);
+  const issueGroup = useStorageItem(issueGroupItem);
   const repoPulse = useStorageItem(repoPulseItem);
   const slideToMerge = useStorageItem(slideToMergeItem);
 
@@ -123,6 +124,15 @@ function GeneralPage() {
               icon={<HugeiconsIcon icon={Layout2ColumnIcon} />}
               label="Split issue lists"
               path="A compact list with the open issue beside it, on a wide window"
+            />
+          )}
+          {issueGroup !== null && (
+            <ToggleRow
+              on={issueGroup}
+              onClick={() => issueGroupItem.setValue(!issueGroup)}
+              icon={<HugeiconsIcon icon={HierarchyIcon} />}
+              label="Group issues by parent"
+              path="Sub-issues show under their parent issue"
             />
           )}
         </div>

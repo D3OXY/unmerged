@@ -6,7 +6,7 @@ import { usePageHotkey } from '@/app/keyboard';
 import { prefetchVisibleRows } from '@/app/prefetch';
 import { cx } from '@/lib/cx';
 import type { Peek } from '@/lib/routes';
-import { sidePanelItem, useStorageItem } from '@/lib/settings';
+import { issueGroupItem, sidePanelItem, useStorageItem } from '@/lib/settings';
 import { Button } from '@/ui/Button';
 import { Menu, type MenuOption } from '@/ui/Menu';
 import { Empty, Kbd, Panel, Skeleton } from '@/ui/primitives';
@@ -17,7 +17,7 @@ import { WorkTable } from './WorkTable';
 
 /**
  * A searchable list of pull requests or issues (`kind`): a table, or for issues with the split setting on, a
- * list beside the open issue.
+ * list beside the open issue. With the group setting on, issues sit under their parent issues.
  * The GitHub search query is the whole state: Open/Closed, the filters and the sort each rewrite one qualifier
  * of it, it can be typed directly, and it lives in `?q=` like GitHub's. `fallback` is the query for a bare URL;
  * `repo` ("owner/name") scopes the search without showing up in the query, as on GitHub. `peek` is the pull
@@ -40,6 +40,7 @@ export function WorkList({ kind, fallback, repo, peek }: { kind: WorkType; fallb
 
   const sidePanel = useStorageItem(sidePanelItem) ?? false;
   const split = useIssueSplit() && kind === 'issue';
+  const grouped = useStorageItem(issueGroupItem) === true && kind === 'issue';
   const list = useInfiniteQuery(workListQuery(q, repo));
   const counts = useQueries({ queries: workStateCountQueries(q, repo) });
 
@@ -152,9 +153,9 @@ export function WorkList({ kind, fallback, repo, peek }: { kind: WorkType; fallb
             <Empty>Nothing matches.</Empty>
           </Panel>
         ) : split ? (
-          <IssueSplit items={items} peek={peek} scoped={!!repo} byCreated={sort.startsWith('created')} footer={footer} />
+          <IssueSplit items={items} peek={peek} scoped={!!repo} byCreated={sort.startsWith('created')} grouped={grouped} footer={footer} />
         ) : (
-          <WorkTable kind={kind} items={items} details={details} q={q} onQuery={setQ} repoLabel={repoLabel} peek={sidePanel} open={peek} footer={footer} />
+          <WorkTable kind={kind} items={items} details={details} q={q} onQuery={setQ} repoLabel={repoLabel} peek={sidePanel} grouped={grouped} open={peek} footer={footer} />
         )}
       </div>
     </>

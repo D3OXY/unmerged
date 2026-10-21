@@ -99,7 +99,7 @@ const LIST_QUERY = /* GraphQL */ `
       nodes {
         __typename
         ... on PullRequest { ${ROW} isDraft state }
-        ... on Issue { ${ROW} state stateReason }
+        ... on Issue { ${ROW} state stateReason parent { id number title url state stateReason repository { nameWithOwner isPrivate } } }
       }
     }
   }
@@ -108,7 +108,9 @@ const LIST_QUERY = /* GraphQL */ `
 type ListFields = { createdAt: string; repository: { nameWithOwner: string; owner: { avatarUrl: string } } };
 
 export type PrItem = { __typename: 'PullRequest' } & PrRowItem & ListFields;
-type IssueItem = { __typename: 'Issue' } & IssueRowItem & ListFields;
+/** The issue an issue is a sub-issue of. */
+export type IssueParent = Pick<IssueRowItem, 'id' | 'number' | 'title' | 'url' | 'state' | 'stateReason' | 'repository'>;
+type IssueItem = { __typename: 'Issue'; parent: IssueParent | null } & IssueRowItem & ListFields;
 /** A list result: a search can mix pull requests and issues whatever the page is for. */
 export type WorkItem = PrItem | IssueItem;
 
@@ -120,7 +122,7 @@ export type ListPage = {
 export const workListQuery = (q: string, repo?: string) =>
   infiniteQueryOptions({
     // Stored results paint before the request returns, so the key changes whenever their shape does.
-    queryKey: ['work-list', repo?.toLowerCase(), q],
+    queryKey: ['work-list', 2, repo?.toLowerCase(), q],
     queryFn: ({ pageParam }) => gql<ListPage>(LIST_QUERY, { q: scoped(q, repo), after: pageParam }),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => (last.results.pageInfo.hasNextPage ? last.results.pageInfo.endCursor : null),
@@ -128,6 +130,22 @@ export const workListQuery = (q: string, repo?: string) =>
     // Infinite queries infer their data type from `persister` too; pin it.
     persister: persisted<ListPage>,
   });
+
+/**
+ * `items` under their parent issues, as GitHub Projects groups by parent: each group in the order its first
+ * item comes in the list, then the items with no parent (pull requests too) in a group whose `parent` is null.
+ */
+export function groupByParent(items: WorkItem[]) {
+  const groups = new Map<string, { parent: IssueParent | null; items: WorkItem[] }>();
+  for (const item of items) {
+    const parent = item.__typename === 'Issue' ? item.parent : null;
+    const key = parent?.id ?? '';
+    const group = groups.get(key) ?? groups.set(key, { parent, items: [] }).get(key)!;
+    group.items.push(item);
+  }
+  // The sort is stable, so the groups keep their order.
+  return [...groups.values()].sort((a, b) => Number(!a.parent) - Number(!b.parent));
+}
 
 const DETAILS_QUERY = /* GraphQL */ `
   query WorkDetails($ids: [ID!]!) {

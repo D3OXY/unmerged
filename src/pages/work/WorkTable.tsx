@@ -8,6 +8,7 @@ import { Menu, type MenuOption } from '@/ui/Menu';
 import { Avatar, Panel, Pill } from '@/ui/primitives';
 import { CheckIcon, IssueIcon, PrStateIcon } from '@/ui/status';
 import { IssueRelations, NotLoaded, type Details, type RepoLabel } from '@/ui/WorkRow';
+import { ParentGroups } from './ParentGroups';
 import { isPeek, qualifierOf, sortOf, SORTS, withQualifier, type PrDetails, type Sort, type WorkDetails, type WorkItem, type WorkType } from './queries';
 
 const REVIEWS: MenuOption<string>[] = [
@@ -41,9 +42,10 @@ const COL = {
  * Pull requests or issues (`kind`) as a table: state, title, repository (or author, inside a repo), for pull
  * requests review, CI and size, then comments and time. The headers carry the list's controls: Review and CI
  * filter, Comments and the time column sort, each by rewriting one qualifier of `q`. With `peek` (the side panel
- * setting) rows open beside the list. Review, CI, size and comments come from `details`, which land after the rows.
+ * setting) rows open beside the list; `grouped` puts them under their parent issues. Review, CI, size and
+ * comments come from `details`, which land after the rows.
  */
-export function WorkTable({ kind, items, details, q, onQuery, repoLabel, peek, open, footer }: {
+export function WorkTable({ kind, items, details, q, onQuery, repoLabel, peek, grouped, open, footer }: {
   kind: WorkType;
   items: WorkItem[];
   details: Map<string, WorkDetails | null>;
@@ -51,6 +53,7 @@ export function WorkTable({ kind, items, details, q, onQuery, repoLabel, peek, o
   onQuery: (q: string) => void;
   repoLabel: RepoLabel;
   peek: boolean;
+  grouped: boolean;
   open?: Peek;
   footer: ReactNode;
 }) {
@@ -95,9 +98,14 @@ export function WorkTable({ kind, items, details, q, onQuery, repoLabel, peek, o
           />
         </span>
       </div>
-      {items.map((item) => (
-        <Row key={item.id} item={item} details={details.get(item.id)} prColumns={kind === 'pr'} repoLabel={repoLabel} byCreated={byCreated} peek={peek} selected={isPeek(item, open)} />
-      ))}
+      <ParentGroups
+        items={items}
+        grouped={grouped}
+        peek={peek}
+        row={(item) => (
+          <Row key={item.id} item={item} details={details.get(item.id)} prColumns={kind === 'pr'} repoLabel={repoLabel} byCreated={byCreated} peek={peek} selected={isPeek(item, open)} />
+        )}
+      />
       {footer}
     </Panel>
   );

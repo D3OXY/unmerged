@@ -4,6 +4,7 @@ import {
   defaultQuery,
   detailChunks,
   detailsById,
+  groupByParent,
   knownDetails,
   qualifierOf,
   repoListQuery,
@@ -12,6 +13,7 @@ import {
   workQueryOf,
   type Qualifier,
   type WorkDetails,
+  type WorkItem,
 } from './queries';
 
 describe('workQueryOf', () => {
@@ -111,5 +113,20 @@ describe('knownDetails', () => {
     client.setQueryData(workDetailsQuery(['ID_2']).queryKey, [issue('ID_2')]);
     expect(knownDetails(client, ['ID_2', 'ID_0', 'ID_9'])).toEqual([issue('ID_0'), issue('ID_2')]);
     expect(knownDetails(client, ['ID_9'])).toBeUndefined();
+  });
+});
+
+describe('groupByParent', () => {
+  const parent = (id: string) => ({ id, number: 1, title: id, url: '', state: 'OPEN' as const, stateReason: null, repository: { nameWithOwner: 'o/r' } });
+  const item = (id: string, parentId?: string) => ({ __typename: 'Issue', id, parent: parentId ? parent(parentId) : null }) as WorkItem;
+  const pr = (id: string) => ({ __typename: 'PullRequest', id }) as WorkItem;
+
+  it('groups by parent in list order, with issues that have none (and pull requests) last', () => {
+    const groups = groupByParent([item('a'), item('b', 'P'), pr('c'), item('d', 'Q'), item('e', 'P')]);
+    expect(groups.map((group) => [group.parent?.id ?? null, group.items.map((i) => i.id)])).toEqual([
+      ['P', ['b', 'e']],
+      ['Q', ['d']],
+      [null, ['a', 'c']],
+    ]);
   });
 });
