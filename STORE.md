@@ -70,6 +70,7 @@ and with the privacy policy at https://unmerged.deoxy.dev/privacy (`site/src/rou
 
 ## Firefox Add-ons (AMO)
 
+- **Listing:** https://addons.mozilla.org/firefox/addon/unmerged/
 - **Categories:** Appearance, Web Development.
 - **License:** MIT License (`LICENSE`).
 - **Data collection:** the manifest declares none (`data_collection_permissions: { required: ['none'] }`):

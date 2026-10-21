@@ -16,8 +16,9 @@ When Check passes on `main` with pending changesets, the Release workflow opens 
 and writes the dated release to `CHANGELOG.md`. Mark it ready for review so Check runs, then merge it.
 
 Merging it publishes the release: once Check passes on that commit, the Release workflow uploads the new
-version to the Chrome Web Store and submits it for review (it goes live when Google approves it), then tags
-it `v<version>` and creates a GitHub Release with its `CHANGELOG.md` section and the zip. A version without
-its tag is one the store doesn't have yet. If the upload fails, run the Release workflow by hand with
-`dry_run` off to retry; with `dry_run` on, it only checks the store sign-in. The store credentials are
-secrets of the `chrome-web-store` environment, which only `main` can use.
+version to the Chrome Web Store and Firefox Add-ons and submits it for review (it goes live when each store
+approves it), then tags it `v<version>` and creates a GitHub Release with its `CHANGELOG.md` section and both
+zips. A version without its tag is one the stores don't have yet. If an upload fails, open that run and click
+**Re-run failed jobs**: it uploads to the failed store again, then tags. Run the Release workflow by hand with
+`dry_run` on to check the store sign-ins only. Each store's credentials are secrets of its environment,
+`chrome-web-store` or `firefox-add-ons`, which only `main` can use.

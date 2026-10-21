@@ -25,8 +25,9 @@ with a pill to come back.
 
 ## Install
 
-Install it from the [Chrome Web Store](https://chromewebstore.google.com/detail/dimbendmcjfgoldbcebkepgonkfopcab),
-then click the Unmerged toolbar icon and paste a token. Firefox Add-ons is still reviewing it.
+Install it from the [Chrome Web Store](https://chromewebstore.google.com/detail/dimbendmcjfgoldbcebkepgonkfopcab)
+or [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/unmerged/), then click the Unmerged toolbar icon
+and paste a token.
 
 To run your own build instead, build it and load it unpacked:
 
