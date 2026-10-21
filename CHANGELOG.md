@@ -1,5 +1,18 @@
 # unmerged
 
+## 0.1.2 (2026-10-21)
+
+### Patch Changes
+
+- [New][Repositories] A file on a branch has an Edit button (or press E) that opens GitHub's editor.
+- [Improved][Pull request & issue lists] Issue lists show as a table, like pull request lists, with comments and sortable columns. To keep the open issue beside a compact list, turn on Split issue lists in settings.
+- [New][Issues] Issues show their parent issue, sub-issues with progress, and the issues they are blocked by or blocking, with these events in the activity. With triage access, you can add and remove them in place.
+- [New][Pull requests] Link an issue to a pull request, or a pull request to an issue, from the sidebar. Unmerged adds "Closes #<issue>" to the pull request's description.
+- [New][Pull request & issue lists] Issue rows show when an issue is blocked, and how many of its sub-issues are closed.
+- [New][Pull request & issue lists] Turn on Nest sub-issues in settings to show each parent issue with all its sub-issues under it, in the same order as on GitHub.
+- [Fixed][Updates] After Unmerged updates, links in tabs that were already open load the new version, and no longer do nothing or show errors.
+- [Fixed][Account] Your account, organizations and recent repositories, private ones too, are no longer kept where github.com's scripts and other extensions can read them.
+
 ## 0.1.1 (2026-10-20)
 
 ### Patch Changes
