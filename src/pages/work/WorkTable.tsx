@@ -8,8 +8,9 @@ import { Menu, type MenuOption } from '@/ui/Menu';
 import { Avatar, Panel, Pill } from '@/ui/primitives';
 import { CheckIcon, IssueIcon, PrStateIcon } from '@/ui/status';
 import { IssueRelations, NotLoaded, type Details, type RepoLabel } from '@/ui/WorkRow';
-import { ParentGroups } from './ParentGroups';
+import { indent, IssueTreeRows } from './IssueTree';
 import { isPeek, qualifierOf, sortOf, SORTS, withQualifier, type PrDetails, type Sort, type WorkDetails, type WorkItem, type WorkType } from './queries';
+import type { IssueTree } from './tree';
 
 const REVIEWS: MenuOption<string>[] = [
   { value: '', label: 'Any' },
@@ -42,24 +43,27 @@ const COL = {
  * Pull requests or issues (`kind`) as a table: state, title, repository (or author, inside a repo), for pull
  * requests review, CI and size, then comments and time. The headers carry the list's controls: Review and CI
  * filter, Comments and the time column sort, each by rewriting one qualifier of `q`. With `peek` (the side panel
- * setting) rows open beside the list; `grouped` puts them under their parent issues. Review, CI, size and
- * comments come from `details`, which land after the rows.
+ * setting) rows open beside the list. With `tree` (the Nest sub-issues setting) the rows are its lines. Review,
+ * CI, size and comments come from `details`, which land after the rows.
  */
-export function WorkTable({ kind, items, details, q, onQuery, repoLabel, peek, grouped, open, footer }: {
+export function WorkTable({ kind, items, tree, details, q, onQuery, repoLabel, peek, open, footer }: {
   kind: WorkType;
   items: WorkItem[];
+  tree: IssueTree | null;
   details: Map<string, WorkDetails | null>;
   q: string;
   onQuery: (q: string) => void;
   repoLabel: RepoLabel;
   peek: boolean;
-  grouped: boolean;
   open?: Peek;
   footer: ReactNode;
 }) {
   const sort = sortOf(q);
   const setSort = (next: Sort) => onQuery(withQualifier(q, 'sort', `sort:${next}`));
   const byCreated = sort.startsWith('created');
+  const row = (item: WorkItem, depth: number) => (
+    <Row key={item.id} item={item} depth={depth} details={details.get(item.id)} prColumns={kind === 'pr'} repoLabel={repoLabel} byCreated={byCreated} peek={peek} selected={isPeek(item, open)} />
+  );
   return (
     <Panel className="mt-4 animate-enter overflow-hidden">
       <div className="flex h-9 items-center gap-3 border-b border-line px-4 text-[12px] font-medium text-subtle">
@@ -98,14 +102,7 @@ export function WorkTable({ kind, items, details, q, onQuery, repoLabel, peek, g
           />
         </span>
       </div>
-      <ParentGroups
-        items={items}
-        grouped={grouped}
-        peek={peek}
-        row={(item) => (
-          <Row key={item.id} item={item} details={details.get(item.id)} prColumns={kind === 'pr'} repoLabel={repoLabel} byCreated={byCreated} peek={peek} selected={isPeek(item, open)} />
-        )}
-      />
+      {tree ? <IssueTreeRows tree={tree} peek={peek} inset={16} row={row} /> : items.map((item) => row(item, 0))}
       {footer}
     </Panel>
   );
@@ -132,11 +129,12 @@ function HeaderFilter({ label, value, options, onChange, className }: { label: s
 }
 
 /**
- * One row. `prColumns` is whether the table has the pull request columns; an issue in such a table (the search
- * is editable) leaves them empty.
+ * One row, `depth` levels into a nested list. `prColumns` is whether the table has the pull request columns; an
+ * issue in such a table (the search is editable) leaves them empty.
  */
-function Row({ item, details, prColumns, repoLabel, byCreated, peek, selected }: {
+function Row({ item, depth, details, prColumns, repoLabel, byCreated, peek, selected }: {
   item: WorkItem;
+  depth: number;
   details: Details<WorkDetails>;
   prColumns: boolean;
   repoLabel: RepoLabel;
@@ -155,6 +153,7 @@ function Row({ item, details, prColumns, repoLabel, byCreated, peek, selected }:
       data-peek={peek || undefined}
       data-repo-private={item.repository.isPrivate !== false || undefined}
       aria-current={selected || undefined}
+      style={depth ? { paddingLeft: indent(16, depth) } : undefined}
       className={cx(
         'relative flex h-10 items-center gap-3 border-b border-line px-4 transition-colors last:border-b-0 hover:bg-hover focus:bg-hover focus:outline-none',
         selected && 'bg-hover before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-accent',

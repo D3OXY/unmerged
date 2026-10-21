@@ -2,14 +2,14 @@ import { QueryClient, type QueryKey } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { matchRoute } from '@/lib/routes';
-import { issueSplitItem } from '@/lib/settings';
+import { issueSplitItem, nestIssuesItem } from '@/lib/settings';
 import { runsQuery } from '@/pages/actions/query';
 import { branchIndexQuery } from '@/pages/branches/query';
 import { issueQuery, issueTimelineQuery } from '@/pages/issue/query';
 import { prFilesQuery, prMergeQuery, prQuery, prReviewQuery, prTimelineQuery, prViewedQuery } from '@/pages/pr/query';
 import { releasesQuery, tagsQuery } from '@/pages/releases/query';
 import { codeSearchQuery, repoSearchQuery, workSearchQuery } from '@/pages/search/queries';
-import { defaultQuery, prefetchWorkList, repoListQuery, workDetailsQuery, workListQuery, workQueryOf, type ListPage } from '@/pages/work/queries';
+import { defaultQuery, issueFamilyQuery, prefetchWorkList, repoListQuery, workDetailsQuery, workListQuery, workQueryOf, type ListPage } from '@/pages/work/queries';
 import { prefetchRoute, prefetchVisibleRows, rowsToPrefetch } from './prefetch';
 
 /** The list keys `prefetchRoute` starts for `href`, without fetching anything. */
@@ -27,15 +27,36 @@ function prefetchedListKeys(href: string) {
   return keys;
 }
 
+/** The pull request or issue list `prefetchRoute` starts for `href`, once it starts: an issue list reads its settings first. */
+function prefetchedWorkList(href: string) {
+  const client = new QueryClient();
+  vi.spyOn(client, 'prefetchQuery').mockResolvedValue();
+  const started = new Promise<QueryKey>((resolve) => {
+    vi.spyOn(client, 'fetchInfiniteQuery').mockImplementation(async (options) => (resolve(options.queryKey), { pages: [], pageParams: [] }));
+  });
+  const url = new URL(href);
+  const route = matchRoute(url);
+  if (!route) throw new Error(`no route for ${href}`);
+  prefetchRoute(client, route, url);
+  return started;
+}
+
 // Each list page passes its bare-URL fallback (and repo) to `WorkList`; prefetch must land on the same key.
 describe('prefetchRoute for lists', () => {
+  beforeEach(() => fakeBrowser.reset());
+
   it.each<[string, string, string?]>([
     ['https://github.com/pulls/assigned', defaultQuery('pr', 'assigned')],
     ['https://github.com/issues?q=is:issue+label:bug', defaultQuery('issue', 'created')],
     ['https://github.com/Owner/Repo/pulls', repoListQuery('pulls'), 'Owner/Repo'],
     ['https://github.com/Owner/Repo/issues?q=is:issue+is:closed', repoListQuery('issues'), 'Owner/Repo'],
-  ])('starts the page’s list for %s', (href, fallback, repo) => {
-    expect(prefetchedListKeys(href)).toEqual([workListQuery(workQueryOf(new URL(href), fallback), repo).queryKey]);
+  ])('starts the page’s list for %s', async (href, fallback, repo) => {
+    expect(await prefetchedWorkList(href)).toEqual(workListQuery(workQueryOf(new URL(href), fallback), repo).queryKey);
+  });
+
+  it('starts the nested list when Nest sub-issues is on', async () => {
+    await nestIssuesItem.setValue(true);
+    expect(await prefetchedWorkList('https://github.com/o/r/issues')).toEqual(workListQuery(repoListQuery('issues'), 'o/r', true).queryKey);
   });
 });
 
@@ -68,6 +89,22 @@ describe('prefetchRoute for list tables', () => {
       workDetailsQuery(nodes.slice(0, 10).map((n) => n.id)).queryKey,
       workDetailsQuery(nodes.slice(10).map((n) => n.id)).queryKey,
     ]);
+  });
+
+  it('starts the families and no details for a nested issue list', async () => {
+    await nestIssuesItem.setValue(true);
+    const client = new QueryClient();
+    const nodes = [
+      { __typename: 'Issue', id: 'A', parent: { id: 'P' }, subIssues: { totalCount: 0 } },
+      { __typename: 'Issue', id: 'B', parent: null, subIssues: { totalCount: 2 } },
+      { __typename: 'Issue', id: 'C', parent: null, subIssues: { totalCount: 0 } },
+    ];
+    const page = { results: { issueCount: 3, pageInfo: { hasNextPage: false, endCursor: null }, nodes } } as unknown as ListPage;
+    vi.spyOn(client, 'fetchInfiniteQuery').mockResolvedValue({ pages: [page], pageParams: [null] });
+    const keys: QueryKey[] = [];
+    vi.spyOn(client, 'prefetchQuery').mockImplementation(async ({ queryKey }) => void keys.push(queryKey));
+    await prefetchWorkList(client, 'issue', repoListQuery('issues'), 'o/r');
+    expect(keys.filter((key) => key[0] !== 'work-count')).toEqual([issueFamilyQuery('P').queryKey, issueFamilyQuery('B').queryKey]);
   });
 
   it('starts no details for a split issue list', async () => {
