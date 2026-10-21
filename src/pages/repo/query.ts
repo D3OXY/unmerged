@@ -106,8 +106,9 @@ export async function resolveRefPath(owner: string, name: string, rest: string[]
 }
 
 export const CONTENT_QUERY = /* GraphQL */ `
-  query RepoContent($owner: String!, $name: String!, $expr: String!, $ref: String!, $path: String) {
+  query RepoContent($owner: String!, $name: String!, $expr: String!, $ref: String!, $branch: String!, $path: String) {
     repository(owner: $owner, name: $name) {
+      branch: ref(qualifiedName: $branch) { name }
       object(expression: $expr) {
         __typename
         ... on Tree { entries { name type path submodule { gitUrl } object { ... on Blob { byteSize } } } }
@@ -153,6 +154,8 @@ export type ContentData = {
       | { __typename: 'Blob'; oid: string; byteSize: number; isBinary: boolean | null; isTruncated: boolean; text: string | null }
       | null;
     commit: { oid: string; history: { totalCount: number; nodes: LastCommit[] } } | null;
+    /** Set when the revision is a branch: GitHub edits files only on a branch. Missing from a result stored before it was asked for. */
+    branch?: { name: string } | null;
   } | null;
 };
 
@@ -253,11 +256,11 @@ export const repoResolveQuery = (owner: string, name: string, rest: string[]) =>
     persister: persisted,
   });
 
-/** A folder's entries or a file's text at a revision, with the last commit touching it. */
+/** A folder's entries or a file's text at a revision, with the last commit touching it and whether the revision is a branch. */
 export const repoContentQuery = (owner: string, name: string, revision: string, path: string) =>
   queryOptions({
     queryKey: ['repo-content', ...key(owner, name), revision, path],
-    queryFn: () => gql<ContentData>(CONTENT_QUERY, { owner, name, expr: `${revision}:${path}`, ref: revision, path: path || null }),
+    queryFn: () => gql<ContentData>(CONTENT_QUERY, { owner, name, expr: `${revision}:${path}`, ref: revision, branch: `refs/heads/${revision}`, path: path || null }),
     staleTime: 60_000,
     persister: persisted,
   });

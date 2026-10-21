@@ -85,7 +85,15 @@ export function RepoPage({ owner, repo: name, view, rest }: Props) {
               {!object ? (
                 <TreeSkeleton />
               ) : object.__typename === 'Blob' ? (
-                <BlobView nameWithOwner={nwo} gitRef={target.ref} path={target.path} blob={object} lastCommit={history?.nodes[0]} commitOid={commit?.oid} />
+                <BlobView
+                  nameWithOwner={nwo}
+                  gitRef={target.ref}
+                  path={target.path}
+                  blob={object}
+                  lastCommit={history?.nodes[0]}
+                  commitOid={commit?.oid}
+                  editable={!!content.data?.repository?.branch && !repo.isArchived}
+                />
               ) : (
                 <TreeView nameWithOwner={nwo} gitRef={target.ref} revision={revision!.ref} path={target.path} entries={object.entries} lastCommit={history?.nodes[0]} commitCount={history?.totalCount} />
               )}
