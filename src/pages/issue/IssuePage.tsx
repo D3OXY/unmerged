@@ -6,7 +6,7 @@ import { useRegisterCommands, type Command } from '@/app/commands';
 import { openClassic } from '@/lib/classic';
 import { copy } from '@/lib/clipboard';
 import { cx } from '@/lib/cx';
-import { emitNavigate } from '@/lib/navigation';
+import { emitNavigate, navigate } from '@/lib/navigation';
 import { timeAgo } from '@/lib/time';
 import { useTitle } from '@/lib/useTitle';
 import { repoPath } from '@/pages/pr/query';
@@ -14,6 +14,7 @@ import { CommentCard } from '@/pages/pr/Timeline';
 import { usePrMutation } from '@/pages/pr/usePrMutation';
 import { RepoFrame } from '@/pages/repo/RepoFrame';
 import { Button } from '@/ui/Button';
+import { Menu } from '@/ui/Menu';
 import { Avatar, Skeleton } from '@/ui/primitives';
 import { IssueIcon } from '@/ui/status';
 import { CLOSE_REASONS, IssueComposer } from './IssueComposer';
@@ -193,13 +194,38 @@ function IssueDetails({ issue }: { issue: Issue }) {
   );
 }
 
-/** How many issues block this one, or it blocks; their numbers and titles in the tooltip. */
+/**
+ * How many issues block this one, or it blocks; their numbers and titles in the tooltip. With one issue the chip
+ * opens it; with more it opens a menu of them.
+ */
 function Dependencies({ label, issues }: { label: string; issues: Issue['blockedBy'] }) {
-  return (
-    <span className={detail} title={issues.nodes.map((other) => `#${other.number} ${other.title}`).join('\n')}>
+  const title = issues.nodes.map((other) => `#${other.number} ${other.title}`).join('\n');
+  const content = (
+    <>
       <HugeiconsIcon icon={UnavailableIcon} className="size-3.5 shrink-0 text-subtle" />
       {label} {issues.totalCount}
-    </span>
+    </>
+  );
+  const only = issues.nodes.length === 1 ? issues.nodes[0] : undefined;
+  if (only) {
+    return (
+      <a href={only.url} className={cx(detail, 'hover:bg-hover')} title={title}>
+        {content}
+      </a>
+    );
+  }
+  return (
+    <Menu<string>
+      value=""
+      align="left"
+      options={issues.nodes.map((other) => ({ value: other.url, label: `#${other.number} ${other.title}`, hint: other.repository.nameWithOwner }))}
+      onChange={navigate}
+      trigger={(open) => (
+        <button type="button" onClick={open} className={cx(detail, 'cursor-pointer hover:bg-hover')} title={title}>
+          {content}
+        </button>
+      )}
+    />
   );
 }
 
