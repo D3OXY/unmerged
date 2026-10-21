@@ -24,6 +24,7 @@ import {
 import { Benchmark, benchmarkSetup } from '../components/Benchmark';
 import { Screenshots } from '../components/Screenshots';
 import { Kbd, Logo } from '../components/ui';
+import sideBySidePoster from '../assets/side-by-side-poster.webp?url';
 import { useInstallHref } from '../install';
 import { FORK_URL, REPO_URL, TAGLINE } from '../site';
 
@@ -40,6 +41,7 @@ function Home() {
       <main className="relative">
         <Hero />
         <Pages />
+        <SideBySide />
         <Speed />
         <Keyboard />
       </main>
@@ -237,6 +239,41 @@ function Pages() {
           toolbar popup.
         </p>
       </div>
+    </Section>
+  );
+}
+
+/** Served from prcl, public and with no expiry, so the repo doesn't carry the video. */
+const SIDE_BY_SIDE_VIDEO = 'https://prcl.deoxy.dev/f/3qk673u0zqq4/side-by-side.mp4';
+
+/**
+ * A recording of Bun's rewrite in Rust (oven-sh/bun#30412) loading in GitHub and in Unmerged at the same time.
+ * The video loads only when the reader plays it; until then, the poster shows both sides at 10 s.
+ */
+function SideBySide() {
+  return (
+    <Section
+      id="side-by-side"
+      title="Bun's biggest pull request, side by side."
+      lede="Bun's rewrite in Rust changes 2,188 files and more than a million lines. Both sides open it, click Files changed, and scroll down through the diffs."
+    >
+      <figure>
+        <video
+          src={SIDE_BY_SIDE_VIDEO}
+          poster={sideBySidePoster}
+          controls
+          playsInline
+          preload="none"
+          width={1920}
+          height={1080}
+          aria-label="GitHub and Unmerged open the same pull request side by side, with a timer and live metrics under each"
+          className="h-auto w-full rounded-2xl border border-line bg-panel shadow-[0_30px_80px_-20px_rgb(0_0_0/0.7)]"
+        />
+        <figcaption className="mt-3 text-[12.5px] leading-relaxed text-subtle">
+          First diff on screen: GitHub in 22.5 s, Unmerged in 4.3 s. Both signed out of github.com, each in a new
+          Chromium profile on the same machine and connection. Each side is the median of three recordings.
+        </figcaption>
+      </figure>
     </Section>
   );
 }
