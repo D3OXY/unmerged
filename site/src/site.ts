@@ -2,6 +2,7 @@
 export const SITE_URL = 'https://unmerged.deoxy.dev';
 export const REPO_URL = 'https://github.com/D3OXY/unmerged';
 export const CHROME_STORE_URL = 'https://chromewebstore.google.com/detail/dimbendmcjfgoldbcebkepgonkfopcab';
+export const FIREFOX_STORE_URL = 'https://addons.mozilla.org/firefox/addon/unmerged/';
 /** GitHub's page for forking the repo. */
 export const FORK_URL = 'https://github.com/D3OXY/unmerged/fork';
 /** Where users write for help; the support page and the privacy policy show it. */

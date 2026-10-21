@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowRight01Icon, Download04Icon } from '@hugeicons/core-free-icons';
+import { Download04Icon } from '@hugeicons/core-free-icons';
 import { ChromeLogo, FirefoxLogo } from '../../components/brands';
 import { Logo } from '../../components/ui';
-import { CHROME_STORE_URL } from '../../site';
+import { CHROME_STORE_URL, FIREFOX_STORE_URL } from '../../site';
 
-// Where Install goes when the browser can't install from the Chrome Web Store (see useInstallHref).
+// Where Install goes when the browser can't install from a store (see useInstallHref).
 export const Route = createFileRoute('/install/')({
   head: () => ({ meta: [{ title: 'Install · Unmerged' }] }),
   component: Install,
@@ -36,32 +36,10 @@ function Install() {
           <Browser
             logo={<ChromeLogo className="size-7" />}
             name="Chrome"
-            status={<Status ready>Available</Status>}
             note="Also Arc, Brave, Edge and other Chromium browsers."
-            featured
-          >
-            <a
-              href={CHROME_STORE_URL}
-              className="flex h-11 items-center justify-center gap-2 rounded-full bg-accent px-5 text-[14.5px] font-medium text-accent-fg shadow-[inset_0_1px_0_rgb(255_255_255/0.2),0_10px_30px_-12px_var(--u-accent)] transition-[filter,scale] duration-150 hover:brightness-110 active:scale-[0.97]"
-            >
-              <HugeiconsIcon icon={Download04Icon} className="size-[18px]" />
-              Add to Chrome
-            </a>
-          </Browser>
-          <Browser
-            logo={<FirefoxLogo className="size-7" />}
-            name="Firefox"
-            status={<Status>Coming soon</Status>}
-            note="Firefox Add-ons is reviewing it. Until then, you can build it yourself."
-          >
-            <a
-              href="/install/source"
-              className="flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-5 text-[14.5px] font-medium transition-[background-color,scale] duration-150 hover:bg-white/[0.12] active:scale-[0.97]"
-            >
-              Build from source
-              <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
-            </a>
-          </Browser>
+            href={CHROME_STORE_URL}
+          />
+          <Browser logo={<FirefoxLogo className="size-7" />} name="Firefox" note="Firefox 140 or later, on desktop." href={FIREFOX_STORE_URL} />
         </div>
 
         <p className="mt-10 text-center text-[13.5px] text-subtle">
@@ -76,29 +54,26 @@ function Install() {
   );
 }
 
-/** One browser: its logo, name and availability, a line about it, then its action at the bottom. */
-function Browser({ logo, name, status, note, featured, children }: { logo: ReactNode; name: string; status: ReactNode; note: string; featured?: boolean; children: ReactNode }) {
+/** One browser: its logo and name, a line about it, then the button to its store at the bottom. */
+function Browser({ logo, name, note, href }: { logo: ReactNode; name: string; note: string; href: string }) {
   return (
-    <section
-      className={`flex flex-col rounded-3xl border p-7 ${featured ? 'border-accent/30 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--u-accent)_10%,transparent),transparent_60%)]' : 'border-line bg-panel/60'}`}
-    >
+    <section className="flex flex-col rounded-3xl border border-accent/30 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--u-accent)_10%,transparent),transparent_60%)] p-7">
       <div className="flex items-start justify-between">
         <span className="flex size-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-fg">{logo}</span>
-        {status}
+        <span className="flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-[12px] text-muted">
+          <span className="size-1.5 rounded-full bg-emerald-400" />
+          Available
+        </span>
       </div>
       <h2 className="mt-6 text-[22px] font-semibold tracking-tight">{name}</h2>
       <p className="mt-2 mb-8 text-[14px] leading-relaxed text-muted">{note}</p>
-      <div className="mt-auto">{children}</div>
+      <a
+        href={href}
+        className="mt-auto flex h-11 items-center justify-center gap-2 rounded-full bg-accent px-5 text-[14.5px] font-medium text-accent-fg shadow-[inset_0_1px_0_rgb(255_255_255/0.2),0_10px_30px_-12px_var(--u-accent)] transition-[filter,scale] duration-150 hover:brightness-110 active:scale-[0.97]"
+      >
+        <HugeiconsIcon icon={Download04Icon} className="size-[18px]" />
+        Add to {name}
+      </a>
     </section>
-  );
-}
-
-/** Availability with a colored dot: green when it can be installed now. */
-function Status({ ready, children }: { ready?: boolean; children: ReactNode }) {
-  return (
-    <span className="flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-[12px] text-muted">
-      <span className={`size-1.5 rounded-full ${ready ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-      {children}
-    </span>
   );
 }
