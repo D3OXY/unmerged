@@ -5,7 +5,8 @@ import { Tick02Icon } from '@hugeicons/core-free-icons';
 import { cx } from '@/lib/cx';
 import { useDismiss } from './useDismiss';
 
-export type MenuOption<T extends string> = { value: T; label: string; hint?: string };
+/** `count` shows at the end of the row, e.g. how many items the option matches. */
+export type MenuOption<T extends string> = { value: T; label: string; hint?: string; count?: number };
 
 type Placement = { container: Element; top: number; left?: number; right?: number };
 
@@ -122,10 +123,11 @@ export function Menu<T extends string>({
           className="flex w-full cursor-pointer items-start gap-2 rounded-lg px-2.5 py-2 text-left hover:bg-hover"
         >
           <HugeiconsIcon icon={Tick02Icon} className={cx('mt-0.5 size-3.5 shrink-0', isSelected(option.value) ? 'text-accent' : 'invisible')} />
-          <span>
+          <span className="min-w-0 flex-1">
             <span className="block text-[13px] font-medium">{option.label}</span>
             {option.hint && <span className="block text-[12px] text-muted">{option.hint}</span>}
           </span>
+          {option.count !== undefined && <span className="mt-px text-[12px] text-subtle tabular-nums">{option.count}</span>}
         </button>
       ))}
     </div>
