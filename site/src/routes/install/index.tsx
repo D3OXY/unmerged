@@ -3,32 +3,47 @@ import { createFileRoute } from '@tanstack/react-router';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Download04Icon } from '@hugeicons/core-free-icons';
 import { ChromeLogo, FirefoxLogo } from '../../components/brands';
-import { BUTTON, Logo } from '../../components/ui';
-import { CHROME_STORE_URL, FIREFOX_STORE_URL } from '../../site';
+import { Footer } from '../../components/Footer';
+import { SendCard } from '../../components/InstallButtons';
+import { Nav } from '../../components/Nav';
+import { Setup } from '../../components/Setup';
+import { AlphaPill, BUTTON } from '../../components/ui';
+import { useBrowser } from '../../install';
+import { CHROME_STORE_URL, FIREFOX_STORE_URL, NEW_ISSUE_URL } from '../../site';
 
-// Where Install goes when the browser can't install from a store (see useInstallHref).
+// Where Install goes when the browser can't install from a store (see useInstallHref): phones and unknown browsers.
 export const Route = createFileRoute('/install/')({
   head: () => ({ meta: [{ title: 'Install · Unmerged' }] }),
   component: Install,
 });
 
 function Install() {
+  const phone = useBrowser() === 'phone';
   return (
-    <div className="min-h-dvh">
-      <div className="mx-auto max-w-[880px] px-6 pt-10 pb-24">
-        <a href="/" className="flex w-fit items-center gap-2 text-[15px] font-semibold tracking-tight">
-          <Logo />
-          Unmerged
-        </a>
-
-        <header className="mt-20 flex flex-col items-center text-center">
+    <div className="relative overflow-x-clip">
+      <Nav />
+      <main className="mx-auto max-w-[1120px] px-6">
+        <header className="flex flex-col items-center pt-16 text-center sm:pt-24">
           <h1 className="text-[40px] leading-[1.05] font-medium tracking-[-0.04em] sm:text-[56px]">Install Unmerged</h1>
           <p className="mt-4 max-w-[480px] text-[16px] leading-relaxed text-muted text-pretty">
             Free and open source, with no account. Pick your browser.
           </p>
+          <p className="mt-4 text-[13px] leading-6 text-subtle">
+            <AlphaPill />
+            Unmerged changes often, and some things can break.{' '}
+            <a href={NEW_ISSUE_URL} className="text-muted underline underline-offset-2 transition-colors hover:text-fg">
+              Report a problem
+            </a>
+          </p>
         </header>
 
-        <div className="mt-14 grid gap-2 sm:grid-cols-2">
+        {phone && (
+          <div className="mx-auto mt-10 max-w-[420px]">
+            <SendCard />
+          </div>
+        )}
+
+        <div className="mx-auto mt-14 grid max-w-[832px] gap-2 sm:grid-cols-2">
           <Browser
             logo={<ChromeLogo className="size-7" />}
             name="Chrome"
@@ -45,7 +60,15 @@ function Install() {
           </a>
           .
         </p>
-      </div>
+
+        <section className="pt-32 sm:pt-40">
+          <h2 className="mb-12 max-w-[880px] text-[24px] leading-[1.25] font-medium tracking-[-0.025em] text-pretty sm:mb-14 sm:text-[30px]">
+            Set up in three steps. <span className="text-muted">Add the extension, paste a token, then use GitHub as you do now.</span>
+          </h2>
+          <Setup />
+        </section>
+      </main>
+      <Footer />
     </div>
   );
 }

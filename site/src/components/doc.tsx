@@ -1,17 +1,18 @@
 import type { ReactNode } from 'react';
-import { Logo } from './ui';
+import { Footer } from './Footer';
+import { Nav } from './Nav';
 
-/** A plain text page (privacy policy, support): a link home, a title, an optional date line, then sections. */
+/** A plain text page (privacy policy, support, build from source) between the site's nav and footer: a title, an optional date line, then sections. */
 export function DocPage({ title, updated, children }: { title: string; updated?: string; children: ReactNode }) {
   return (
-    <div className="mx-auto max-w-[680px] px-6 pt-10 pb-24">
-      <a href="/" className="flex w-fit items-center gap-2 text-[15px] font-semibold tracking-tight">
-        <Logo />
-        Unmerged
-      </a>
-      <h1 className="mt-16 text-[36px] leading-[1.1] font-medium tracking-[-0.035em]">{title}</h1>
-      {updated && <p className="mt-3 text-[13px] text-subtle">Last updated {updated}</p>}
-      {children}
+    <div className="relative overflow-x-clip">
+      <Nav />
+      <main className="mx-auto max-w-[680px] px-6 pt-16 sm:pt-24">
+        <h1 className="text-[36px] leading-[1.1] font-medium tracking-[-0.035em] sm:text-[44px]">{title}</h1>
+        {updated && <p className="mt-3 text-[13px] text-subtle">Last updated {updated}</p>}
+        {children}
+      </main>
+      <Footer />
     </div>
   );
 }
