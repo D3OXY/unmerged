@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
 import {
@@ -248,9 +248,18 @@ const SIDE_BY_SIDE_VIDEO = 'https://prcl.deoxy.dev/f/3qk673u0zqq4/side-by-side.m
 
 /**
  * A recording of Bun's rewrite in Rust (oven-sh/bun#30412) loading in GitHub and in Unmerged at the same time.
- * The video loads only when the reader plays it; until then, the poster shows both sides at 10 s.
+ * The video loads only when the reader plays it; until then, the poster shows its last frame, with both final times.
+ * A large play button covers the poster, because the native controls alone make it look like a screenshot.
  */
 function SideBySide() {
+  const video = useRef<HTMLVideoElement>(null);
+  const [started, setStarted] = useState(false);
+
+  // The button unmounts on play, so give focus to the video once it has its controls.
+  useEffect(() => {
+    if (started) video.current?.focus();
+  }, [started]);
+
   return (
     <Section
       id="side-by-side"
@@ -258,17 +267,36 @@ function SideBySide() {
       lede="Bun's rewrite in Rust changes 2,188 files and more than a million lines. Both sides open it, click Files changed, and scroll down through the diffs."
     >
       <figure>
-        <video
-          src={SIDE_BY_SIDE_VIDEO}
-          poster={sideBySidePoster}
-          controls
-          playsInline
-          preload="none"
-          width={1920}
-          height={1080}
-          aria-label="GitHub and Unmerged open the same pull request side by side, with a timer and live metrics under each"
-          className="h-auto w-full rounded-2xl border border-line bg-panel shadow-[0_30px_80px_-20px_rgb(0_0_0/0.7)]"
-        />
+        <div className="relative">
+          <video
+            ref={video}
+            src={SIDE_BY_SIDE_VIDEO}
+            poster={sideBySidePoster}
+            controls={started}
+            playsInline
+            preload="none"
+            width={1920}
+            height={1080}
+            onPlay={() => setStarted(true)}
+            aria-label="GitHub and Unmerged open the same pull request side by side, with a timer and live metrics under each"
+            className="h-auto w-full rounded-2xl border border-line bg-panel shadow-[0_30px_80px_-20px_rgb(0_0_0/0.7)]"
+          />
+          {!started && (
+            <button
+              type="button"
+              aria-label="Play the side-by-side video (35 seconds)"
+              onClick={() => void video.current?.play()}
+              className="group absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-2xl bg-black/25 transition-colors duration-150 hover:bg-black/10"
+            >
+              <span className="grid size-16 place-items-center rounded-full bg-accent text-accent-fg shadow-[inset_0_1px_0_rgb(255_255_255/0.2),0_10px_40px_-8px_var(--u-accent)] transition-transform duration-150 group-hover:scale-105 group-active:scale-95 sm:size-24">
+                <svg aria-hidden viewBox="0 0 24 24" className="ml-1 size-7 sm:size-10" fill="currentColor">
+                  <path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5Z" />
+                </svg>
+              </span>
+              <span className="glass hidden rounded-full px-3 py-1 font-mono text-[12px] text-fg sm:block">0:35</span>
+            </button>
+          )}
+        </div>
         <figcaption className="mt-3 text-[12.5px] leading-relaxed text-subtle">
           First diff on screen: GitHub in 22.5 s, Unmerged in 4.3 s. Both signed out of github.com, each in a new
           Chromium profile on the same machine and connection. Each side is the median of three recordings.
