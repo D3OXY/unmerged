@@ -1,10 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
-import { Analytics01Icon, ArrowUpRight01Icon, Book02Icon, Building03Icon, CheckListIcon, CircleDotIcon, ComputerIcon, DashboardSquare01Icon, GitCommitHorizontalIcon, GitCompareIcon, GitMergeIcon, GitPullRequestIcon, HierarchyIcon, Home01Icon, Key01Icon, Layout2ColumnIcon, LayoutRightIcon, Mail01Icon, Moon02Icon, Notification03Icon, PaintBoardIcon, PlayIcon, Search01Icon, Settings02Icon, SquareLock02Icon, Sun03Icon, UserIcon, ViewOffSlashIcon } from '@hugeicons/core-free-icons';
+import { Analytics01Icon, ArrowUpRight01Icon, Book02Icon, Building03Icon, CheckListIcon, CircleDotIcon, ComputerIcon, DashboardSquare01Icon, FilterIcon, GitCommitHorizontalIcon, GitCompareIcon, GitMergeIcon, GitPullRequestIcon, HierarchyIcon, Home01Icon, Key01Icon, Layout2ColumnIcon, LayoutRightIcon, Mail01Icon, Moon02Icon, Notification03Icon, PaintBoardIcon, PlayIcon, Search01Icon, Settings02Icon, SquareLock02Icon, Sun03Icon, UserIcon, ViewOffSlashIcon } from '@hugeicons/core-free-icons';
 import { GitHubError, rest } from '@/github/client';
 import { cx } from '@/lib/cx';
 import { saveToken } from '@/lib/persist';
-import { appearanceItem, customThemesItem, DEFAULT_PRIVACY, fontItem, issueSplitItem, nestIssuesItem, NEW_TOKEN_URL, openSettingsPage, privacyItem, repoPulseItem, sidePanelItem, slideToMergeItem, surfacesItem, themeIdItem, tokenItem, useStorageItem, type Appearance, type Blur, type Font, type Surface } from '@/lib/settings';
+import { appearanceItem, customThemesItem, DEFAULT_PRIVACY, fontItem, issueSplitItem, keepFileFiltersItem, nestIssuesItem, NEW_TOKEN_URL, openSettingsPage, privacyItem, repoPulseItem, sidePanelItem, slideToMergeItem, surfacesItem, themeIdItem, tokenItem, useStorageItem, type Appearance, type Blur, type Font, type KeepFileFilters, type Surface } from '@/lib/settings';
 import { Switch } from '@/ui/Switch';
 import { ThemePicker } from './ThemePicker';
 
@@ -40,6 +40,12 @@ const FONTS: { value: Font; label: string }[] = [
   { value: 'default', label: 'Default' },
   { value: 'serif', label: 'Serif' },
   { value: 'mono', label: 'Mono' },
+];
+
+const KEEP_FILE_FILTERS: { value: KeepFileFilters; label: string; detail: string }[] = [
+  { value: 'off', label: 'Off', detail: 'A reload clears the Files changed filters' },
+  { value: 'url', label: 'URL', detail: "The filters stay in the page's URL, also in links you share" },
+  { value: 'all', label: 'Everywhere', detail: 'Your last filters apply to all pull requests' },
 ];
 
 export type SettingsPage = 'general' | 'appearance' | 'pages' | 'privacy';
@@ -102,6 +108,7 @@ function GeneralPage() {
   const nestIssues = useStorageItem(nestIssuesItem);
   const repoPulse = useStorageItem(repoPulseItem);
   const slideToMerge = useStorageItem(slideToMergeItem);
+  const keepFileFilters = useStorageItem(keepFileFiltersItem);
 
   return (
     <>
@@ -146,6 +153,15 @@ function GeneralPage() {
               icon={<HugeiconsIcon icon={GitMergeIcon} />}
               label="Slide to merge"
               path="A slider in the bottom-right corner merges a ready pull request from any tab"
+            />
+          )}
+          {keepFileFilters !== null && (
+            <ChoiceRow
+              value={keepFileFilters}
+              options={KEEP_FILE_FILTERS}
+              onChange={(value) => keepFileFiltersItem.setValue(value)}
+              icon={<HugeiconsIcon icon={FilterIcon} />}
+              label="Keep file filters"
             />
           )}
         </div>
@@ -256,6 +272,39 @@ function ToggleRow({ on, disabled, onClick, icon, label, path }: { on: boolean; 
       </span>
       <Switch on={on} />
     </button>
+  );
+}
+
+/** A setting with a few named values: icon, label and the chosen value's detail line, with a segmented control. */
+function ChoiceRow<T extends string>({ value, options, onChange, icon, label }: {
+  value: T;
+  options: { value: T; label: string; detail: string }[];
+  onChange: (value: T) => void;
+  icon: ReactNode;
+  label: string;
+}) {
+  return (
+    <div className="flex min-h-11 items-center gap-3 px-1.5 py-1.5">
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-line bg-elevated text-fg [&>svg]:size-3.5">{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[13px] font-medium">{label}</span>
+        <span className="block font-mono text-[10.5px] text-subtle">{options.find((o) => o.value === value)?.detail}</span>
+      </span>
+      <div role="radiogroup" aria-label={label} className="flex shrink-0 rounded-lg border border-line bg-bg p-0.5">
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={value === option.value}
+            onClick={() => onChange(option.value)}
+            className={cx('h-6 cursor-pointer rounded-md px-2 text-[12px]', value === option.value ? 'bg-elevated font-medium text-fg shadow-sm' : 'text-muted hover:text-fg')}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 

@@ -65,6 +65,14 @@ export const repoPulseItem = storage.defineItem<boolean>('local:repoPulse', { fa
 /** Whether a pull request that can merge now shows Slide to merge in the bottom-right corner, on every tab. */
 export const slideToMergeItem = storage.defineItem<boolean>('local:slideToMerge', { fallback: true });
 
+/** Where a pull request's file filters stay after a reload: nowhere, in the page's URL, or for every pull request. */
+export type KeepFileFilters = 'off' | 'url' | 'all';
+
+export const keepFileFiltersItem = storage.defineItem<KeepFileFilters>('local:keepFileFilters', { fallback: 'off' });
+
+/** The last file filters (what they hide, see pr/files/filter.ts), used when `keepFileFilters` is 'all'. */
+export const fileFiltersItem = storage.defineItem<string[]>('local:fileFilters', { fallback: [] });
+
 /** What Privacy can blur. `repos`, `commits` and `titles` blur only for private repositories. */
 export type Blur = 'orgs' | 'repos' | 'commits' | 'titles' | 'emails';
 

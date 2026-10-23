@@ -270,7 +270,7 @@ function PrView({ loaded, tab, queryKey, poll, panel }: {
       {tab === 'conversation' && <ConversationTab loaded={loaded} queryKey={queryKey} />}
       {tab === 'commits' && <CommitsTab pr={pr} />}
       {tab === 'checks' && <ChecksTab pr={pr} watching={poll.watching} onRerun={poll.watch} />}
-      {tab === 'files' && <FilesTab pr={pr} full={full?.pr} queryKey={queryKey} />}
+      {tab === 'files' && <FilesTab pr={pr} full={full?.pr} queryKey={queryKey} panel={panel} />}
     </div>
   );
 }

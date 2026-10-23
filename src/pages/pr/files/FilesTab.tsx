@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowDown01Icon, ArrowUp01Icon, Comment01Icon, TextWrapIcon, ViewIcon } from '@hugeicons/core-free-icons';
+import { ArrowDown01Icon, ArrowUp01Icon, Comment01Icon, FilterIcon, TextWrapIcon, ViewIcon } from '@hugeicons/core-free-icons';
 import { useRegisterCommands, type Command } from '@/app/commands';
 import { usePageHotkey } from '@/app/keyboard';
 import { gql } from '@/github/client';
 import { cx } from '@/lib/cx';
 import { loadDiffs } from '@/lib/diffs';
+import { Menu, type MenuOption } from '@/ui/Menu';
 import { Skeleton } from '@/ui/primitives';
 import { toast } from '@/ui/toast';
 import { MUTATIONS, prFilesQuery, prViewedQuery, repoPath, type PrHead, type PullRequest, type ReviewThread, type ViewedState } from '../query';
 import { diffAnchor } from './anchor';
 import { FileDiff, type DiffMode, type FileReview, type PrFile } from './FileDiff';
+import { fileTypes, isShown, useFileFilter, type FileType, type Hidden } from './filter';
 import { FileTree } from './FileTree';
 import { isOpenLineThread, nextOpenThread } from './threads';
 
@@ -45,12 +47,15 @@ export const BIG_FILE = 600; // changed lines above which a file starts collapse
 
 const NO_THREADS: ReviewThread[] = [];
 
+const TYPE_LABELS: Partial<Record<FileType, string>> = { dotfile: 'Dotfiles', none: 'No extension' };
+
 /**
  * Files changed: file tree on the left, diffs on the right, "Viewed" synced with GitHub.
  * Keys (also in the palette): n / p next or previous file, v toggle viewed, ] next unresolved thread.
  * `pr` is enough to show the files; review threads and line comments wait for the `full` pull request.
+ * The filter hides viewed files, deleted files or file types, from the list, the tree and the keys.
  */
-export function FilesTab({ pr, full, queryKey }: { pr: PrHead; full?: PullRequest; queryKey: QueryKey }) {
+export function FilesTab({ pr, full, queryKey, panel = false }: { pr: PrHead; full?: PullRequest; queryKey: QueryKey; panel?: boolean }) {
   const queryClient = useQueryClient();
   const [owner, repo] = repoPath(pr).split('/') as [string, string];
   // After a push, the previous commit's files stay up until the new ones arrive.
@@ -70,6 +75,12 @@ export function FilesTab({ pr, full, queryKey }: { pr: PrHead; full?: PullReques
   // Pages render as they arrive; until the last one is in, the count comes from the pull request.
   const partial = files.isFetching && !files.isPlaceholderData;
   const reviewThreads = full?.reviewThreads.nodes ?? NO_THREADS;
+  const [hidden, setHidden] = useFileFilter(panel);
+  const shown = useMemo(() => {
+    if (!list || !hidden?.length) return list;
+    const set = new Set(hidden);
+    return list.filter((f) => isShown(f, set, viewed.data?.[f.filename]));
+  }, [list, hidden, viewed.data]);
 
   const isViewed = (path: string) => viewed.data?.[path] === 'VIEWED';
   const isOpen = (file: PrFile) => openOverride[file.filename] ?? (!isViewed(file.filename) && file.changes <= BIG_FILE);
@@ -136,13 +147,13 @@ export function FilesTab({ pr, full, queryKey }: { pr: PrHead; full?: PullReques
   /** The file whose card is under the sticky headers. */
   const fileInView = useCallback(() => {
     let current: string | undefined;
-    for (const file of list ?? []) {
+    for (const file of shown ?? []) {
       const el = cards.current.get(file.filename);
       if (!el || el.getBoundingClientRect().top > 150) break;
       current = file.filename;
     }
     return current;
-  }, [list]);
+  }, [shown]);
 
   // Track the file under the sticky headers to highlight it in the tree.
   useEffect(() => {
@@ -183,10 +194,10 @@ export function FilesTab({ pr, full, queryKey }: { pr: PrHead; full?: PullReques
   const step = useCallback(
     (delta: 1 | -1) => {
       const current = currentFile();
-      const next = list?.[(current ? list.findIndex((f) => f.filename === current) : -1) + delta];
+      const next = shown?.[(current ? shown.findIndex((f) => f.filename === current) : -1) + delta];
       if (next) select(next.filename);
     },
-    [list, currentFile, select],
+    [shown, currentFile, select],
   );
 
   const toggleCurrentViewed = useCallback(() => {
@@ -203,7 +214,7 @@ export function FilesTab({ pr, full, queryKey }: { pr: PrHead; full?: PullReques
 
   /** Jumps to the unresolved thread after the last one jumped to, wrapping around. */
   const nextThread = useCallback(() => {
-    const thread = nextOpenThread(reviewThreads, list ?? [], lastThread.current);
+    const thread = nextOpenThread(reviewThreads, shown ?? [], lastThread.current);
     if (!thread) return;
     lastThread.current = thread;
     const side = thread.diffSide === 'LEFT' ? 'deletions' : 'additions';
@@ -214,7 +225,7 @@ export function FilesTab({ pr, full, queryKey }: { pr: PrHead; full?: PullReques
       },
       () => select(thread.path),
     );
-  }, [reviewThreads, list, select]);
+  }, [reviewThreads, shown, select]);
 
   usePageHotkey('n', useCallback(() => step(1), [step]));
   usePageHotkey('p', useCallback(() => step(-1), [step]));
@@ -235,7 +246,7 @@ export function FilesTab({ pr, full, queryKey }: { pr: PrHead; full?: PullReques
   useRegisterCommands('pr-files', commands);
 
   if (files.error) return <p className="text-[13px] text-danger">{files.error.message}</p>;
-  if (!list) {
+  if (!list || !shown || !hidden) {
     return (
       <div className="grid gap-6 @3xl:grid-cols-[260px_minmax(0,1fr)]">
         <Skeleton className="hidden h-80 rounded-xl @3xl:block" />
@@ -246,6 +257,14 @@ export function FilesTab({ pr, full, queryKey }: { pr: PrHead; full?: PullReques
 
   const fileCount = partial ? pr.changedFiles : list.length;
   const viewedCount = list.filter((f) => isViewed(f.filename)).length;
+  const deletedCount = list.filter((f) => f.status === 'removed').length;
+  const filtered = shown.length < list.length;
+  const filterOptions: MenuOption<Hidden>[] = [
+    { value: 'viewed', label: 'Viewed files', count: viewedCount },
+    ...(deletedCount ? [{ value: 'deleted' as const, label: 'Deleted files', count: deletedCount }] : []),
+    ...fileTypes(list).map(([type, count]) => ({ value: type, label: TYPE_LABELS[type] ?? type, count })),
+  ];
+  const toggleHidden = (value: Hidden) => setHidden(hidden.includes(value) ? hidden.filter((h) => h !== value) : [...hidden, value]);
   const setAllOpen = (open: boolean) => setOpenOverride(Object.fromEntries(list.map((f) => [f.filename, open])));
   const changeMode = (next: DiffMode) => {
     setMode(next);
@@ -259,12 +278,13 @@ export function FilesTab({ pr, full, queryKey }: { pr: PrHead; full?: PullReques
   return (
     <div className="grid gap-6 @3xl:grid-cols-[260px_minmax(0,1fr)]">
       <aside className="hidden @3xl:sticky @3xl:top-[108px] @3xl:flex @3xl:max-h-[calc(100vh-124px)] @3xl:self-start">
-        <FileTree files={list} viewState={(path) => viewed.data?.[path]} active={active} onSelect={select} />
+        <FileTree files={shown} viewState={(path) => viewed.data?.[path]} active={active} onSelect={select} />
       </aside>
 
       <div className="flex min-w-0 flex-col gap-3">
         <div className="flex flex-wrap items-center gap-3 text-[12.5px]">
           <span className="font-medium">
+            {filtered && `${shown.length} of `}
             {fileCount} file{fileCount === 1 ? '' : 's'}
           </span>
           <span className="flex items-center gap-2 text-muted">
@@ -274,12 +294,33 @@ export function FilesTab({ pr, full, queryKey }: { pr: PrHead; full?: PullReques
             {viewedCount} / {fileCount} viewed
           </span>
           <div className="ml-auto flex items-center gap-2">
+            {filtered && (
+              <button type="button" onClick={() => setHidden([])} className="cursor-pointer text-muted hover:text-fg">
+                Clear filters
+              </button>
+            )}
             <button type="button" onClick={() => setAllOpen(false)} className="cursor-pointer text-muted hover:text-fg">
               Collapse all
             </button>
             <button type="button" onClick={() => setAllOpen(true)} className="cursor-pointer text-muted hover:text-fg">
               Expand all
             </button>
+            <Menu
+              value={filterOptions.map((o) => o.value).filter((value) => !hidden.includes(value))}
+              options={filterOptions}
+              onChange={toggleHidden}
+              trigger={(open) => (
+                <button
+                  type="button"
+                  onClick={open}
+                  aria-haspopup="menu"
+                  className={cx('flex h-7 cursor-pointer items-center gap-1.5 rounded-lg border px-2 text-[12px]', filtered ? 'border-line-strong bg-elevated text-fg' : 'border-line text-muted hover:text-fg')}
+                >
+                  <HugeiconsIcon icon={FilterIcon} className="size-3.5" />
+                  Filter
+                </button>
+              )}
+            />
             <button
               type="button"
               onClick={toggleWrap}
@@ -305,7 +346,8 @@ export function FilesTab({ pr, full, queryKey }: { pr: PrHead; full?: PullReques
           </div>
         </div>
 
-        {list.map((file) => (
+        {filtered && !shown.length && <p className="py-8 text-center text-[13px] text-muted">The filters hide all files.</p>}
+        {shown.map((file) => (
           <FileDiff
             key={file.filename}
             file={file}
