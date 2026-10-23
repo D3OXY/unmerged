@@ -7,10 +7,7 @@ import {
   CodeIcon,
   ComputerTerminal01Icon,
   Copy01Icon,
-  Download04Icon,
   FileDiffIcon,
-  GitForkIcon,
-  GithubIcon,
   GitPullRequestIcon,
   Home01Icon,
   Notification03Icon,
@@ -19,11 +16,14 @@ import {
   UserIcon,
 } from '@hugeicons/core-free-icons';
 import { Benchmark, benchmarkSetup } from '../components/Benchmark';
+import { Footer } from '../components/Footer';
+import { InstallButtons } from '../components/InstallButtons';
+import { Nav } from '../components/Nav';
 import { Screenshots } from '../components/Screenshots';
-import { BUTTON, Kbd, Logo } from '../components/ui';
+import { Setup } from '../components/Setup';
+import { AlphaPill, Kbd, Logo } from '../components/ui';
 import sideBySidePoster from '../assets/side-by-side-poster.webp?url';
-import { useInstallHref } from '../install';
-import { FORK_URL, REPO_URL, TAGLINE } from '../site';
+import { NEW_ISSUE_URL, REPO_URL, TAGLINE } from '../site';
 
 export const Route = createFileRoute('/')({ component: Home });
 
@@ -33,121 +33,38 @@ function Home() {
       <Nav />
       <main className="relative">
         <Hero />
+        <Section id="setup" title="Set up in three steps." lede="Add the extension, paste a token, then use GitHub as you do now.">
+          <Setup />
+        </Section>
         <Pages />
         <SideBySide />
         <Speed />
         <Keyboard />
+        <Faq />
       </main>
       <Footer />
     </div>
   );
 }
 
-const NAV_LINKS = [
-  { href: '#pages', label: 'Pages' },
-  { href: '#speed', label: 'Speed' },
-  { href: '/privacy', label: 'Privacy' },
-  { href: '/install', label: 'Install' },
-];
-
-/** Floating liquid-glass bar; it narrows and shortens while scrolling down and expands again on the way up. */
-function Nav() {
-  const [compact, setCompact] = useCompactOnScroll();
-  return (
-    <header
-      data-compact={compact || undefined}
-      // Keyboard focus always gets the full bar.
-      onFocus={() => setCompact(false)}
-      className="group pointer-events-none sticky top-0 z-50 flex h-16 justify-center px-3 pt-3"
-    >
-      <div className="glass pointer-events-auto flex h-[52px] w-[min(1120px,100%)] items-center rounded-full pr-2 pl-3.5 transition-[width,height,padding] duration-500 ease-spring group-data-compact:h-11 group-data-compact:w-[min(500px,100%)] group-data-compact:pr-1.5 group-data-compact:pl-3 sm:pl-5">
-        <a href="/" aria-label="Unmerged" className="flex shrink-0 items-center gap-2">
-          <Logo size={24} />
-          <span className="hidden text-[15px] font-semibold tracking-tight min-[400px]:inline">Unmerged</span>
-        </a>
-        <nav className="ml-auto flex items-center text-[13px] text-muted sm:text-[13.5px]">
-          {NAV_LINKS.map(({ href, label }) => (
-            <a
-              key={href}
-              href={href}
-              className="rounded-full px-1.5 py-1.5 transition-colors min-[360px]:px-2 hover:bg-white/[0.06] hover:text-fg sm:px-3"
-            >
-              {label}
-            </a>
-          ))}
-        </nav>
-        <a
-          href={REPO_URL}
-          aria-label="GitHub"
-          className="ml-1 flex h-9 shrink-0 items-center rounded-full border border-white/10 bg-white/[0.06] px-2.5 text-[13px] font-medium transition-[background-color,height,padding] duration-500 ease-spring hover:bg-white/[0.12] group-data-compact:h-8 group-data-compact:px-[7px] sm:ml-2"
-        >
-          <HugeiconsIcon icon={GithubIcon} className="size-4 shrink-0" />
-          {/* The label folds away in the compact bar and on phones; the icon carries it there. */}
-          <span className="hidden max-w-16 overflow-hidden pl-2 whitespace-nowrap opacity-100 transition-[max-width,padding,opacity] duration-500 ease-spring group-data-compact:max-w-0 group-data-compact:pl-0 group-data-compact:opacity-0 sm:inline">
-            GitHub
-          </span>
-        </a>
-      </div>
-    </header>
-  );
-}
-
-/** Pixels of scrolling in one direction before the nav changes size, so jitter and trackpad noise don't flip it. */
-const SCROLL_SLACK = 6;
-
-/**
- * True while the reader is scrolling down past the top of the page; a slight scroll back up, or reaching the
- * top, clears it. Small moves accumulate against the last position that changed the state.
- */
-function useCompactOnScroll() {
-  const [compact, setCompact] = useState(false);
-  useEffect(() => {
-    let anchor = window.scrollY;
-    let frame = 0;
-    const update = () => {
-      frame = 0;
-      // Clamped so iOS rubber-banding past either end doesn't read as a direction change.
-      const y = Math.min(Math.max(window.scrollY, 0), document.documentElement.scrollHeight - window.innerHeight);
-      if (y < 24) setCompact(false);
-      else if (y - anchor > SCROLL_SLACK) setCompact(true);
-      else if (anchor - y > SCROLL_SLACK) setCompact(false);
-      else return;
-      anchor = y;
-    };
-    const onScroll = () => {
-      frame ||= requestAnimationFrame(update);
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      cancelAnimationFrame(frame);
-    };
-  }, []);
-  return [compact, setCompact] as const;
-}
-
 function Hero() {
-  const installHref = useInstallHref();
   return (
     <section className="mx-auto max-w-[1120px] px-6 pt-16 sm:pt-24">
       <div className="animate-enter">
         <Logo size={56} />
         <h1 className="mt-8 max-w-[860px] text-[42px] leading-[1.02] font-medium tracking-[-0.04em] text-balance sm:text-[72px]">{TAGLINE}</h1>
-        <p className="mt-6 max-w-[540px] text-[16px] leading-relaxed text-muted text-pretty sm:text-[17px]">
+        <p className="mt-6 mb-9 max-w-[560px] text-[16px] leading-relaxed text-muted text-pretty sm:text-[17px]">
           Unmerged is a browser extension that re-skins github.com in place. Same URLs, same session, same links in
-          your notifications, with a calmer interface that loads faster than the one it replaces.
+          your notifications. It is free and open source, and you do not need an account.
         </p>
-        <div className="mt-9 flex flex-wrap items-center gap-2.5">
-          <a href={installHref} className={`${BUTTON.primary} pl-4`}>
-            <HugeiconsIcon icon={Download04Icon} className="size-[18px]" />
-            Install
+        <InstallButtons hero />
+        <p className="mt-2.5 text-[13px] leading-6 text-subtle">
+          <AlphaPill />
+          Unmerged changes often, and some things can break.{' '}
+          <a href={NEW_ISSUE_URL} className="text-muted underline underline-offset-2 transition-colors hover:text-fg">
+            Report a problem
           </a>
-          <a href={FORK_URL} className={`${BUTTON.secondary} pl-4`}>
-            <HugeiconsIcon icon={GitForkIcon} className="size-[18px]" />
-            Fork
-          </a>
-          <span className="ml-2 text-[13px] text-subtle">Open source</span>
-        </div>
+        </p>
       </div>
       <div className="relative mt-16 animate-enter [animation-delay:120ms] sm:mt-20">
         <Screenshots />
@@ -363,28 +280,18 @@ function Speed() {
         .
       </p>
       <Timeline />
-      <p className="mt-16 max-w-[760px] text-[12.5px] leading-relaxed text-subtle">
-        GitHub's own engineers found that on large pull requests "the JavaScript heap could exceed 1 GB, DOM node counts
-        surpassed 400,000" (
-        <a
-          href="https://github.blog/engineering/architecture-optimization/the-uphill-climb-of-making-diff-lines-performant/"
-          className="text-muted underline underline-offset-2 hover:text-fg"
-        >
-          The uphill climb of making diff lines performant
-        </a>
-        , April 2026).
-      </p>
     </Section>
   );
 }
 
-const SHORTCUTS: { keys: string[]; label: string }[] = [
+/** `wide` shortcuts show only from md up; narrow screens get the few that explain the idea. */
+const SHORTCUTS: { keys: string[]; label: string; wide?: boolean }[] = [
   { keys: ['⌘', 'K'], label: 'Commands, search, and jumps to owner/repo#123' },
   { keys: ['j', 'k'], label: 'Move between rows' },
-  { keys: ['g', 'h'], label: 'Home' },
-  { keys: ['g', 'p'], label: 'Your profile' },
+  { keys: ['g', 'h'], label: 'Home', wide: true },
+  { keys: ['g', 'p'], label: 'Your profile', wide: true },
   { keys: ['t'], label: 'Go to file' },
-  { keys: ['⌘', '↵'], label: 'Send comment' },
+  { keys: ['⌘', '↵'], label: 'Send comment', wide: true },
   { keys: ['?'], label: 'Every shortcut on the current page' },
 ];
 
@@ -396,13 +303,16 @@ function Keyboard() {
       lede="⌘K finds repos, people and your pull requests and issues by title, jumps to owner/repo#123 (or just #123 inside a repo), and carries the actions for the page you're on."
     >
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-center lg:gap-14">
-        {/* The palette floats on a warm, painted-looking panel: layered gradients, no image to download. */}
-        <div className="rounded-lg bg-[radial-gradient(90%_70%_at_0%_0%,#6b4b2e_0%,transparent_65%),radial-gradient(80%_80%_at_100%_100%,#3b2f55_0%,transparent_60%),linear-gradient(160deg,#2b231b,#1c1915)] px-5 py-10 sm:px-12 sm:py-16">
+        {/* The palette floats on a warm, painted-looking panel: layered gradients, no image to download. Shown from md up. */}
+        <div className="hidden rounded-lg md:block bg-[radial-gradient(90%_70%_at_0%_0%,#6b4b2e_0%,transparent_65%),radial-gradient(80%_80%_at_100%_100%,#3b2f55_0%,transparent_60%),linear-gradient(160deg,#2b231b,#1c1915)] px-5 py-10 sm:px-12 sm:py-16">
           <Palette />
         </div>
         <ul className="divide-y divide-line border-y border-line">
           {SHORTCUTS.map((shortcut) => (
-            <li key={shortcut.label} className="flex items-center justify-between gap-6 py-3.5 text-[14px]">
+            <li
+              key={shortcut.label}
+              className={`items-center justify-between gap-6 py-3.5 text-[14px] ${shortcut.wide ? 'hidden md:flex' : 'flex'}`}
+            >
               <span className="text-muted">{shortcut.label}</span>
               <span className="flex shrink-0 gap-1">
                 {shortcut.keys.map((key) => (
@@ -455,25 +365,96 @@ function Palette() {
   );
 }
 
-/** The STEPS on a vertical line, one dot per step, each step's moment in a column beside it from md up. */
+/** How many STEPS show until the reader asks for all of them. */
+const STEPS_SHOWN = 3;
+
+/**
+ * The STEPS on a vertical line, one dot per step, each step's moment in a column beside it from md up. The first
+ * few show; a button shows the rest.
+ */
 function Timeline() {
+  const [all, setAll] = useState(false);
   return (
-    <ol className="mt-20 [&_a]:text-fg [&_a]:underline [&_a]:underline-offset-2">
-      {STEPS.map((step) => (
-        <li
-          key={step.stage}
-          // The line runs from below this step's dot to just above the next one.
-          className="relative grid gap-x-10 gap-y-1.5 pb-12 pl-8 last:pb-0 not-last:before:absolute not-last:before:top-[19px] not-last:before:-bottom-[3px] not-last:before:left-[3.5px] not-last:before:w-px not-last:before:bg-line-strong md:grid-cols-[160px_minmax(0,1fr)]"
-        >
-          <span aria-hidden className="absolute top-[7px] left-0 size-2 rounded-full bg-muted" />
-          <p className="font-mono text-[12.5px] leading-5 text-subtle md:pt-0.5">{step.stage}</p>
-          <div className="max-w-[640px]">
-            <h3 className="text-[16px] leading-6 font-medium tracking-tight">{step.title}</h3>
-            <p className="mt-2 text-[14px] leading-relaxed text-muted">{step.body}</p>
+    <div className="mt-20">
+      <h3 className="mb-6 text-[13px] font-medium text-subtle">How it works</h3>
+      <ol id="speed-steps" className="[&_a]:text-fg [&_a]:underline [&_a]:underline-offset-2">
+        {STEPS.slice(0, all ? STEPS.length : STEPS_SHOWN).map((step) => (
+          <li
+            key={step.stage}
+            // The line runs from below this step's dot to just above the next one.
+            className="relative grid gap-x-10 gap-y-1.5 pb-12 pl-8 last:pb-0 not-last:before:absolute not-last:before:top-[19px] not-last:before:-bottom-[3px] not-last:before:left-[3.5px] not-last:before:w-px not-last:before:bg-line-strong md:grid-cols-[160px_minmax(0,1fr)]"
+          >
+            <span aria-hidden className="absolute top-[7px] left-0 size-2 rounded-full bg-muted" />
+            <p className="font-mono text-[12.5px] leading-5 text-subtle md:pt-0.5">{step.stage}</p>
+            <div className="max-w-[640px]">
+              <h4 className="text-[16px] leading-6 font-medium tracking-tight">{step.title}</h4>
+              <p className="mt-2 text-[14px] leading-relaxed text-muted">{step.body}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+      <button
+        type="button"
+        aria-expanded={all}
+        aria-controls="speed-steps"
+        onClick={() => setAll(!all)}
+        className="mt-8 ml-8 h-8 cursor-pointer rounded-full border border-line-strong px-3.5 text-[13px] text-muted transition-colors hover:bg-hover hover:text-fg"
+      >
+        {all ? 'Show fewer steps' : `Show all ${STEPS.length} steps`}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * What people ask before they install. `narrow` answers show only below md, where the setup section leaves out the
+ * token comparison; `which-token` is the target of setup step 2's link there.
+ */
+const QUESTIONS: { id?: string; q: string; a: string; narrow?: boolean }[] = [
+  {
+    q: 'What data does Unmerged collect?',
+    a: 'None. It has no server, no analytics and no accounts. Your token and your GitHub data go only to GitHub.',
+  },
+  {
+    q: 'Why does it need a token?',
+    a: "Unmerged reads your pull requests, issues and notifications from GitHub's API, and the API needs a token.",
+  },
+  {
+    id: 'which-token',
+    q: 'Which token should I use?',
+    a: 'A classic token is the simplest, and every page works with it. A fine-grained token gives less access, for one owner, but Notifications needs a classic token.',
+    narrow: true,
+  },
+  {
+    q: 'Does it change my GitHub account?',
+    a: 'Only when you act, for example when you comment, review, merge or mark a notification as done. Unmerged changes no settings.',
+  },
+  {
+    q: "How do I get GitHub's page back?",
+    a: 'Use Classic in the sidebar or ⌘K for one tab, switch off a page in the toolbar popup, or remove the extension. Nothing else needs undoing.',
+  },
+  {
+    q: 'Which browsers work?',
+    a: 'Chrome, Arc, Brave, Edge and other Chromium browsers, and Firefox 140 or later. Desktop only: phones and tablets cannot run it.',
+  },
+  {
+    q: 'Does it cost anything?',
+    a: 'No. Unmerged is free and MIT-licensed. You can read the code, build it yourself or fork it.',
+  },
+];
+
+function Faq() {
+  return (
+    <Section id="faq" title="Before you install." lede="Short answers to what people ask first.">
+      <dl className="grid border-t border-line md:grid-cols-2 md:gap-x-14">
+        {QUESTIONS.map(({ id, q, a, narrow }) => (
+          <div key={q} id={id} className={`scroll-mt-24 border-b border-line py-5 md:py-6 ${narrow ? 'md:hidden' : ''}`}>
+            <dt className="text-[15px] font-medium md:text-[16px]">{q}</dt>
+            <dd className="mt-1.5 text-[14px] leading-relaxed text-muted">{a}</dd>
           </div>
-        </li>
-      ))}
-    </ol>
+        ))}
+      </dl>
+    </Section>
   );
 }
 
@@ -486,85 +467,5 @@ function Section({ id, title, lede, children }: { id: string; title: string; led
       </div>
       <div className="mt-12 sm:mt-14">{children}</div>
     </section>
-  );
-}
-
-const FOOTER_LINKS: { title: string; links: { href: string; label: string }[] }[] = [
-  {
-    title: 'Product',
-    links: [
-      { href: '#pages', label: 'Pages' },
-      { href: '#speed', label: 'Speed' },
-      { href: '#keyboard', label: 'Keyboard' },
-      { href: '/install', label: 'Install' },
-    ],
-  },
-  {
-    title: 'Open source',
-    links: [
-      { href: REPO_URL, label: 'Source code' },
-      { href: FORK_URL, label: 'Fork' },
-      { href: '/install/source', label: 'Build from source' },
-    ],
-  },
-  {
-    title: 'Help',
-    links: [
-      { href: '/support', label: 'Support' },
-      { href: `${REPO_URL}/issues/new`, label: 'Report a problem' },
-      { href: '/privacy', label: 'Privacy policy' },
-    ],
-  },
-];
-
-/** Holdout, the tagline and Install on the left, link columns on the right, then the credits and a large wordmark. */
-function Footer() {
-  const installHref = useInstallHref();
-  return (
-    <footer className="mx-auto mt-40 max-w-[1120px] overflow-hidden px-6">
-      <div className="grid gap-12 border-t border-line pt-14 md:grid-cols-[minmax(0,1fr)_auto] md:gap-20">
-        <div>
-          <Logo size={40} />
-          <p className="mt-5 max-w-[320px] text-[20px] leading-snug font-medium tracking-[-0.02em] text-balance">{TAGLINE}</p>
-          <a href={installHref} className={`${BUTTON.primary} mt-7 w-fit pl-4`}>
-            <HugeiconsIcon icon={Download04Icon} className="size-[18px]" />
-            Install
-          </a>
-        </div>
-        <div className="grid grid-cols-2 gap-10 sm:grid-cols-3 sm:gap-16">
-          {FOOTER_LINKS.map((column) => (
-            <nav key={column.title} aria-label={column.title}>
-              <h2 className="text-[13px] text-subtle">{column.title}</h2>
-              <ul className="mt-4 space-y-3 text-[14px] text-muted">
-                {column.links.map((link) => (
-                  <li key={link.label}>
-                    <a href={link.href} className="transition-colors hover:text-fg">
-                      {link.label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          ))}
-        </div>
-      </div>
-      <div className="mt-20 flex flex-col gap-3 text-[12.5px] text-subtle sm:flex-row sm:items-center sm:justify-between">
-        <span>Not affiliated with GitHub.</span>
-        <a
-          href="https://deoxy.dev"
-          aria-label="Designed and engineered by DEOXY"
-          className="font-mono whitespace-nowrap transition-opacity hover:opacity-80"
-        >
-          <span className="text-violet-400">&lt;Designed/&gt;</span> &amp; <span className="text-emerald-400">Engineered()</span> by{' '}
-          <span className="font-semibold text-blue-500">DEOXY</span>
-        </a>
-      </div>
-      <p
-        aria-hidden
-        className="mt-6 -mb-[0.22em] text-center text-[clamp(72px,19vw,232px)] leading-none font-medium tracking-[-0.06em] text-panel select-none"
-      >
-        Unmerged
-      </p>
-    </footer>
   );
 }
