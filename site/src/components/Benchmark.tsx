@@ -109,7 +109,7 @@ export function Benchmark() {
     <div
       ref={panel}
       style={{ '--t': end } as CSSProperties}
-      className="overflow-hidden rounded-2xl border border-line bg-panel/60"
+      className="overflow-hidden rounded-lg bg-panel"
     >
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-line px-6 py-4">
         {metric === 'time' ? (
@@ -137,7 +137,7 @@ export function Benchmark() {
           <button
             type="button"
             onClick={play}
-            className="ml-auto h-7 cursor-pointer rounded-full border border-line px-3 text-[12.5px] text-muted transition-colors hover:bg-white/[0.06] hover:text-fg"
+            className="ml-auto h-7 cursor-pointer rounded-full border border-line px-3 text-[12.5px] text-muted transition-colors hover:bg-hover hover:text-fg"
           >
             Replay
           </button>
@@ -292,7 +292,7 @@ function Toggle<T extends string>({ label, options, value, onChange }: { label: 
           type="button"
           aria-pressed={o.id === value}
           onClick={() => onChange(o.id)}
-          className="h-6 cursor-pointer rounded-full px-2.5 text-[12.5px] text-muted transition-colors hover:text-fg aria-pressed:bg-white/[0.08] aria-pressed:text-fg"
+          className="h-6 cursor-pointer rounded-full px-2.5 text-[12.5px] text-muted transition-colors hover:text-fg aria-pressed:bg-elevated aria-pressed:text-fg"
         >
           {o.label}
         </button>
