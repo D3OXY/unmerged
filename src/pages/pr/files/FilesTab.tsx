@@ -10,7 +10,7 @@ import { loadDiffs } from '@/lib/diffs';
 import { Menu, type MenuOption } from '@/ui/Menu';
 import { Skeleton } from '@/ui/primitives';
 import { toast } from '@/ui/toast';
-import { MUTATIONS, prFilesQuery, prViewedQuery, repoPath, type PrHead, type PullRequest, type ReviewThread, type ViewedState } from '../query';
+import { MAX_FILES, MUTATIONS, prFilesQuery, prViewedQuery, repoPath, type PrHead, type PullRequest, type ReviewThread, type ViewedState } from '../query';
 import { diffAnchor } from './anchor';
 import { FileDiff, type DiffMode, type FileReview, type PrFile } from './FileDiff';
 import { fileTypes, isShown, useFileFilter, type FileType, type Hidden } from './filter';
@@ -255,7 +255,8 @@ export function FilesTab({ pr, full, queryKey, panel = false }: { pr: PrHead; fu
     );
   }
 
-  const fileCount = partial ? pr.changedFiles : list.length;
+  const fileCount = partial ? Math.min(pr.changedFiles, MAX_FILES) : list.length;
+  const notListed = pr.changedFiles - MAX_FILES;
   const viewedCount = list.filter((f) => isViewed(f.filename)).length;
   const deletedCount = list.filter((f) => f.status === 'removed').length;
   const filtered = shown.length < list.length;
@@ -346,6 +347,12 @@ export function FilesTab({ pr, full, queryKey, panel = false }: { pr: PrHead; fu
           </div>
         </div>
 
+        {notListed > 0 && (
+          <p className="rounded-xl border border-line bg-panel px-4 py-3 text-[12.5px] text-muted">
+            GitHub lists only the first {MAX_FILES.toLocaleString()} changed files. {notListed.toLocaleString()} more files do not show here or on GitHub. To see all changes, check out
+            the branch.
+          </p>
+        )}
         {filtered && !shown.length && <p className="py-8 text-center text-[13px] text-muted">The filters hide all files.</p>}
         {shown.map((file) => (
           <FileDiff

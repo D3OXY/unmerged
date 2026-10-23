@@ -537,7 +537,7 @@ export const prStatusQuery = (owner: string, repo: string, number: number) =>
   });
 
 const FILES_PER_PAGE = 100;
-const MAX_FILES = 3000; // GitHub lists no more than this
+export const MAX_FILES = 3000; // GitHub lists no more than this, on its own pages too
 
 /**
  * Every changed file with its patch, at one head commit: a push changes the key, so the files never go stale
