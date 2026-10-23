@@ -1,6 +1,19 @@
 @import 'tailwindcss';
-/* The extension's own tokens and fonts, so the site and the product can't drift apart. */
+/* The extension's own tokens and fonts: the site keeps the product's type, accent and status colors. */
 @import '../../src/ui/tokens.css';
+
+/* The site's own surfaces: a warm, calm dark instead of the product's cool one. Text keeps at least 4.5:1 on panel. */
+html.u-root.dark {
+  --u-bg: #14120f;
+  --u-panel: #1b1915;
+  --u-elevated: #25221d;
+  --u-hover: rgb(237 232 220 / 0.05);
+  --u-border: rgb(237 232 220 / 0.08);
+  --u-border-strong: rgb(237 232 220 / 0.14);
+  --u-fg: #edebe6;
+  --u-muted: #a39e94;
+  --u-subtle: #8f8a80;
+}
 
 /* A quick start that settles softly, like a spring; the nav's resize. */
 @theme {

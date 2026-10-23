@@ -32,7 +32,7 @@ export function Screenshots() {
 
   return (
     <div>
-      <div className="relative overflow-hidden rounded-2xl">
+      <div className="relative overflow-hidden rounded-lg">
         <div
           ref={strip}
           tabIndex={0}
@@ -63,14 +63,14 @@ export function Screenshots() {
         </div>
         {lens.element}
       </div>
-      <div className="mt-6 flex flex-wrap justify-center gap-1.5">
+      <div className="mt-4 flex flex-wrap gap-1.5">
         {SLIDES.map((slide, i) => (
           <button
             key={slide.name}
             type="button"
             onClick={() => show(i)}
             aria-current={i === current ? 'true' : undefined}
-            className="h-8 cursor-pointer rounded-full px-3.5 text-[13px] text-muted transition-colors hover:text-fg aria-[current=true]:bg-white/[0.08] aria-[current=true]:text-fg"
+            className="h-8 cursor-pointer rounded-full px-3.5 text-[13px] text-muted transition-colors hover:text-fg aria-[current=true]:bg-elevated aria-[current=true]:text-fg"
           >
             {slide.label}
           </button>
