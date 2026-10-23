@@ -1,6 +1,10 @@
 import type { CheckContext } from './query';
 
-export type CheckOutcome = 'SUCCESS' | 'FAILURE' | 'PENDING' | 'NEUTRAL';
+/** ACTION_REQUIRED: the run waits for someone, such as a maintainer who must approve a fork's workflow run. */
+export type CheckOutcome = 'SUCCESS' | 'FAILURE' | 'PENDING' | 'NEUTRAL' | 'ACTION_REQUIRED';
+
+/** Sort rank: outcomes that need attention first. */
+export const ORDER: Record<CheckOutcome, number> = { FAILURE: 0, ACTION_REQUIRED: 1, PENDING: 2, SUCCESS: 3, NEUTRAL: 4 };
 
 /** Collapses CheckRun status/conclusion and StatusContext state into one outcome. */
 export function outcomeOf(check: CheckContext): CheckOutcome {
@@ -15,11 +19,12 @@ export function runOutcome(run: { status: string; conclusion: string | null }): 
   if (run.status !== 'COMPLETED') return 'PENDING';
   if (run.conclusion === 'SUCCESS') return 'SUCCESS';
   if (run.conclusion === 'NEUTRAL' || run.conclusion === 'SKIPPED' || run.conclusion === 'STALE') return 'NEUTRAL';
+  if (run.conclusion === 'ACTION_REQUIRED') return 'ACTION_REQUIRED';
   return 'FAILURE';
 }
 
 export function summarizeChecks(checks: CheckContext[]) {
-  const counts: Record<CheckOutcome, number> = { SUCCESS: 0, FAILURE: 0, PENDING: 0, NEUTRAL: 0 };
+  const counts: Record<CheckOutcome, number> = { SUCCESS: 0, FAILURE: 0, PENDING: 0, NEUTRAL: 0, ACTION_REQUIRED: 0 };
   for (const check of checks) counts[outcomeOf(check)]++;
   return counts;
 }

@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { keepPreviousData, useQuery, type QueryKey } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowDown01Icon, Cancel01Icon, Clock01Icon, Comment01Icon, MinusSignIcon, RefreshIcon, Settings02Icon, Tick02Icon } from '@hugeicons/core-free-icons';
+import { ArrowDown01Icon, Cancel01Icon, Clock01Icon, Comment01Icon, RefreshIcon, Settings02Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { gql } from '@/github/client';
 import { useViewer } from '@/github/viewer';
 import { cx } from '@/lib/cx';
@@ -12,21 +12,20 @@ import { Menu, type MenuOption } from '@/ui/Menu';
 import { diffAnchor } from './files/anchor';
 import { statusDot } from './files/status';
 import { Avatar, Panel, Pill } from '@/ui/primitives';
-import { CheckIcon, IssueIcon } from '@/ui/status';
-import { checkName, checkUrl, outcomeOf, type CheckOutcome } from './checks';
+import { IssueIcon } from '@/ui/status';
+import { checkName, checkUrl, ORDER, outcomeOf } from './checks';
+import { OutcomeIcon } from './ChecksTab';
 import { IssuePicker } from '@/pages/issue/IssuePicker';
 import { useLinkPullRequest } from '@/pages/issue/useLinkPullRequest';
 import { EDIT_MUTATIONS, repoPath, type CheckContext, type PrWithReview, type ReviewState } from './query';
 import { usePrMutation } from './usePrMutation';
-
-const ORDER: Record<CheckOutcome, number> = { FAILURE: 0, PENDING: 1, SUCCESS: 2, NEUTRAL: 3 };
 
 /** CI checks, failures first; passing ones fold away when there are many. */
 export function ChecksCard({ checks }: { checks: CheckContext[] }) {
   const [expanded, setExpanded] = useState(false);
   if (!checks.length) return null;
   const sorted = [...checks].sort((a, b) => ORDER[outcomeOf(a)] - ORDER[outcomeOf(b)]);
-  const loud = sorted.filter((c) => outcomeOf(c) === 'FAILURE' || outcomeOf(c) === 'PENDING');
+  const loud = sorted.filter((c) => ORDER[outcomeOf(c)] < ORDER.SUCCESS);
   const visible = expanded ? sorted : loud.slice(0, 6);
   const rest = sorted.length - visible.length;
 
@@ -42,7 +41,7 @@ export function ChecksCard({ checks }: { checks: CheckContext[] }) {
               href={url ?? undefined}
               className="flex h-8 items-center gap-2.5 rounded-md px-2 text-[12.5px] hover:bg-hover"
             >
-              {outcome === 'NEUTRAL' ? <HugeiconsIcon icon={MinusSignIcon} className="size-3.5 text-subtle" /> : <CheckIcon state={outcome} />}
+              <OutcomeIcon outcome={outcome} />
               <span className={cx('min-w-0 flex-1 truncate', outcome === 'FAILURE' ? 'font-medium text-fg' : 'text-fg/85')}>{checkName(check)}</span>
               {check.isRequired && <span className="text-[10.5px] font-medium tracking-wide text-subtle uppercase">Req</span>}
             </a>

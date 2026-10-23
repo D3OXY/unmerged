@@ -10,7 +10,7 @@ import { Button } from '@/ui/Button';
 import { Avatar, Empty, Panel, Pill, Skeleton } from '@/ui/primitives';
 import { CheckIcon } from '@/ui/status';
 import { toast } from '@/ui/toast';
-import { runOutcome, type CheckOutcome } from './checks';
+import { ORDER, runOutcome, type CheckOutcome } from './checks';
 import { repoPath, type PullRequest } from './query';
 
 /** What the Checks tab reads of the pull request: the first part has it. */
@@ -98,8 +98,6 @@ type ChecksData = {
   };
 };
 
-const ORDER: Record<CheckOutcome, number> = { FAILURE: 0, PENDING: 1, SUCCESS: 2, NEUTRAL: 3 };
-
 function duration(run: CheckRun) {
   if (!run.startedAt) return null;
   const seconds = Math.round(((run.completedAt ? new Date(run.completedAt) : new Date()).getTime() - new Date(run.startedAt).getTime()) / 1000);
@@ -109,7 +107,9 @@ function duration(run: CheckRun) {
 }
 
 export function OutcomeIcon({ outcome }: { outcome: CheckOutcome }) {
-  return outcome === 'NEUTRAL' ? <HugeiconsIcon icon={MinusSignIcon} className="size-3.5 shrink-0 text-subtle" /> : <CheckIcon state={outcome} />;
+  if (outcome === 'NEUTRAL') return <HugeiconsIcon icon={MinusSignIcon} className="size-3.5 shrink-0 text-subtle" />;
+  if (outcome === 'ACTION_REQUIRED') return <HugeiconsIcon icon={Alert02Icon} className="size-3.5 shrink-0 text-warning" />;
+  return <CheckIcon state={outcome} />;
 }
 
 /**
