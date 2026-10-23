@@ -338,7 +338,7 @@ export function FilesCard({ pr }: { pr: PrWithReview }) {
   if (!files.length) return null;
 
   return (
-    <Card title="Files" count={pr.files.totalCount}>
+    <Card title="Files" count={pr.changedFiles}>
       {files.map((file) => {
         const slash = file.path.lastIndexOf('/');
         return (
