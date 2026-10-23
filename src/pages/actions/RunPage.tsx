@@ -64,6 +64,7 @@ const TONE: Record<CheckOutcome, string> = {
   FAILURE: 'text-danger bg-danger/10 border-danger/25',
   PENDING: 'text-warning bg-warning/10 border-warning/25',
   NEUTRAL: 'text-muted bg-hover border-line',
+  ACTION_REQUIRED: 'text-warning bg-warning/10 border-warning/25',
 };
 
 function RunHeader({ run, owner, repo, base, attempt, onRerun }: { run: WorkflowRun; owner: string; repo: string; base: string; attempt?: number; onRerun: () => void }) {
