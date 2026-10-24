@@ -5,11 +5,13 @@ import {
   detailChunks,
   detailsById,
   knownDetails,
+  listedState,
   qualifierOf,
   repoListQuery,
   withQualifier,
   workDetailsQuery,
   workQueryOf,
+  workStateCountQueries,
   type Qualifier,
   type WorkDetails,
 } from './queries';
@@ -65,6 +67,25 @@ describe('qualifierOf', () => {
     ['is:pr', 'sort', ''],
   ])('%j, %s → %j', (q, name, expected) => {
     expect(qualifierOf(q, name)).toBe(expected);
+  });
+});
+
+// The list's own state needs no count request: the list's `issueCount` is that count.
+describe('listedState', () => {
+  it.each<[string, string | undefined]>([
+    [repoListQuery('pulls'), 'open'],
+    ['state:closed is:issue', 'closed'],
+    ['is:open state:open is:pr', 'open'],
+    ['is:pr is:merged', undefined],
+    ['is:open is:closed', undefined],
+    ['is:pr label:is:open', undefined],
+  ])('%j → %s', (q, expected) => {
+    expect(listedState(q)).toBe(expected);
+  });
+
+  it('disables only the count of the listed state', () => {
+    expect(workStateCountQueries('is:closed is:pr', 'o/r').map((count) => count.enabled)).toEqual([true, false]);
+    expect(workStateCountQueries('is:pr is:merged', 'o/r').map((count) => count.enabled)).toEqual([true, true]);
   });
 });
 

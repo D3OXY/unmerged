@@ -1,5 +1,4 @@
-import { QueryClient } from '@tanstack/react-query';
-import { prefetchRoute } from '@/app/prefetch';
+import { earlyClient, prefetchRoute } from '@/app/prefetch';
 import { answerCodeSearch } from '@/github/client';
 import { answerEarly, keepEarlyAnswers, prefetchRequest } from '@/github/early';
 import { bootTarget, githubPageRequest } from '@/lib/boot';
@@ -9,6 +8,10 @@ import { surfaceOf, surfacesItem, type Surfaces } from '@/lib/settings';
 
 // Firefox stays on GitHub's page first: the boot page (lib/boot.ts) is checked in Chrome only.
 const BOOT = !import.meta.env.FIREFOX;
+
+// The URL that each tab loads as GitHub's page (`letTabLoad`), which gets no early requests. A restart of the
+// background loses it; that only starts requests that no page takes.
+const githubPages = new Map<number, string>();
 
 // Content scripts can't reload the extension or open its pages; github.com asks here (see SettingsDialog
 // and openSettingsPage in lib/settings.ts). Code search, which github.com can't read, is fetched here too,
@@ -20,7 +23,7 @@ export default defineBackground(() => {
     if (message === 'open-settings') browser.runtime.openOptionsPage();
     const github = githubPageRequest(message);
     const tabId = sender.tab?.id;
-    if (BOOT && github !== undefined && tabId !== undefined) {
+    if (github !== undefined && tabId !== undefined) {
       letTabLoad(tabId, github).then(() => sendResponse(true), () => sendResponse(false));
       return true;
     }
@@ -39,7 +42,7 @@ export default defineBackground(() => {
   browser.webRequest.onBeforeRequest.addListener(
     ({ url, tabId }) => {
       const target = new URL(url);
-      if (tabId >= 0 && !bootTarget(target)) prefetchEarly(target);
+      if (tabId >= 0 && !bootTarget(target) && githubPages.get(tabId) !== url) prefetchEarly(target);
     },
     { urls: ['https://github.com/*'], types: ['main_frame'] },
   );
@@ -47,8 +50,8 @@ export default defineBackground(() => {
   if (BOOT) {
     surfacesItem.getValue().then(updateBootRules);
     surfacesItem.watch(updateBootRules);
-    browser.tabs.onRemoved.addListener((tabId) => letTabLoad(tabId, null));
   }
+  browser.tabs.onRemoved.addListener((tabId) => letTabLoad(tabId, null));
 
   // Query results stored before the per-account index (lib/persist.ts) were keyed `q:<token suffix>:…` and
   // nothing trims them any more. Dropped on the update that brings the index; later updates find none.
@@ -60,15 +63,14 @@ export default defineBackground(() => {
 });
 
 /**
- * Starts the requests of the page at `url` if Unmerged owns it. The background can't see two cases where the
- * content script leaves the page to GitHub, and then starts requests that no page takes: a tab showing that
- * path in Classic, and the homepage while signed out of github.com.
+ * Starts the requests of the page at `url` if Unmerged owns it. The background can't see when the content script
+ * will leave a page to GitHub (Classic, the homepage while signed out of github.com), and then starts requests
+ * that no page takes. The reload that follows (`reloadOnGitHub`) starts none.
  */
 async function prefetchEarly(url: URL) {
   const route = matchRoute(url);
   if (!route || !((await surfacesItem.getValue())[surfaceOf(route)] ?? true)) return;
-  // No retries: a page whose request failed makes its own. Nothing stays cached once the requests end.
-  prefetchRoute(new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } }), route, url);
+  prefetchRoute(earlyClient(), route, url);
 }
 
 /** Replaces the boot redirects with those for `surfaces`. Also on every start: an update may change the table. */
@@ -80,6 +82,8 @@ async function updateBootRules(surfaces: Surfaces) {
 }
 
 /** Lets a tab load `url` as GitHub's page past the boot redirects, in place of the URL it was let load before; null: none. */
-function letTabLoad(tabId: number, url: string | null) {
-  return browser.declarativeNetRequest.updateSessionRules({ removeRuleIds: [tabId], addRules: url ? [tabAllowRule(tabId, url)] : [] });
+async function letTabLoad(tabId: number, url: string | null) {
+  if (url) githubPages.set(tabId, url);
+  else githubPages.delete(tabId);
+  if (BOOT) await browser.declarativeNetRequest.updateSessionRules({ removeRuleIds: [tabId], addRules: url ? [tabAllowRule(tabId, url)] : [] });
 }

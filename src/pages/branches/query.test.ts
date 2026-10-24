@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { branchLists, toBranch, type BranchEntry, type BranchNode } from './query';
+import { branchLists, indexStaleTime, toBranch, type BranchEntry, type BranchNode } from './query';
 
 const node = (compare: BranchNode['compare'], pr: BranchNode['associatedPullRequests']['nodes'] = []): BranchNode => ({
   id: 'R1',
@@ -44,5 +44,14 @@ describe('branchLists', () => {
   it('keeps the viewer’s branches, whatever the login’s case, and none when signed out', () => {
     expect(names(lists.yours)).toEqual(['mine', 'mine-old']);
     expect(branchLists(entries, 'main', null, now).yours).toEqual([]);
+  });
+});
+
+// Each 100 branches cost a request, so a return to the tab refreshes a big index less often.
+describe('indexStaleTime', () => {
+  it('keeps an index of more than one page fresh for longer', () => {
+    expect(indexStaleTime(undefined)).toBe(30_000);
+    expect(indexStaleTime({ entries: [], total: 100 })).toBe(30_000);
+    expect(indexStaleTime({ entries: [], total: 101 })).toBe(10 * 60_000);
   });
 });

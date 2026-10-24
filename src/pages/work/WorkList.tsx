@@ -12,7 +12,7 @@ import { Menu, type MenuOption } from '@/ui/Menu';
 import { Empty, Kbd, Panel, Skeleton } from '@/ui/primitives';
 import { repoLabelFor } from '@/ui/WorkRow';
 import { IssueSplit, useIssueSplit } from './IssueSplit';
-import { qualifierOf, sortOf, SORTS, squash, useWorkDetails, withQualifier, workListQuery, workQueryOf, workStateCountQueries, type Qualifier, type Sort, type WorkType } from './queries';
+import { listedState, qualifierOf, sortOf, SORTS, squash, STATES, useWorkDetails, withQualifier, workListQuery, workQueryOf, workStateCountQueries, type Qualifier, type Sort, type WorkType } from './queries';
 import { useIssueTree } from './tree';
 import { WorkTable } from './WorkTable';
 
@@ -47,7 +47,8 @@ export function WorkList({ kind, fallback, repo, peek }: { kind: WorkType; fallb
   const list = useInfiniteQuery({ ...workListQuery(q, repo, nested), enabled: kind === 'pr' || nest !== null });
   const state = qualifierOf(q, 'state').split(':')[1];
   const tree = useIssueTree(list.data?.pages, state ?? '', nested);
-  const counts = useQueries({ queries: workStateCountQueries(q, repo) });
+  const listed = listedState(q);
+  const counts = useQueries({ queries: workStateCountQueries(q, repo) }).map((count, i) => (STATES[i] === listed ? list.data?.pages[0]?.results.issueCount : count.data));
 
   // The rows on screen get their pages' first paint ready; again whenever the rows change.
   const queryClient = useQueryClient();
@@ -102,7 +103,7 @@ export function WorkList({ kind, fallback, repo, peek }: { kind: WorkType; fallb
           {draft === q ? <Kbd>/</Kbd> : <Kbd>↵</Kbd>}
         </label>
         <div className="flex rounded-lg border border-line bg-panel p-0.5">
-          {(['open', 'closed'] as const).map((s, i) => (
+          {STATES.map((s, i) => (
             <button
               key={s}
               type="button"
@@ -114,7 +115,7 @@ export function WorkList({ kind, fallback, repo, peek }: { kind: WorkType; fallb
             >
               {s === 'open' ? <HugeiconsIcon icon={CircleDotIcon} /> : <HugeiconsIcon icon={CheckmarkCircle02Icon} />}
               {s === 'open' ? 'Open' : 'Closed'}
-              <span className="text-subtle tabular-nums">{counts[i]?.data?.toLocaleString() ?? '–'}</span>
+              <span className="text-subtle tabular-nums">{counts[i]?.toLocaleString() ?? '–'}</span>
             </button>
           ))}
         </div>
