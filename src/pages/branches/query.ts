@@ -37,6 +37,12 @@ export type BranchIndex = { entries: BranchEntry[]; total: number };
 export const indexProgress = createStore<Record<string, { loaded: number; total: number }>>({});
 
 /**
+ * How long an index stays fresh. Each 100 branches cost a request, so an index of more than one page refreshes
+ * less often (also when the user comes back to the tab). The page's own branch changes refresh it at once.
+ */
+export const indexStaleTime = (index: BranchIndex | undefined) => (index && index.total > 100 ? 10 * 60_000 : 30_000);
+
+/**
  * The index, listed 100 at a time and stored whole: a revisit paints the stored list at once and swaps in the new
  * one when it's complete (a page at a time, the stored list would be replaced by its first hundred).
  */
@@ -66,7 +72,7 @@ export const branchIndexQuery = (owner: string, name: string) =>
       }
       return { entries, total };
     },
-    staleTime: 30_000,
+    staleTime: (query) => indexStaleTime(query.state.data),
     persister: persisted,
   });
 

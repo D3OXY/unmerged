@@ -249,7 +249,7 @@ export function useWorkDetails(items: { id: string }[]) {
 
 // Each count is its own request: GitHub runs one query's searches one after another, so bundled they'd wait on
 // each other and on the list. Sort doesn't change a count, so it's dropped and equal counts share a cache entry
-// (a tab's count is also its list's Open count).
+// (a tab's count is also the Open count beside its closed list).
 const workCountQuery = (q: string) => {
   const query = withQualifier(q, 'sort', '');
   return queryOptions({
@@ -261,19 +261,35 @@ const workCountQuery = (q: string) => {
   });
 };
 
-/** The Open and Closed counts beside a list's search, in that order. */
-export const workStateCountQueries = (q: string, repo?: string) => (['open', 'closed'] as const).map((state) => workCountQuery(scoped(withQualifier(q, 'state', `is:${state}`), repo)));
+/** The states whose counts sit beside a list's search, in that order. */
+export const STATES = ['open', 'closed'] as const;
+
+/** The state that `q` lists, when all its state qualifiers ask for the same one of `STATES`. */
+export function listedState(q: string) {
+  const states = new Set(q.match(tokens('state'))?.map((token) => token.slice(token.indexOf(':') + 1)));
+  const [state] = states;
+  return states.size === 1 && (state === 'open' || state === 'closed') ? state : undefined;
+}
+
+/**
+ * The Open and Closed counts beside a list's search, in `STATES` order. The count of the state that the search
+ * lists (`listedState`) is the list's own `issueCount`, so that query is disabled: it would ask for the same number.
+ */
+export const workStateCountQueries = (q: string, repo?: string) => {
+  const listed = listedState(q);
+  return STATES.map((state) => ({ ...workCountQuery(scoped(withQualifier(q, 'state', `is:${state}`), repo)), enabled: state !== listed }));
+};
 
 /** The open count of each tab's default search, in `TABS` order. */
 export const workTabCountQueries = (type: WorkType) => TABS[type].map((tab) => workCountQuery(defaultQuery(type, tab.filter)));
 
 /**
- * Starts everything a list shows for `q` at once: its results and its Open/Closed counts. Then the table's
- * details follow the results; a nested issue list starts its families instead, and a split one neither.
- * Resolves once those have started.
+ * Starts everything a list shows for `q` at once: its results and the Open/Closed counts they don't hold. Then
+ * the table's details follow the results; a nested issue list starts its families instead, and a split one
+ * neither. Resolves once those have started.
  */
 export async function prefetchWorkList(client: QueryClient, kind: WorkType, q: string, repo?: string) {
-  for (const count of workStateCountQueries(q, repo)) client.prefetchQuery(count);
+  for (const count of workStateCountQueries(q, repo)) if (count.enabled) client.prefetchQuery(count);
   try {
     const [split, nested] = kind === 'issue' ? await Promise.all([issueSplitItem.getValue(), nestIssuesItem.getValue()]) : [false, false];
     const { pages } = await client.fetchInfiniteQuery(workListQuery(q, repo, nested));

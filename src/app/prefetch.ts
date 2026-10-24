@@ -1,4 +1,4 @@
-import { hashKey, type FetchQueryOptions, type QueryClient, type QueryKey } from '@tanstack/react-query';
+import { hashKey, QueryClient, type FetchQueryOptions, type QueryKey } from '@tanstack/react-query';
 import { achievementsQuery } from '@/github/achievements';
 import { prefetchActions, prefetchRun } from '@/pages/actions/query';
 import { prefetchBranches } from '@/pages/branches/query';
@@ -118,6 +118,18 @@ export function prefetchRoute(client: QueryClient, route: Route, url: URL) {
       prefetchSearch(client, route);
       return;
   }
+}
+
+/**
+ * The background's client for one page's early requests (see github/early.ts). Nothing stays cached once they
+ * end, and none retries, also a query that sets its own retries (`STATS_RETRY`): a page whose request failed
+ * makes its own.
+ */
+export function earlyClient() {
+  const client = new QueryClient({ defaultOptions: { queries: { gcTime: 0 } } });
+  const defaulted = client.defaultQueryOptions.bind(client);
+  client.defaultQueryOptions = (options) => ({ ...defaulted(options), retry: false });
+  return client;
 }
 
 /** At most this many rows are prefetched per screen of a list. */

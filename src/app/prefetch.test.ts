@@ -10,7 +10,8 @@ import { prFilesQuery, prMergeQuery, prQuery, prReviewQuery, prTimelineQuery, pr
 import { releasesQuery, tagsQuery } from '@/pages/releases/query';
 import { codeSearchQuery, repoSearchQuery, workSearchQuery } from '@/pages/search/queries';
 import { defaultQuery, issueFamilyQuery, prefetchWorkList, repoListQuery, workDetailsQuery, workListQuery, workQueryOf, type ListPage } from '@/pages/work/queries';
-import { prefetchRoute, prefetchVisibleRows, rowsToPrefetch } from './prefetch';
+import { StatsPending, STATS_RETRY } from '@/pages/repo/pulse';
+import { earlyClient, prefetchRoute, prefetchVisibleRows, rowsToPrefetch } from './prefetch';
 
 /** The list keys `prefetchRoute` starts for `href`, without fetching anything. */
 function prefetchedListKeys(href: string) {
@@ -40,6 +41,17 @@ function prefetchedWorkList(href: string) {
   prefetchRoute(client, route, url);
   return started;
 }
+
+// The page retries what failed; the background's copy of a request would only double its retries.
+describe('earlyClient', () => {
+  it('does not retry, also a query that sets its own retries', async () => {
+    const queryFn = vi.fn(async () => {
+      throw new StatsPending('GitHub is still counting');
+    });
+    await earlyClient().prefetchQuery({ queryKey: ['stats'], queryFn, ...STATS_RETRY });
+    expect(queryFn).toHaveBeenCalledOnce();
+  });
+});
 
 // Each list page passes its bare-URL fallback (and repo) to `WorkList`; prefetch must land on the same key.
 describe('prefetchRoute for lists', () => {

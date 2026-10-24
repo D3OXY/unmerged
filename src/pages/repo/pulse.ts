@@ -141,8 +141,8 @@ export function churnFor(weeks: number[], stats: [number, number, number][]): Ch
 /** GitHub answers 202 while it computes a repo's statistics; queries retry (`STATS_RETRY`) until they're ready. */
 export class StatsPending extends Error {}
 
-/** For a query of `fetchStats`: retries while GitHub is still counting, every 2 s for up to 16 s. */
-export const STATS_RETRY = { retry: (failures: number, error: Error) => error instanceof StatsPending && failures < 8, retryDelay: 2_000 };
+/** For a query of `fetchStats`: retries while GitHub is still counting, after 2, 4, 8 and 16 s (30 s in all). */
+export const STATS_RETRY = { retry: (failures: number, error: Error) => error instanceof StatsPending && failures < 4, retryDelay: (failures: number) => 2_000 * 2 ** failures };
 
 /** A repo's `/stats/<kind>` rows; none for an empty repo. Throws `StatsPending` while GitHub counts. */
 export async function fetchStats<T>(owner: string, name: string, kind: 'code_frequency' | 'contributors', signal: AbortSignal): Promise<T[]> {
