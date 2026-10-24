@@ -32,6 +32,7 @@ import {
   prStatusQuery,
   prTimelineQuery,
   prViewedQuery,
+  SLOW_POLL,
   type LoadedPr,
   type PrHead,
   type PrWithMerge,
@@ -135,7 +136,8 @@ type StatusPoll = ReturnType<typeof useStatusPoll>;
 /**
  * Keeps an open PR's checks, mergeability and queue spot live: polls the small status query (which writes
  * into the merge part) while GitHub is still deciding. `watch()` polls for a minute regardless, because a re-run
- * GitHub hasn't queued yet still looks finished.
+ * GitHub hasn't queued yet still looks finished. While the Checks tab polls (`setChecksPolling`), this poll
+ * pauses: the tab's answer is newer. After two minutes of polling, both polls slow down (`slow`).
  */
 function useStatusPoll(owner: string, repo: string, number: number, pr: PrWithMerge | undefined) {
   const queryClient = useQueryClient();
@@ -147,12 +149,24 @@ function useStatusPoll(owner: string, repo: string, number: number, pr: PrWithMe
     return () => clearTimeout(id);
   }, [watchedAt]);
   const watching = watchedAt !== undefined;
-  useQuery({ ...status, enabled: !!pr && (watching || isSettling(pr)), refetchInterval: 10_000 });
+  const [checksPolling, setChecksPolling] = useState(false);
+  const settling = !!pr && (watching || isSettling(pr));
+  const polling = settling || checksPolling;
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (!polling) return;
+    const id = setTimeout(() => setSlow(true), 2 * 60_000);
+    return () => {
+      clearTimeout(id);
+      setSlow(false);
+    };
+  }, [polling]);
+  useQuery({ ...status, enabled: settling && !checksPolling, refetchInterval: slow ? SLOW_POLL : 10_000 });
   const watch = () => {
     setWatchedAt(Date.now());
     queryClient.invalidateQueries(status);
   };
-  return { watching, watch };
+  return { watching, watch, slow, setChecksPolling };
 }
 
 /**
@@ -269,7 +283,7 @@ function PrView({ loaded, tab, queryKey, poll, panel }: {
 
       {tab === 'conversation' && <ConversationTab loaded={loaded} queryKey={queryKey} />}
       {tab === 'commits' && <CommitsTab pr={pr} />}
-      {tab === 'checks' && <ChecksTab pr={pr} watching={poll.watching} onRerun={poll.watch} />}
+      {tab === 'checks' && <ChecksTab pr={pr} watching={poll.watching} slow={poll.slow} onRerun={poll.watch} onPolling={poll.setChecksPolling} />}
       {tab === 'files' && <FilesTab pr={pr} full={full?.pr} queryKey={queryKey} panel={panel} />}
     </div>
   );

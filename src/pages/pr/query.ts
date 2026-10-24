@@ -495,6 +495,9 @@ type PrStatus = Pick<PullRequest, 'state' | 'headRefOid' | 'mergeable' | 'mergeS
   timelineItems: { totalCount: number };
 };
 
+/** How often a PR's polls run after their first two minutes, such as during a long CI run. */
+export const SLOW_POLL = 30_000;
+
 /** True while GitHub is still deciding something about an open PR: its checks, mergeability or queue spot. */
 export const isSettling = (pr: PrWithMerge) =>
   pr.state === 'OPEN' &&

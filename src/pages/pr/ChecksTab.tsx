@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Alert02Icon, ArrowUpRight01Icon, CancelCircleIcon, InformationCircleIcon, MinusSignIcon, UndoIcon } from '@hugeicons/core-free-icons';
@@ -11,7 +11,7 @@ import { Avatar, Empty, Panel, Pill, Skeleton } from '@/ui/primitives';
 import { CheckIcon } from '@/ui/status';
 import { toast } from '@/ui/toast';
 import { ORDER, runOutcome, type CheckOutcome } from './checks';
-import { repoPath, type PullRequest } from './query';
+import { repoPath, SLOW_POLL, type PullRequest } from './query';
 
 /** What the Checks tab reads of the pull request: the first part has it. */
 type ChecksPr = Pick<PullRequest, 'id' | 'number' | 'url' | 'headRefOid'>;
@@ -113,18 +113,37 @@ export function OutcomeIcon({ outcome }: { outcome: CheckOutcome }) {
 }
 
 /**
+ * True while a run on the PR's head commit is unfinished. After a push, the answer is for another commit:
+ * then false, so the status poll takes over and sees the push.
+ */
+export const runsUnfinished = (data: ChecksData | undefined, headRefOid: string) => {
+  const commit = data?.node.commits.nodes[0]?.commit;
+  return commit?.oid === headRefOid && commit.checkSuites.nodes.some((s) => s.checkRuns.nodes.some((r) => r.status !== 'COMPLETED'));
+};
+
+/**
  * CI for the head commit: runs grouped by workflow on the left, the selected run's annotations on the right.
  * Polls while a run is unfinished, and throughout `watching` (just after a re-run, before GitHub queues it).
+ * `onPolling` tells PrPage when this poll runs, so its status poll pauses. `slow`: PrPage has polled for two minutes.
  */
-export function ChecksTab({ pr, watching, onRerun }: { pr: ChecksPr; watching: boolean; onRerun: () => void }) {
+export function ChecksTab({ pr, watching, slow, onRerun, onPolling }: {
+  pr: ChecksPr;
+  watching: boolean;
+  slow: boolean;
+  onRerun: () => void;
+  onPolling: (polling: boolean) => void;
+}) {
+  const polls = (data: ChecksData | undefined) => watching || runsUnfinished(data, pr.headRefOid);
   const { data, isPending, error } = useQuery({
     queryKey: ['pr-checks', pr.id, pr.headRefOid],
     queryFn: () => gql<ChecksData>(CHECKS_QUERY, { id: pr.id, number: pr.number }),
-    refetchInterval: (query) => {
-      const suites = query.state.data?.node.commits.nodes[0]?.commit.checkSuites.nodes ?? [];
-      return watching || suites.some((s) => s.checkRuns.nodes.some((r) => r.status !== 'COMPLETED')) ? 15_000 : false;
-    },
+    refetchInterval: (query) => (polls(query.state.data) ? (slow ? SLOW_POLL : 15_000) : false),
   });
+  const polling = polls(data);
+  useEffect(() => {
+    onPolling(polling);
+    return () => onPolling(false);
+  }, [polling, onPolling]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   if (error) return <p className="text-[13px] text-danger">{error.message}</p>;
