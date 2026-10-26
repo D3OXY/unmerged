@@ -39,7 +39,7 @@ export function ReviewPanel({ pr, queryKey }: { pr: PullRequest; queryKey: Query
       </Button>
       {open && (
         <div className="absolute top-full right-0 z-40 mt-1.5 w-[420px] max-w-[calc(100vw-48px)] animate-pop rounded-xl border border-line-strong bg-elevated p-2 shadow-2xl shadow-black/30">
-          <CommentBox autoFocus value={body} onChange={setBody} onSubmit={submit} onClose={() => setOpen(false)} rows={4} preview={repoPath(pr)} placeholder="Leave a summary… (optional)" className="bg-bg">
+          <CommentBox autoFocus value={body} onChange={setBody} onSubmit={submit} onClose={() => setOpen(false)} rows={4} repo={repoPath(pr)} placeholder="Leave a summary… (optional)" className="bg-bg">
             {pending && (
               <Button size="sm" variant="ghost" loading={discarding} onClick={discardPending}>
                 Discard
