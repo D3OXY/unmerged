@@ -32,8 +32,10 @@ const STATUS: Partial<Record<PrFile['status'], [string, string]>> = {
 
 /** What a pull request's cards share (one object for all of them): line comments and the "Viewed" toggle. */
 export type FileReview = {
-  /** Undefined until the full pull request loads; line comments wait for it. */
+  /** Undefined until the full pull request loads (line comments wait for it), and on commits that end before the head. */
   pr?: PullRequest;
+  /** Some commits only: comments go on new lines only. */
+  newSideOnly?: boolean;
   queryKey: QueryKey;
   onToggleViewed: (change: { path: string; wasViewed: boolean }) => void;
   /** GitHub's editor for a file on the head branch; undefined when the viewer can't push there. */
@@ -182,7 +184,7 @@ export const FileDiff = memo(function FileDiff({ file, source, review, anchor, m
           </div>
         ) : (
           <LazyBody estimatedHeight={bodyHeight(file)}>
-            <DiffBody file={file} patch={file.patch} source={source} review={review?.pr && { pr: review.pr, queryKey: review.queryKey, threads }} mode={mode} wrap={wrap} />
+            <DiffBody file={file} patch={file.patch} source={source} review={review?.pr && { pr: review.pr, queryKey: review.queryKey, threads, newSideOnly: review.newSideOnly }} mode={mode} wrap={wrap} />
           </LazyBody>
         ))}
     </section>

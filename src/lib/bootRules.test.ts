@@ -50,6 +50,7 @@ const BOOTED = [
   '/TanStack/query/pull/12030',
   '/oven-sh/bun/pull/30412/files',
   '/o/r/pull/12/changes',
+  '/o/r/pull/12/files/abcdef1..1234567',
   '/o/r/issues/1657',
   '/o/r/issues/new?template=bug.md&title=Hi',
   '/o/r/issues/new/choose',
@@ -75,7 +76,7 @@ const SEGMENTS = [
   ...['settings', 'Settings', 'site', 'orgs', 'issues', 'pulls', 'pull', 'search', 'notifications', 'new', 'choose', 'edit'],
   ...['tree', 'blob', 'commits', 'commit', 'actions', 'workflows', 'runs', 'job', 'attempts', 'usage', 'branches', 'yours', 'overview'],
   ...['graphs', 'contributors', 'releases', 'tags', 'tag', 'latest', 'untagged-1a2b', '%75ntagged-1', 'compare', 'main...dev', 'main..dev'],
-  ...['a:b...c', '...dev', 'main...', 'x.diff', 'v1.2.patch', 'ci.yml', 'badge.svg', 'pages', '1', '0', 'abc123', 'abcdef1', '20adf3c.patch'],
+  ...['a:b...c', '...dev', 'main...', 'x.diff', 'v1.2.patch', 'ci.yml', 'badge.svg', 'pages', '1', '0', 'abc123', 'abcdef1', '20adf3c.patch', 'abcdef1..1234567', 'abcdef1...1234567'],
   ...['%zz', '%E0%A4%A', '%2F', 'a%20b', '100%', 'assigned', 'created', 'review-requested', 'files', 'changes', 'checks'],
   ...['repositories', 'people', 'o', 'next.js', '.github', 'favicon.ico'],
 ];
