@@ -508,7 +508,8 @@ export const MUTATIONS = {
 
 // ── Edits: reviewers, assignees, labels, milestone, title, base and description, comments, reactions, notifications ──
 export const EDIT_MUTATIONS = {
-  requestReviews: m('RequestReviews', '{ pullRequestId: $id, userIds: $ids, union: true }', '$id: ID!, $ids: [ID!]!'),
+  // `ids` are people, `teams` teams.
+  requestReviews: m('RequestReviews', '{ pullRequestId: $id, userIds: $ids, teamIds: $teams, union: true }', '$id: ID!, $ids: [ID!], $teams: [ID!]'),
   addAssignees: m('AddAssigneesToAssignable', '{ assignableId: $id, assigneeIds: $ids }', '$id: ID!, $ids: [ID!]!'),
   removeAssignees: m('RemoveAssigneesFromAssignable', '{ assignableId: $id, assigneeIds: $ids }', '$id: ID!, $ids: [ID!]!'),
   addLabels: m('AddLabelsToLabelable', '{ labelableId: $id, labelIds: $ids }', '$id: ID!, $ids: [ID!]!'),

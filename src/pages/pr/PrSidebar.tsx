@@ -86,7 +86,7 @@ export function PeopleCard({ pr, queryKey }: { pr: PrWithReview; queryKey: Query
     <Card title="Details">
       <Field
         label="Reviewers"
-        action={canRequest && <Picker pr={pr} queryKey={queryKey} kind="users" title="Request reviewers" add={EDIT_MUTATIONS.requestReviews} selected={[]} hide={unaskable} />}
+        action={canRequest && <Picker pr={pr} queryKey={queryKey} kind="reviewers" title="Request reviewers" add={EDIT_MUTATIONS.requestReviews} selected={[]} hide={unaskable} />}
       >
         {reviewed.length + requested.length === 0 && <span className="px-2 text-[12.5px] text-subtle">None</span>}
         {reviewed.map(({ author, state }) => (
@@ -394,10 +394,14 @@ function ReRequest({ prId, userId, queryKey }: { prId: string; userId: string; q
 }
 
 const CANDIDATES_QUERY = /* GraphQL */ `
-  query PrPickerCandidates($owner: String!, $repo: String!, $q: String!, $labels: Boolean!) {
+  query PrPickerCandidates($owner: String!, $repo: String!, $q: String!, $labels: Boolean!, $teams: Boolean!) {
     repository(owner: $owner, name: $repo) {
       assignableUsers(first: 20, query: $q) @skip(if: $labels) { nodes { id login name } }
       labels(first: 30, query: $q) @include(if: $labels) { nodes { id name description } }
+    }
+    # A team can review once it has access to the repository: each team's repositories are searched for it.
+    repositoryOwner(login: $owner) @include(if: $teams) {
+      ... on Organization { teams(first: 20, query: $q) { nodes { id name combinedSlug repositories(first: 5, query: $repo) { nodes { name } } } } }
     }
   }
 `;
@@ -407,7 +411,11 @@ type Candidates = {
     assignableUsers?: { nodes: { id: string; login: string; name: string | null }[] };
     labels?: { nodes: { id: string; name: string; description: string | null }[] };
   } | null;
+  repositoryOwner?: { teams?: { nodes: { id: string; name: string; combinedSlug: string; repositories: { nodes: { name: string }[] } }[] } } | null;
 };
+
+/** A picker's option; `team` marks a team among the reviewers. */
+type Candidate = MenuOption<string> & { team?: boolean };
 
 /**
  * What the picker lists: the current selection first (unless searching, when only matches show), then the
@@ -418,9 +426,10 @@ export function pickerOptions(selected: MenuOption<string>[], candidates: MenuOp
 }
 
 /**
- * Searchable multi-select over the repo's assignable users or labels (option values are node ids). A pick
- * applies at once, `add` or (if it was selected) `remove`, and shows as done while the PR refetches.
- * Options whose label is in `hide` aren't offered.
+ * Searchable multi-select over the repo's assignable users, labels, or reviewers: assignable users and the
+ * organization's teams with access to the repo (option values are node ids). A pick applies at once, `add` or
+ * (if it was selected) `remove`, and shows as done while the PR refetches. Options whose label is in `hide`
+ * aren't offered.
  */
 function Picker({
   pr,
@@ -434,7 +443,7 @@ function Picker({
 }: {
   pr: PrWithReview;
   queryKey: QueryKey;
-  kind: 'users' | 'labels';
+  kind: 'users' | 'labels' | 'reviewers';
   title: string;
   add: string;
   remove?: string;
@@ -449,10 +458,12 @@ function Picker({
   const candidates = useQuery({
     queryKey: ['pr-picker', owner, repo, kind, q],
     queryFn: async () => {
-      const { repository } = await gql<Candidates>(CANDIDATES_QUERY, { owner, repo, q, labels: kind === 'labels' });
+      const { repository, repositoryOwner } = await gql<Candidates>(CANDIDATES_QUERY, { owner, repo, q, labels: kind === 'labels', teams: kind === 'reviewers' });
+      const teams = (repositoryOwner?.teams?.nodes ?? []).filter((t) => t.repositories.nodes.some((r) => r.name.toLowerCase() === repo?.toLowerCase()));
       return [
-        ...(repository?.assignableUsers?.nodes ?? []).map((u): MenuOption<string> => ({ value: u.id, label: u.login, hint: u.name ?? undefined })),
-        ...(repository?.labels?.nodes ?? []).map((l): MenuOption<string> => ({ value: l.id, label: l.name, hint: l.description ?? undefined })),
+        ...(repository?.assignableUsers?.nodes ?? []).map((u): Candidate => ({ value: u.id, label: u.login, hint: u.name ?? undefined })),
+        ...teams.map((t): Candidate => ({ value: t.id, label: t.name, hint: `@${t.combinedSlug}`, team: true })),
+        ...(repository?.labels?.nodes ?? []).map((l): Candidate => ({ value: l.id, label: l.name, hint: l.description ?? undefined })),
       ];
     },
     enabled: opened,
@@ -470,7 +481,7 @@ function Picker({
     if (!query || inFlight.includes(id)) return;
     setInFlight((ids) => [...ids, id]);
     mutation
-      .mutateAsync({ query, variables: { id: pr.id, ids: [id] } })
+      .mutateAsync({ query, variables: candidates.data?.find((o) => o.value === id)?.team ? { id: pr.id, teams: [id] } : { id: pr.id, ids: [id] } })
       .catch(() => {}) // usePrMutation already toasted it.
       .finally(() => setInFlight((ids) => ids.filter((x) => x !== id)));
   };
@@ -486,7 +497,7 @@ function Picker({
             autoFocus
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={kind === 'labels' ? 'Filter labels' : 'Search people'}
+            placeholder={kind === 'labels' ? 'Filter labels' : kind === 'reviewers' ? 'Search people and teams' : 'Search people'}
             className="h-8 w-full rounded-lg border border-line bg-bg px-2.5 text-[12.5px] outline-none focus:border-accent/60"
           />
           {options.length === 0 && <p className="px-1.5 pt-2 text-[12px] text-subtle">{candidates.isFetching ? 'Searching…' : 'No matches'}</p>}
