@@ -95,7 +95,7 @@ const PR_REVIEW_QUERY = prPart(
   reviewThreads(first: 50) {
     totalCount
     nodes {
-      id isResolved isOutdated path line diffSide viewerCanResolve viewerCanUnresolve viewerCanReply
+      id isResolved isOutdated path line diffSide subjectType viewerCanResolve viewerCanUnresolve viewerCanReply
       comments(first: 30) {
         totalCount
         nodes { id author { login avatarUrl } bodyHTML body createdAt diffHunk state viewerCanUpdate viewerCanDelete ${REACTIONS} ${COMMENT_META} }
@@ -327,6 +327,8 @@ export type ReviewThread = {
   path: string;
   line: number | null;
   diffSide: 'LEFT' | 'RIGHT';
+  /** FILE: a comment on the whole file. GitHub still gives it line 1 and an empty diff hunk. */
+  subjectType: 'LINE' | 'FILE';
   viewerCanResolve: boolean;
   viewerCanUnresolve: boolean;
   viewerCanReply: boolean;
@@ -468,6 +470,7 @@ export const MUTATIONS = {
   startReview: /* GraphQL */ `mutation StartReview($id: ID!, $oid: GitObjectID) {
     addPullRequestReview(input: { pullRequestId: $id, commitOID: $oid }) { pullRequestReview { id } }
   }`,
+  addFileThread: m('AddPullRequestReviewThread', '{ pullRequestReviewId: $review, path: $path, subjectType: FILE, body: $body }', '$review: ID!, $path: String!, $body: String!'),
   addReviewThread: m(
     'AddPullRequestReviewThread',
     '{ pullRequestReviewId: $review, path: $path, line: $line, side: $side, startLine: $startLine, startSide: $startSide, body: $body }',
@@ -551,7 +554,7 @@ const partQuery = <T>(query: string, owner: string, repo: string, number: number
   queryOptions({
     // The version keeps results persisted by an older build (missing newer fields) from rendering.
     // Bump it whenever a part gains fields.
-    queryKey: ['pr', 7, ...prKey(owner, repo, number), ...part],
+    queryKey: ['pr', 8, ...prKey(owner, repo, number), ...part],
     queryFn: () => gql<T>(query, { owner, repo, number }, true),
     persister: persisted,
   });
