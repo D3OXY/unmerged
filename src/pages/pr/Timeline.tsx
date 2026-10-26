@@ -1,8 +1,8 @@
-import { useState, type ReactNode } from 'react';
-import type { QueryKey } from '@tanstack/react-query';
+import { useMemo, useState, type ReactNode } from 'react';
+import { useInfiniteQuery, type QueryKey } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
-  Cancel01Icon, CircleDotIcon, Comment01Icon, Delete02Icon, FlashIcon, FlashOffIcon, GitBranchIcon, GitCommitHorizontalIcon, GitMergeIcon,
+  Cancel01Icon, CircleDotIcon, Delete02Icon, FlashIcon, FlashOffIcon, GitBranchIcon, GitCommitHorizontalIcon, GitMergeIcon,
   GitPullRequestDraftIcon, Link02Icon, SquareLock01Icon, MilestoneIcon, MoreHorizontalIcon, PencilEdit02Icon, Rocket01Icon, Tag01Icon, Tick02Icon,
   UndoIcon, Unlink02Icon, SquareUnlock01Icon, Upload01Icon, UserAdd01Icon, UserRemove01Icon, ViewIcon, ViewOffIcon,
 } from '@hugeicons/core-free-icons';
@@ -16,30 +16,61 @@ import { Avatar, Markdown, Pill } from '@/ui/primitives';
 import { CheckIcon, IssueIcon, PrStateIcon } from '@/ui/status';
 import { CommentBody, type Editable } from './CommentBody';
 import { LOCK_REASON, quoteReply } from './Composer';
-import { EDIT_MUTATIONS, type AuthorAssociation, type CommentMeta, type HideReason, type Reference, type ReviewState, type TimelineItem } from './query';
+import {
+  earlierItems,
+  EDIT_MUTATIONS,
+  prEarlierTimelineQuery,
+  repoPath,
+  type AuthorAssociation,
+  type CommentMeta,
+  type HideReason,
+  type PrHead,
+  type Reference,
+  type ReviewState,
+  type TimelineItem,
+  type TimelinePage,
+} from './query';
 import { usePrMutation } from './usePrMutation';
 
-/** Activity feed: comments as cards, everything else as quiet one-liners on a rail. */
-export function Timeline({ items, hiddenCount, queryKey, pr }: { items: TimelineItem[]; hiddenCount: number; queryKey: QueryKey; pr: { id: string; author: Actor } }) {
+type TimelinePr = Pick<PrHead, 'id' | 'author' | 'url' | 'number'>;
+
+/**
+ * Activity feed: comments as cards, everything else as quiet one-liners on a rail. `newest` is the newest 100
+ * items; "Load more" adds older ones from the first item on, with the rest hidden between them, as on GitHub.
+ */
+export function Timeline({ newest, queryKey, pr }: { newest: TimelinePage; queryKey: QueryKey; pr: TimelinePr }) {
+  const [owner, repo] = repoPath(pr).split('/') as [string, string];
+  const [opened, setOpened] = useState(false);
+  const earlier = useInfiniteQuery({ ...prEarlierTimelineQuery(owner, repo, pr.number), enabled: opened });
+  const pages = earlier.data?.pages;
+  const { items, more } = useMemo(() => earlierItems(pages ?? [], newest), [pages, newest]);
   return (
     <div className="relative">
       <div className="absolute top-2 bottom-2 left-[15px] w-px bg-line" />
-      {hiddenCount > 0 && (
-        <EventLine icon={<HugeiconsIcon icon={Comment01Icon} />}>
-          {hiddenCount} earlier events aren't shown.
-          <button type="button" onClick={openClassic} className="cursor-pointer text-accent hover:underline">
-            View in classic
+      {items.map((item) => (
+        <TimelineEntry key={item.id} item={item} queryKey={queryKey} pr={pr} />
+      ))}
+      {more && (
+        <EventLine icon={<HugeiconsIcon icon={MoreHorizontalIcon} />}>
+          {earlier.error ? <span className="text-danger">{earlier.error.message}</span> : 'Earlier activity is hidden.'}
+          <button
+            type="button"
+            disabled={earlier.isFetching}
+            onClick={() => (opened ? earlier.fetchNextPage() : setOpened(true))}
+            className="cursor-pointer text-accent hover:underline disabled:cursor-default disabled:text-subtle disabled:no-underline"
+          >
+            {earlier.isFetching ? 'Loading…' : 'Load more'}
           </button>
         </EventLine>
       )}
-      {items.map((item) => (
+      {newest.nodes.map((item) => (
         <TimelineEntry key={item.id} item={item} queryKey={queryKey} pr={pr} />
       ))}
     </div>
   );
 }
 
-function TimelineEntry({ item, queryKey, pr }: { item: TimelineItem; queryKey: QueryKey; pr: { id: string; author: Actor } }) {
+function TimelineEntry({ item, queryKey, pr }: { item: TimelineItem; queryKey: QueryKey; pr: TimelinePr }) {
   switch (item.__typename) {
     case 'IssueComment':
       return (

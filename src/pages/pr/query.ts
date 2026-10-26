@@ -1,4 +1,4 @@
-import { queryOptions, type QueryClient } from '@tanstack/react-query';
+import { infiniteQueryOptions, queryOptions, type QueryClient } from '@tanstack/react-query';
 import { gql, rest } from '@/github/client';
 import type { Actor, CheckState, IssueState, IssueStateReason, Label, PrState, ReviewDecision } from '@/github/types';
 import { persisted } from '@/lib/persist';
@@ -104,12 +104,10 @@ const PR_REVIEW_QUERY = prPart(
   }`,
 );
 
-// The activity: usually the slowest part.
-const PR_TIMELINE_QUERY = prPart(
-  'PullRequestTimeline',
-  '',
-  `timelineItems(
-    last: 100
+// The kinds of activity the timeline shows, and what it needs of each. `args` pages the connection.
+const timelineItems = (args: string) => /* GraphQL */ `
+  timelineItems(
+    ${args}
     itemTypes: [
       ISSUE_COMMENT, PULL_REQUEST_REVIEW, PULL_REQUEST_COMMIT, MERGED_EVENT, CLOSED_EVENT, REOPENED_EVENT,
       HEAD_REF_FORCE_PUSHED_EVENT, LABELED_EVENT, REVIEW_REQUESTED_EVENT, READY_FOR_REVIEW_EVENT,
@@ -120,7 +118,7 @@ const PR_TIMELINE_QUERY = prPart(
       UNLOCKED_EVENT, ADDED_TO_MERGE_QUEUE_EVENT, REMOVED_FROM_MERGE_QUEUE_EVENT, REFERENCED_EVENT, DEPLOYED_EVENT
     ]
   ) {
-    totalCount
+    pageInfo { hasPreviousPage hasNextPage endCursor }
     nodes {
       __typename
       ... on IssueComment { id author { login avatarUrl } bodyHTML body createdAt viewerCanUpdate viewerCanDelete ${REACTIONS} ${COMMENT_META} }
@@ -167,8 +165,20 @@ const PR_TIMELINE_QUERY = prPart(
       ... on ReferencedEvent { id actor { login avatarUrl } createdAt commit { abbreviatedOid messageHeadline url } }
       ... on DeployedEvent { id actor { login avatarUrl } createdAt deployment { environment } }
     }
-  }`,
-);
+  }
+`;
+
+// The activity: usually the slowest part. Only the newest 100 items; older ones load on request (`prEarlierTimelineQuery`).
+const PR_TIMELINE_QUERY = prPart('PullRequestTimeline', '', timelineItems('last: 100'));
+
+// Older activity, from the first item on: new activity can't move these pages.
+const PR_EARLIER_TIMELINE_QUERY = /* GraphQL */ `
+  query PullRequestEarlierTimeline($owner: String!, $repo: String!, $number: Int!, $after: String) {
+    repository(owner: $owner, name: $repo) {
+      pullRequest(number: $number) { ${timelineItems('first: 100, after: $after')} }
+    }
+  }
+`;
 
 export type MergeMethod = 'MERGE' | 'SQUASH' | 'REBASE';
 export type MergeStateStatus = 'BEHIND' | 'BLOCKED' | 'CLEAN' | 'DIRTY' | 'DRAFT' | 'HAS_HOOKS' | 'UNKNOWN' | 'UNSTABLE';
@@ -307,6 +317,9 @@ export type TimelineItem =
   | Event<'ReferencedEvent', { commit: { abbreviatedOid: string; messageHeadline: string; url: string } | null }>
   | Event<'DeployedEvent', { deployment: { environment: string | null } }>;
 
+/** Some of a pull request's activity, oldest first. */
+export type TimelinePage = { pageInfo: { hasPreviousPage: boolean; hasNextPage: boolean; endCursor: string | null }; nodes: TimelineItem[] };
+
 export type ReviewThread = {
   id: string;
   isResolved: boolean;
@@ -396,7 +409,7 @@ export type PullRequest = {
   };
   files: { totalCount: number; nodes: { path: string; additions: number; deletions: number; changeType: string }[] };
   reviewThreads: { totalCount: number; nodes: ReviewThread[] };
-  timelineItems: { totalCount: number; nodes: TimelineItem[] };
+  timelineItems: TimelinePage;
 };
 
 // The fields of `PullRequest` that each part after the first brings. The first part brings `PrHead`.
@@ -528,7 +541,7 @@ const partQuery = <T>(query: string, owner: string, repo: string, number: number
   queryOptions({
     // The version keeps results persisted by an older build (missing newer fields) from rendering.
     // Bump it whenever a part gains fields.
-    queryKey: ['pr', 6, ...prKey(owner, repo, number), ...part],
+    queryKey: ['pr', 7, ...prKey(owner, repo, number), ...part],
     queryFn: () => gql<T>(query, { owner, repo, number }, true),
     persister: persisted,
   });
@@ -563,6 +576,37 @@ export function joinPr(head: HeadPart | undefined, merge: MergePart | undefined,
   return { pr, repo, merge: withMerge, review: withReview, timelineItems, full };
 }
 export type LoadedPr = NonNullable<ReturnType<typeof joinPr>>;
+
+/**
+ * The activity older than the timeline part's newest 100 items, 100 at a time from the first item on, as GitHub's
+ * "Load more" does. Pages from the start stay valid as new activity comes in; the last ones can overlap the
+ * newest 100 (see `earlierItems`). Loaded only on request, and not persisted.
+ */
+export const prEarlierTimelineQuery = (owner: string, repo: string, number: number) =>
+  infiniteQueryOptions({
+    queryKey: ['pr-timeline-earlier', ...prKey(owner, repo, number)],
+    queryFn: async ({ pageParam, signal }) => {
+      const data = await gql<TimelinePart>(PR_EARLIER_TIMELINE_QUERY, { owner, repo, number, after: pageParam }, true, signal);
+      const page = data.repository?.pullRequest?.timelineItems;
+      if (!page) throw new Error('Pull request not found.');
+      return page;
+    },
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => (last.pageInfo.hasNextPage ? last.pageInfo.endCursor : undefined),
+  });
+
+/**
+ * The loaded older activity that isn't among the `newest` items, and whether more is hidden between them: until
+ * a page reaches the newest items (or the last item) there is.
+ */
+export function earlierItems(pages: TimelinePage[], newest: TimelinePage) {
+  if (!newest.pageInfo.hasPreviousPage) return { items: [], more: false };
+  const shown = new Set(newest.nodes.map((item) => item.id));
+  const loaded = pages.flatMap((page) => page.nodes);
+  const items = loaded.filter((item) => !shown.has(item.id));
+  const last = pages.at(-1);
+  return { items, more: !last || (last.pageInfo.hasNextPage && items.length === loaded.length) };
+}
 
 const PR_STATUS_QUERY = /* GraphQL */ `
   query PullRequestStatus($owner: String!, $repo: String!, $number: Int!) {

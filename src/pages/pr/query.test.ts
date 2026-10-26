@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import { gql, rest } from '@/github/client';
-import { joinPr, prFilesQuery, prMergeQuery, prQuery, prReviewQuery, prTimelineQuery, prViewedQuery } from './query';
+import { earlierItems, joinPr, prFilesQuery, prMergeQuery, prQuery, prReviewQuery, prTimelineQuery, prViewedQuery } from './query';
 
 // Each page "returns" its own URL, so the result shows which pages were fetched and in what order.
 vi.mock('@/github/client', () => ({ gql: vi.fn(), rest: vi.fn(async (path: string) => [path]) }));
@@ -102,7 +102,7 @@ describe('joinPr', () => {
     repository: { squashMergeAllowed: true, pullRequest: { mergeable: 'MERGEABLE', commits: rollup([{ __typename: 'CheckRun', name: 'ci' }]) } },
   } as unknown as Parts[1];
   const review = { repository: { pullRequest: { reviewThreads: { totalCount: 0, nodes: [] } } } } as unknown as Parts[2];
-  const timeline = { repository: { pullRequest: { timelineItems: { totalCount: 0, nodes: [] } } } } as unknown as Parts[3];
+  const timeline = { repository: { pullRequest: { timelineItems: { pageInfo: { hasPreviousPage: false }, nodes: [] } } } } as unknown as Parts[3];
 
   it('waits for the first part, and tells a missing pull request apart', () => {
     expect(joinPr(undefined, merge, review, timeline)).toBeUndefined();
@@ -114,15 +114,40 @@ describe('joinPr', () => {
     expect(joinPr(head, undefined, undefined, undefined)).toMatchObject({ pr: { title: 'Fix' }, merge: undefined, review: undefined, timelineItems: undefined, full: undefined });
     const some = joinPr(head, merge, undefined, timeline);
     expect(some?.merge).toMatchObject({ pr: { title: 'Fix', mergeable: 'MERGEABLE' }, repo: { nameWithOwner: 'o/r', squashMergeAllowed: true } });
-    expect(some?.timelineItems).toEqual({ totalCount: 0, nodes: [] });
+    expect(some?.timelineItems).toEqual({ pageInfo: { hasPreviousPage: false }, nodes: [] });
     expect(some?.full).toBeUndefined();
   });
 
   it('is full once every part is in, with the merge part’s checks in place of the first part’s states', () => {
     const full = joinPr(head, merge, review, timeline)?.full;
-    expect(full?.pr).toMatchObject({ id: 'PR', mergeable: 'MERGEABLE', reviewThreads: { totalCount: 0 }, timelineItems: { totalCount: 0 } });
+    expect(full?.pr).toMatchObject({ id: 'PR', mergeable: 'MERGEABLE', reviewThreads: { totalCount: 0 }, timelineItems: { nodes: [] } });
     expect(full?.pr.commits.nodes[0]?.commit.statusCheckRollup?.contexts.nodes).toEqual([{ __typename: 'CheckRun', name: 'ci' }]);
     expect(full?.repo).toEqual({ nameWithOwner: 'o/r', isPrivate: false, squashMergeAllowed: true });
+  });
+});
+
+describe('earlierItems', () => {
+  type Page = Parameters<typeof earlierItems>[1];
+  const page = (ids: string[], hasPreviousPage: boolean, hasNextPage: boolean) =>
+    ({ pageInfo: { hasPreviousPage, hasNextPage, endCursor: ids.at(-1) ?? null }, nodes: ids.map((id) => ({ id })) }) as unknown as Page;
+  const ids = (result: ReturnType<typeof earlierItems>) => result.items.map((item) => item.id);
+
+  it('hides nothing when the newest items are all there is', () => {
+    expect(earlierItems([], page(['c', 'd'], false, false))).toEqual({ items: [], more: false });
+  });
+
+  it('has more until a page from the start reaches the newest items', () => {
+    const newest = page(['e', 'f'], true, false);
+    expect(earlierItems([], newest).more).toBe(true);
+    const first = earlierItems([page(['a', 'b'], false, true)], newest);
+    expect([ids(first), first.more]).toEqual([['a', 'b'], true]);
+    // New activity moved the newest items on: the overlap is shown once.
+    const last = earlierItems([page(['a', 'b'], false, true), page(['c', 'd', 'e'], true, true)], newest);
+    expect([ids(last), last.more]).toEqual([['a', 'b', 'c', 'd'], false]);
+  });
+
+  it('has no more after the last item', () => {
+    expect(earlierItems([page(['a'], false, false)], page(['b'], true, false)).more).toBe(false);
   });
 });
 

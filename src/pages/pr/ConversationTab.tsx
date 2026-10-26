@@ -33,7 +33,7 @@ export function ConversationTab({ loaded, queryKey }: { loaded: LoadedPr; queryK
         {/* Waits for the threads too, so the activity doesn't move down when they land. */}
         {review && timelineItems ? (
           <>
-            <Timeline items={timelineItems.nodes} hiddenCount={timelineItems.nodes.length === 100 ? timelineItems.totalCount - 100 : 0} queryKey={queryKey} pr={pr} />
+            <Timeline newest={timelineItems} queryKey={queryKey} pr={pr} />
             <Composer pr={review} queryKey={queryKey} />
           </>
         ) : (
