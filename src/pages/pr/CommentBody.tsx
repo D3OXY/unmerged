@@ -42,7 +42,7 @@ export function CommentBody({ html, kind, node, queryKey, className }: Editable 
         onClose={() => setDraft(null)}
         rows={Math.min(20, Math.max(4, draft.split('\n').length + 1))}
         placeholder={kind === 'pr' ? 'Describe this pull request… Markdown supported' : 'Markdown supported'}
-        preview={node.url && repoPath({ url: node.url })}
+        repo={node.url && repoPath({ url: node.url })}
         className="bg-bg"
       >
         <Button size="sm" variant="ghost" onClick={() => setDraft(null)} className="ml-auto">

@@ -155,7 +155,7 @@ function ThreadReply({ thread, queryKey }: { thread: ReviewThread; queryKey: Que
 
   return (
     <div className="border-t border-line p-2.5">
-      <CommentBox value={reply} onChange={setReply} onSubmit={submit} rows={2} placeholder="Reply…" preview={thread.comments.nodes[0] && repoPath(thread.comments.nodes[0])} className="bg-bg">
+      <CommentBox value={reply} onChange={setReply} onSubmit={submit} rows={2} placeholder="Reply…" repo={thread.comments.nodes[0] && repoPath(thread.comments.nodes[0])} className="bg-bg">
         <Button size="sm" variant="primary" disabled={!text} loading={send.isPending} onClick={submit} className="ml-auto">
           Reply
         </Button>

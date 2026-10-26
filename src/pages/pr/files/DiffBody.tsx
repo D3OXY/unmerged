@@ -223,7 +223,7 @@ function LineComposer({ pr, path, patch, draft, queryKey, onDone }: { pr: PullRe
       autoFocus
       textareaRef={textarea}
       placeholder={range ? `Comment on lines ${draft.start}–${draft.end}…` : `Comment on line ${draft.end}…`}
-      preview={repoPath(pr)}
+      repo={repoPath(pr)}
       className="border-line-strong"
     >
       {canSuggest && (

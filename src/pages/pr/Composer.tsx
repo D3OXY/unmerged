@@ -119,7 +119,7 @@ export function Composer({ pr, queryKey }: { pr: PrWithReview; queryKey: QueryKe
         onSubmit={send}
         rows={4}
         textareaRef={textarea}
-        preview={repoPath(pr)}
+        repo={repoPath(pr)}
         placeholder={pending ? 'Summarize your review… (optional)' : 'Leave a comment… Markdown supported'}
       >
         {pr.viewerCanUpdate && pr.state !== 'MERGED' && (
