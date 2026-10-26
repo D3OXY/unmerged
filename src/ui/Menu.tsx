@@ -16,8 +16,8 @@ const GAP = 6;
  * Small popover select. The panel is portaled to the app root with fixed positioning, so clipping
  * parents (overflow-hidden cards, scrolling sidebars, blurred headers) can't cut it off. It sits under
  * its trigger, flips above when there's no room, and follows the trigger while anything scrolls.
- * An array `value` makes it multi-select (picks toggle; the menu stays open). `header` sits above the
- * options, e.g. a search field.
+ * An array `value` makes it multi-select (picks toggle; the menu stays open); a null `value` makes it a menu of
+ * actions, with nothing checked. `header` sits above the options, e.g. a search field.
  *
  * Opening focuses the header's input if there is one, else the checked option; ↑/↓, Home and End move
  * between options. Choosing one (in single-select), Escape or Tab closes the menu and puts focus back on
@@ -31,7 +31,7 @@ export function Menu<T extends string>({
   header,
   align = 'right',
 }: {
-  value: T | T[];
+  value: T | T[] | null;
   options: MenuOption<T>[];
   onChange: (value: T) => void;
   trigger: (open: () => void) => ReactNode;
@@ -39,6 +39,7 @@ export function Menu<T extends string>({
   align?: 'left' | 'right';
 }) {
   const multiple = Array.isArray(value);
+  const actions = value === null;
   const isSelected = (option: T) => (multiple ? value.includes(option) : option === value);
   const [open, setOpen] = useState(false);
   const [placement, setPlacement] = useState<Placement | null>(null);
@@ -113,8 +114,8 @@ export function Menu<T extends string>({
         <button
           key={option.value}
           type="button"
-          role={multiple ? 'menuitemcheckbox' : 'menuitemradio'}
-          aria-checked={isSelected(option.value)}
+          role={actions ? 'menuitem' : multiple ? 'menuitemcheckbox' : 'menuitemradio'}
+          aria-checked={actions ? undefined : isSelected(option.value)}
           tabIndex={-1}
           onClick={() => {
             onChange(option.value);
@@ -122,7 +123,7 @@ export function Menu<T extends string>({
           }}
           className="flex w-full cursor-pointer items-start gap-2 rounded-lg px-2.5 py-2 text-left hover:bg-hover"
         >
-          <HugeiconsIcon icon={Tick02Icon} className={cx('mt-0.5 size-3.5 shrink-0', isSelected(option.value) ? 'text-accent' : 'invisible')} />
+          {!actions && <HugeiconsIcon icon={Tick02Icon} className={cx('mt-0.5 size-3.5 shrink-0', isSelected(option.value) ? 'text-accent' : 'invisible')} />}
           <span className="min-w-0 flex-1">
             <span className="block text-[13px] font-medium">{option.label}</span>
             {option.hint && <span className="block text-[12px] text-muted">{option.hint}</span>}

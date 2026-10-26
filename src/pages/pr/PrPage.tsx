@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { BrowserIcon, Comment01Icon, ComputerTerminal01Icon, Copy01Icon, FileDiffIcon, GitCommitHorizontalIcon, GitPullRequestDraftIcon, Link02Icon, PencilEdit02Icon, TaskDone01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { useRegisterCommands, type Command } from '@/app/commands';
+import { gql } from '@/github/client';
 import { PageHeader, Shell } from '@/app/Shell';
 import { openClassic } from '@/lib/classic';
 import { copy } from '@/lib/clipboard';
@@ -11,8 +12,11 @@ import { loadDiffs } from '@/lib/diffs';
 import { navigate } from '@/lib/navigation';
 import type { PrTab } from '@/lib/routes';
 import { timeAgo } from '@/lib/time';
+import { useDebounced } from '@/lib/useDebounced';
 import { useTitle } from '@/lib/useTitle';
+import { REFS_QUERY, type RefsData } from '@/pages/repo/query';
 import { Button } from '@/ui/Button';
+import { Menu } from '@/ui/Menu';
 import { Avatar, Skeleton } from '@/ui/primitives';
 import { CheckIcon, PrStateBadge } from '@/ui/status';
 import { Tab, TabBar } from '@/ui/Tabs';
@@ -32,6 +36,7 @@ import {
   prStatusQuery,
   prTimelineQuery,
   prViewedQuery,
+  repoPath,
   SLOW_POLL,
   type LoadedPr,
   type PrHead,
@@ -249,6 +254,7 @@ function PrView({ loaded, tab, queryKey, poll, panel }: {
             {pr.commits.totalCount === 1 ? '' : 's'} into
           </span>
           <BranchChip name={pr.baseRefName} />
+          {pr.state === 'OPEN' && pr.viewerCanUpdate && <BaseBranchMenu pr={pr} queryKey={queryKey} />}
           <span>from</span>
           <BranchChip name={pr.isCrossRepository && pr.headRepositoryOwner ? `${pr.headRepositoryOwner.login}:${pr.headRefName}` : pr.headRefName} />
           <span className="text-subtle">· {timeAgo(pr.createdAt)}</span>
@@ -338,6 +344,65 @@ function PrTitle({ pr, queryKey }: { pr: PrHead; queryKey: QueryKey }) {
         Cancel
       </Button>
     </form>
+  );
+}
+
+/** Moves the pull request onto another base branch of its repository, after a confirm, as GitHub's title "Edit" does. */
+function BaseBranchMenu({ pr, queryKey }: { pr: PrHead; queryKey: QueryKey }) {
+  const [opened, setOpened] = useState(false);
+  const [search, setSearch] = useState('');
+  const q = useDebounced(search.trim(), 200);
+  const [owner, name] = repoPath(pr).split('/');
+  const branches = useQuery({
+    queryKey: ['repo-refs', owner, name, q],
+    queryFn: () => gql<RefsData>(REFS_QUERY, { owner, name, q: q || null }),
+    enabled: opened,
+    placeholderData: keepPreviousData,
+    staleTime: 60_000,
+  });
+  const change = usePrMutation(queryKey);
+  // The head branch can't be its own base.
+  const options = (branches.data?.repository?.branches.nodes ?? [])
+    .filter((b) => b.name !== pr.headRefName || pr.isCrossRepository)
+    .map((b) => ({ value: b.name, label: b.name }));
+  return (
+    <Menu<string>
+      align="left"
+      value={pr.baseRefName}
+      options={options}
+      onChange={(base) => {
+        if (base !== pr.baseRefName && confirm(`Change the base branch to ${base}? The commits and changes of this pull request are then compared with ${base}.`)) {
+          change.mutate({ query: EDIT_MUTATIONS.updateBase, variables: { id: pr.id, base }, success: `Base branch changed to ${base}` });
+        }
+      }}
+      header={
+        <div className="p-1 pb-1.5">
+          <input
+            autoFocus
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Find a branch"
+            className="h-8 w-full rounded-lg border border-line bg-bg px-2.5 text-[12.5px] outline-none focus:border-accent/60"
+          />
+          {options.length === 0 && <p className="px-1.5 pt-2 text-[12px] text-subtle">{branches.isFetching ? 'Searching…' : 'No branches'}</p>}
+        </div>
+      }
+      trigger={(open) => (
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label="Change base branch"
+          title="Change base branch"
+          loading={change.isPending}
+          icon={<HugeiconsIcon icon={PencilEdit02Icon} className="size-3.5" />}
+          onClick={() => {
+            setOpened(true);
+            open();
+          }}
+          className="-ml-1.5 size-6"
+        />
+      )}
+    />
   );
 }
 

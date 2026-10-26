@@ -148,6 +148,21 @@ export async function restText(path: string, signal?: AbortSignal): Promise<stri
   return res.text();
 }
 
+/**
+ * GitHub's own (sanitized) HTML for Markdown, as a comment would show it. `context` ("owner/repo") resolves
+ * `#123` and other references in that repository.
+ */
+export async function renderMarkdown(text: string, context: string, signal?: AbortSignal): Promise<string> {
+  const res = await apiFetch('https://api.github.com/markdown', {
+    method: 'POST',
+    headers: { ...(await authHeaders()), Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, mode: 'gfm', context }),
+    signal,
+  });
+  if (!res.ok) throw await httpError(res);
+  return res.text();
+}
+
 /** A non-2xx response as a GitHubError, with GitHub's message when the body has one. */
 async function httpError(res: Response) {
   const body = (await res.json().catch(() => null)) as { message?: string } | null;

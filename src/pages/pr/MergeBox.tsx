@@ -1,13 +1,17 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import type { QueryKey } from '@tanstack/react-query';
+import { useMutation, type QueryKey } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Alert02Icon, ArrowDown01Icon, Cancel01Icon, DashedLineCircleIcon, GitBranchIcon, GitMergeIcon, Loading03Icon, ShieldAlertIcon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { useRegisterCommands } from '@/app/commands';
+import { gql } from '@/github/client';
 import { cx } from '@/lib/cx';
+import { navigate } from '@/lib/navigation';
+import { canPushWith } from '@/pages/repo/query';
 import { timeAgo } from '@/lib/time';
 import { Button } from '@/ui/Button';
 import { Menu } from '@/ui/Menu';
 import { Panel } from '@/ui/primitives';
+import { toast } from '@/ui/toast';
 import { summarizeChecks } from './checks';
 import { defaultCommitMessage, isMergeReady, METHOD_LABEL, methodOptions, useMergeMethod } from './merge';
 import { MUTATIONS, type MergeMethod, type PrWithMerge, type Repo } from './query';
@@ -15,13 +19,20 @@ import { usePrMutation } from './usePrMutation';
 
 /** Always-visible merge panel: requirements as a checklist, one obvious primary action. */
 export function MergeBox({ repo, pr, queryKey }: { repo: Repo; pr: PrWithMerge; queryKey: QueryKey }) {
-  if (pr.state === 'MERGED') return <MergedBox pr={pr} queryKey={queryKey} />;
-  if (pr.state === 'CLOSED') return <ClosedBox pr={pr} queryKey={queryKey} />;
+  if (pr.state === 'MERGED') return <MergedBox repo={repo} pr={pr} queryKey={queryKey} />;
+  if (pr.state === 'CLOSED') return <ClosedBox repo={repo} pr={pr} queryKey={queryKey} />;
   return <OpenBox repo={repo} pr={pr} queryKey={queryKey} />;
 }
 
-function MergedBox({ pr, queryKey }: { pr: PrWithMerge; queryKey: QueryKey }) {
-  const deleteBranch = usePrMutation(queryKey);
+function MergedBox({ repo, pr, queryKey }: { repo: Repo; pr: PrWithMerge; queryKey: QueryKey }) {
+  const revert = useMutation({
+    mutationFn: () => gql<{ revertPullRequest: { revertPullRequest: { url: string } | null } }>(MUTATIONS.revert, { id: pr.id }),
+    onSuccess: ({ revertPullRequest }) => {
+      toast.success('Revert pull request opened');
+      if (revertPullRequest.revertPullRequest) navigate(revertPullRequest.revertPullRequest.url);
+    },
+    onError: toast.error,
+  });
   return (
     <Panel className="overflow-hidden">
       <div className="flex items-center gap-3 bg-merged/8 px-4 py-3.5">
@@ -34,41 +45,82 @@ function MergedBox({ pr, queryKey }: { pr: PrWithMerge; queryKey: QueryKey }) {
             {pr.mergedBy?.login} into <code className="font-mono">{pr.baseRefName}</code> · {pr.mergedAt && timeAgo(pr.mergedAt)}
           </div>
         </div>
-      </div>
-      {pr.headRef && !pr.isCrossRepository && pr.viewerCanUpdate && (
-        <div className="flex items-center justify-between border-t border-line px-4 py-3">
-          <span className="truncate font-mono text-[12px] text-muted">{pr.headRefName}</span>
+        {canPushWith(repo.viewerPermission) && (
           <Button
             size="sm"
-            variant="danger"
-            loading={deleteBranch.isPending}
-            onClick={() => deleteBranch.mutate({ query: MUTATIONS.deleteBranch, variables: { id: pr.headRef!.id }, success: 'Branch deleted' })}
+            className="ml-auto"
+            loading={revert.isPending}
+            title="Open a pull request that reverts this one"
+            onClick={() => confirm('Open a pull request that reverts the changes of this one?') && revert.mutate()}
           >
-            Delete branch
+            Revert
           </Button>
-        </div>
-      )}
+        )}
+      </div>
+      <HeadBranchRow repo={repo} pr={pr} queryKey={queryKey} />
     </Panel>
   );
 }
 
-function ClosedBox({ pr, queryKey }: { pr: PrWithMerge; queryKey: QueryKey }) {
+function ClosedBox({ repo, pr, queryKey }: { repo: Repo; pr: PrWithMerge; queryKey: QueryKey }) {
   const reopen = usePrMutation(queryKey);
   return (
-    <Panel className="flex items-center gap-3 px-4 py-3.5">
-      <span className="flex size-8 items-center justify-center rounded-full bg-danger/12 text-danger">
-        <HugeiconsIcon icon={Cancel01Icon} className="size-4" />
-      </span>
-      <div className="flex-1">
-        <div className="text-[13.5px] font-semibold">Closed</div>
-        <div className="text-[12px] text-muted">{pr.closedAt && `Closed ${timeAgo(pr.closedAt)}`}</div>
+    <Panel className="overflow-hidden">
+      <div className="flex items-center gap-3 px-4 py-3.5">
+        <span className="flex size-8 items-center justify-center rounded-full bg-danger/12 text-danger">
+          <HugeiconsIcon icon={Cancel01Icon} className="size-4" />
+        </span>
+        <div className="flex-1">
+          <div className="text-[13.5px] font-semibold">Closed</div>
+          <div className="text-[12px] text-muted">{pr.closedAt && `Closed ${timeAgo(pr.closedAt)}`}</div>
+        </div>
+        {pr.viewerCanUpdate && (
+          <Button size="sm" loading={reopen.isPending} onClick={() => reopen.mutate({ query: MUTATIONS.reopen, variables: { id: pr.id }, success: 'Reopened' })}>
+            Reopen
+          </Button>
+        )}
       </div>
-      {pr.viewerCanUpdate && (
-        <Button size="sm" loading={reopen.isPending} onClick={() => reopen.mutate({ query: MUTATIONS.reopen, variables: { id: pr.id }, success: 'Reopened' })}>
-          Reopen
+      <HeadBranchRow repo={repo} pr={pr} queryKey={queryKey} />
+    </Panel>
+  );
+}
+
+/**
+ * The head branch of a merged or closed pull request: delete it, or restore a deleted one at the PR's last head
+ * commit. A fork's branch can be restored only into a fork that still exists.
+ */
+function HeadBranchRow({ repo, pr, queryKey }: { repo: Repo; pr: PrWithMerge; queryKey: QueryKey }) {
+  const branch = usePrMutation(queryKey);
+  const canRestore = !pr.headRef && !!pr.headRepository && (pr.isCrossRepository ? pr.viewerCanEditFiles : canPushWith(repo.viewerPermission));
+  if (!(pr.headRef && pr.viewerCanDeleteHeadRef) && !canRestore) return null;
+  return (
+    <div className="flex items-center justify-between gap-3 border-t border-line px-4 py-3">
+      <span className={cx('truncate font-mono text-[12px] text-muted', !pr.headRef && 'line-through')}>{pr.headRefName}</span>
+      {pr.headRef ? (
+        <Button
+          size="sm"
+          variant="danger"
+          loading={branch.isPending}
+          onClick={() => branch.mutate({ query: MUTATIONS.deleteBranch, variables: { id: pr.headRef!.id }, success: 'Branch deleted' })}
+        >
+          Delete branch
+        </Button>
+      ) : (
+        <Button
+          size="sm"
+          loading={branch.isPending}
+          onClick={() =>
+            branch.mutate({
+              query: MUTATIONS.restoreBranch,
+              variables: { repo: pr.headRepository!.id, name: `refs/heads/${pr.headRefName}`, oid: pr.headRefOid },
+              success: 'Branch restored',
+            })
+          }
+        >
+          Restore branch
         </Button>
       )}
-    </Panel>
+    </div>
   );
 }
 
@@ -174,13 +226,19 @@ function OpenBox({ repo, pr, queryKey }: { repo: Repo; pr: PrWithMerge; queryKey
       tone: 'wait',
       label: 'Behind base branch',
       action: pr.viewerCanUpdateBranch && (
-        <Button
-          size="sm"
-          loading={secondary.isPending}
-          onClick={() => secondary.mutate({ query: MUTATIONS.updateBranch, variables: { id: pr.id }, success: 'Branch updated' })}
-        >
-          Update
-        </Button>
+        <Menu<'MERGE' | 'REBASE'>
+          value={null}
+          options={[
+            { value: 'MERGE', label: 'Update with merge commit', hint: 'Merge the base branch into this branch' },
+            { value: 'REBASE', label: 'Update with rebase', hint: 'Replay this branch’s commits on the base branch' },
+          ]}
+          onChange={(method) => secondary.mutate({ query: MUTATIONS.updateBranch, variables: { id: pr.id, method }, success: 'Branch updated' })}
+          trigger={(open) => (
+            <Button size="sm" loading={secondary.isPending} onClick={open} icon={<HugeiconsIcon icon={ArrowDown01Icon} className="size-3" />} className="flex-row-reverse">
+              Update
+            </Button>
+          )}
+        />
       ),
     });
   }
@@ -325,10 +383,20 @@ function OpenBox({ repo, pr, queryKey }: { repo: Repo; pr: PrWithMerge; queryKey
       </div>
       <div className="border-t border-line p-3">{action}</div>
       <div className="flex items-center gap-1.5 border-t border-line px-4 py-2 text-[11.5px] text-subtle">
-        <HugeiconsIcon icon={GitBranchIcon} className="size-3" />
+        <HugeiconsIcon icon={GitBranchIcon} className="size-3 shrink-0" />
         <span className="truncate font-mono">{pr.headRefName}</span>
         <span>→</span>
         <span className="truncate font-mono">{pr.baseRefName}</span>
+        {pr.viewerCanUpdate && (
+          <button
+            type="button"
+            disabled={secondary.isPending}
+            onClick={() => secondary.mutate({ query: MUTATIONS.convertToDraft, variables: { id: pr.id }, success: 'Converted to draft' })}
+            className="ml-auto shrink-0 cursor-pointer hover:text-fg"
+          >
+            Convert to draft
+          </button>
+        )}
       </div>
     </Panel>
   );

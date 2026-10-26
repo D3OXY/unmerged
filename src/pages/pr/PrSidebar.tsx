@@ -1,8 +1,12 @@
 import { useState, type ReactNode } from 'react';
-import { keepPreviousData, useQuery, type QueryKey } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowDown01Icon, Cancel01Icon, Clock01Icon, Comment01Icon, RefreshIcon, Settings02Icon, Tick02Icon } from '@hugeicons/core-free-icons';
-import { gql } from '@/github/client';
+import {
+  ArrowDown01Icon, Cancel01Icon, Clock01Icon, Comment01Icon, SquareLock01Icon, MilestoneIcon, Notification01Icon, NotificationOff01Icon, RefreshIcon,
+  Settings02Icon, Tick02Icon, SquareUnlock01Icon,
+} from '@hugeicons/core-free-icons';
+import type { Actor } from '@/github/types';
+import { gql, rest } from '@/github/client';
 import { useViewer } from '@/github/viewer';
 import { cx } from '@/lib/cx';
 import { navigate } from '@/lib/navigation';
@@ -13,11 +17,12 @@ import { diffAnchor } from './files/anchor';
 import { statusDot } from './files/status';
 import { Avatar, Panel, Pill } from '@/ui/primitives';
 import { IssueIcon } from '@/ui/status';
+import { toast } from '@/ui/toast';
 import { checkName, checkUrl, ORDER, outcomeOf } from './checks';
 import { OutcomeIcon } from './ChecksTab';
 import { IssuePicker } from '@/pages/issue/IssuePicker';
 import { useLinkPullRequest } from '@/pages/issue/useLinkPullRequest';
-import { EDIT_MUTATIONS, repoPath, type CheckContext, type PrWithReview, type ReviewState } from './query';
+import { EDIT_MUTATIONS, repoPath, type CheckContext, type LockReason, type PrWithReview, type ReviewState } from './query';
 import { usePrMutation } from './usePrMutation';
 
 /** CI checks, failures first; passing ones fold away when there are many. */
@@ -64,12 +69,13 @@ const REVIEW_ICON: Partial<Record<ReviewState, ReactNode>> = {
   COMMENTED: <HugeiconsIcon icon={Comment01Icon} className="size-3.5 text-subtle" />,
 };
 
-/** Reviewers, assignees and labels. People who may triage the PR can change them in place. */
+/** Reviewers, assignees, labels and milestone. People who may triage the PR can change them in place. */
 export function PeopleCard({ pr, queryKey }: { pr: PrWithReview; queryKey: QueryKey }) {
   const viewer = useViewer().data?.login;
   const reviewed = pr.latestOpinionatedReviews.nodes.flatMap(({ author, state }) => (author ? [{ author, state }] : []));
+  // `team`: a team's slug, which the REST API takes to remove its request.
   const requested = pr.reviewRequests.nodes.flatMap(({ requestedReviewer: r }) =>
-    r && r.__typename !== 'Mannequin' ? [{ name: 'login' in r ? r.login : r.name, avatarUrl: r.avatarUrl }] : [],
+    r && r.__typename !== 'Mannequin' ? [r.__typename === 'Team' ? { name: r.name, avatarUrl: r.avatarUrl, team: r.slug } : { name: r.login, avatarUrl: r.avatarUrl }] : [],
   );
   // GitHub has no separate permission for review requests; it's the same triage access as assigning.
   const canRequest = pr.state === 'OPEN' && pr.viewerCanAssign;
@@ -77,7 +83,7 @@ export function PeopleCard({ pr, queryKey }: { pr: PrWithReview; queryKey: Query
   const unaskable = [pr.author?.login, viewer, ...requested.map((r) => r.name)];
 
   return (
-    <Card title="People">
+    <Card title="Details">
       <Field
         label="Reviewers"
         action={canRequest && <Picker pr={pr} queryKey={queryKey} kind="users" title="Request reviewers" add={EDIT_MUTATIONS.requestReviews} selected={[]} hide={unaskable} />}
@@ -97,7 +103,17 @@ export function PeopleCard({ pr, queryKey }: { pr: PrWithReview; queryKey: Query
           />
         ))}
         {requested.map((r) => (
-          <Person key={r.name} name={r.name} avatarUrl={r.avatarUrl} trailing={<HugeiconsIcon icon={Clock01Icon} className="size-3.5 text-warning" />} />
+          <Person
+            key={r.name}
+            name={r.name}
+            avatarUrl={r.avatarUrl}
+            trailing={
+              <>
+                {canRequest && <RemoveRequest pr={pr} reviewer={r} queryKey={queryKey} />}
+                <HugeiconsIcon icon={Clock01Icon} className="size-3.5 text-warning" />
+              </>
+            }
+          />
         ))}
       </Field>
       <Field
@@ -147,6 +163,214 @@ export function PeopleCard({ pr, queryKey }: { pr: PrWithReview; queryKey: Query
             ))}
           </div>
         </Field>
+      )}
+      {(pr.milestone || pr.viewerCanAssign) && (
+        <Field label="Milestone" action={pr.viewerCanAssign && <MilestonePicker pr={pr} queryKey={queryKey} />}>
+          {pr.milestone ? (
+            <a href={pr.milestone.url} className="flex h-7 items-center gap-2 rounded-md px-2 text-[12.5px] hover:bg-hover">
+              <HugeiconsIcon icon={MilestoneIcon} className="size-3.5 shrink-0 text-subtle" />
+              <span className="truncate">{pr.milestone.title}</span>
+            </a>
+          ) : (
+            <span className="px-2 text-[12.5px] text-subtle">None</span>
+          )}
+        </Field>
+      )}
+    </Card>
+  );
+}
+
+/** Takes back a pending review request, from a person or a team. GraphQL has no mutation for it; REST does. */
+function RemoveRequest({ pr, reviewer, queryKey }: { pr: PrWithReview; reviewer: { name: string; team?: string }; queryKey: QueryKey }) {
+  const queryClient = useQueryClient();
+  const remove = useMutation({
+    mutationFn: () =>
+      rest(`/repos/${repoPath(pr)}/pulls/${pr.number}/requested_reviewers`, {
+        method: 'DELETE',
+        body: reviewer.team ? { reviewers: [], team_reviewers: [reviewer.team] } : { reviewers: [reviewer.name] },
+      }),
+    onSuccess: () => {
+      toast.success('Review request removed');
+      return queryClient.invalidateQueries({ queryKey });
+    },
+    onError: toast.error,
+  });
+  return (
+    <Button
+      size="icon"
+      variant="ghost"
+      aria-label={`Remove review request for ${reviewer.name}`}
+      title="Remove review request"
+      loading={remove.isPending}
+      icon={<HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />}
+      onClick={() => remove.mutate()}
+      className={cx('size-6 group-hover/person:opacity-100 focus-visible:opacity-100', !remove.isPending && 'opacity-0')}
+    />
+  );
+}
+
+const MILESTONES_QUERY = /* GraphQL */ `
+  query PrMilestones($owner: String!, $repo: String!, $q: String) {
+    repository(owner: $owner, name: $repo) {
+      milestones(first: 25, states: OPEN, query: $q, orderBy: { field: DUE_DATE, direction: ASC }) { nodes { id title } }
+    }
+  }
+`;
+
+/** Sets or removes the milestone, from the repo's open milestones. They load once the menu first opens. */
+function MilestonePicker({ pr, queryKey }: { pr: PrWithReview; queryKey: QueryKey }) {
+  const [opened, setOpened] = useState(false);
+  const [search, setSearch] = useState('');
+  const q = useDebounced(search.trim(), 200);
+  const [owner, repo] = repoPath(pr).split('/');
+  const milestones = useQuery({
+    queryKey: ['pr-milestones', owner, repo, q],
+    queryFn: async () =>
+      (await gql<{ repository: { milestones: { nodes: { id: string; title: string }[] } } | null }>(MILESTONES_QUERY, { owner, repo, q: q || null })).repository?.milestones
+        .nodes ?? [],
+    enabled: opened,
+    placeholderData: keepPreviousData,
+    staleTime: 60_000,
+  });
+  const set = usePrMutation(queryKey);
+  const current = pr.milestone;
+  const options: MenuOption<string>[] = [
+    ...(search ? [] : [{ value: '', label: 'No milestone' }]),
+    ...(current && !search ? [{ value: current.id, label: current.title }] : []),
+    ...(milestones.data ?? []).filter((m) => m.id !== current?.id || search).map((m) => ({ value: m.id, label: m.title })),
+  ];
+  return (
+    <Menu<string>
+      value={current?.id ?? ''}
+      options={options}
+      onChange={(id) => {
+        if (id !== (current?.id ?? '')) set.mutate({ query: EDIT_MUTATIONS.updateMilestone, variables: { id: pr.id, milestone: id || null } });
+      }}
+      header={
+        <div className="p-1 pb-1.5">
+          <input
+            autoFocus
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Filter milestones"
+            className="h-8 w-full rounded-lg border border-line bg-bg px-2.5 text-[12.5px] outline-none focus:border-accent/60"
+          />
+          {options.length === 0 && <p className="px-1.5 pt-2 text-[12px] text-subtle">{milestones.isFetching ? 'Searching…' : 'No open milestones'}</p>}
+        </div>
+      }
+      trigger={(open) => (
+        <button
+          type="button"
+          aria-label="Set milestone"
+          title="Set milestone"
+          onClick={() => {
+            setOpened(true);
+            open();
+          }}
+          className="flex size-5 cursor-pointer items-center justify-center rounded text-subtle hover:bg-hover hover:text-fg"
+        >
+          <HugeiconsIcon icon={Settings02Icon} className="size-3.5" />
+        </button>
+      )}
+    />
+  );
+}
+
+/**
+ * Everyone who took part in the conversation, in order of first appearance: the author, then whoever commented
+ * or reviewed. Built from what the page already has, so it costs no request.
+ */
+export function participantsOf(pr: Pick<PrWithReview, 'author' | 'reviewThreads'>, timeline: { __typename: string; author?: Actor }[]) {
+  const people = new Map<string, NonNullable<Actor>>();
+  const add = (actor: Actor | undefined) => actor && !people.has(actor.login) && people.set(actor.login, actor);
+  add(pr.author);
+  for (const item of timeline) if (item.__typename === 'IssueComment' || item.__typename === 'PullRequestReview') add(item.author);
+  for (const thread of pr.reviewThreads.nodes) for (const comment of thread.comments.nodes) add(comment.author);
+  return [...people.values()];
+}
+
+const LOCK_OPTIONS: MenuOption<LockReason | 'NONE'>[] = [
+  { value: 'NONE', label: 'Without a reason' },
+  { value: 'OFF_TOPIC', label: 'Off-topic' },
+  { value: 'TOO_HEATED', label: 'Too heated' },
+  { value: 'RESOLVED', label: 'Resolved' },
+  { value: 'SPAM', label: 'Spam' },
+];
+
+/**
+ * Notifications (subscribe or unsubscribe), the participants, and, for people with write access (`canLock`),
+ * locking the conversation.
+ */
+export function NotificationsCard({ pr, participants, canLock, queryKey }: { pr: PrWithReview; participants: NonNullable<Actor>[]; canLock: boolean; queryKey: QueryKey }) {
+  const subscribe = usePrMutation(queryKey);
+  const lock = usePrMutation(queryKey);
+  const subscribed = pr.viewerSubscription === 'SUBSCRIBED';
+  return (
+    <Card title="Notifications">
+      {pr.viewerCanSubscribe && (
+        <div className="px-2 pb-2">
+          <Button
+            size="sm"
+            className="w-full justify-center"
+            loading={subscribe.isPending}
+            icon={<HugeiconsIcon icon={subscribed ? NotificationOff01Icon : Notification01Icon} className="size-3.5" />}
+            onClick={() =>
+              subscribe.mutate({
+                query: EDIT_MUTATIONS.subscribe,
+                variables: { id: pr.id, state: subscribed ? 'UNSUBSCRIBED' : 'SUBSCRIBED' },
+                success: subscribed ? 'Unsubscribed' : 'Subscribed',
+              })
+            }
+          >
+            {subscribed ? 'Unsubscribe' : 'Subscribe'}
+          </Button>
+          <p className="mt-1.5 text-[11.5px] text-subtle">
+            {subscribed
+              ? 'You get notifications for this pull request.'
+              : pr.viewerSubscription === 'IGNORED'
+                ? 'You ignore this repository, so you get no notifications for it.'
+                : "You don't get notifications for this pull request."}
+          </p>
+        </div>
+      )}
+      {participants.length > 0 && (
+        <Field label={`${participants.length} participant${participants.length === 1 ? '' : 's'}`}>
+          <div className="flex flex-wrap gap-1 px-2 pt-0.5">
+            {participants.map((p) => (
+              <a key={p.login} href={`/${p.login}`} title={p.login} aria-label={p.login}>
+                <Avatar src={p.avatarUrl} size={22} />
+              </a>
+            ))}
+          </div>
+        </Field>
+      )}
+      {canLock && (
+        <div className="mt-1 border-t border-line px-2 pt-2 pb-0.5">
+          {pr.locked ? (
+            <button
+              type="button"
+              disabled={lock.isPending}
+              onClick={() => lock.mutate({ query: EDIT_MUTATIONS.unlock, variables: { id: pr.id }, success: 'Conversation unlocked' })}
+              className="flex h-7 cursor-pointer items-center gap-2 text-[12.5px] text-muted hover:text-fg"
+            >
+              <HugeiconsIcon icon={SquareUnlock01Icon} className="size-3.5" /> Unlock conversation
+            </button>
+          ) : (
+            <Menu<LockReason | 'NONE'>
+              align="left"
+              value={null}
+              options={LOCK_OPTIONS}
+              onChange={(reason) =>
+                lock.mutate({ query: EDIT_MUTATIONS.lock, variables: { id: pr.id, reason: reason === 'NONE' ? null : reason }, success: 'Conversation locked' })
+              }
+              trigger={(open) => (
+                <button type="button" disabled={lock.isPending} onClick={open} className="flex h-7 cursor-pointer items-center gap-2 text-[12.5px] text-muted hover:text-fg">
+                  <HugeiconsIcon icon={SquareLock01Icon} className="size-3.5" /> Lock conversation
+                </button>
+              )}
+            />
+          )}
+        </div>
       )}
     </Card>
   );
