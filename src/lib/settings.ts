@@ -39,7 +39,7 @@ export const accountItem = storage.defineItem<string>('local:account', { fallbac
 
 /** GitHub's "new token" page, prefilled with the scopes Unmerged uses. */
 export const NEW_TOKEN_URL =
-  'https://github.com/settings/tokens/new?description=Unmerged&scopes=repo,read:org,read:user,user:follow,notifications';
+  'https://github.com/settings/tokens/new?description=Unmerged&scopes=repo,read:org,read:user,user:follow,notifications,project';
 
 /** From github.com: opens Unmerged's settings page in a tab, where the token is entered (see background.ts). */
 export function openSettingsPage() {

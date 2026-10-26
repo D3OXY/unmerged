@@ -22,6 +22,7 @@ import { checkName, checkUrl, ORDER, outcomeOf } from './checks';
 import { OutcomeIcon } from './ChecksTab';
 import { IssuePicker } from '@/pages/issue/IssuePicker';
 import { useLinkPullRequest } from '@/pages/issue/useLinkPullRequest';
+import { ProjectsField } from './Projects';
 import { EDIT_MUTATIONS, repoPath, type CheckContext, type LockReason, type PrWithReview, type ReviewState } from './query';
 import { usePrMutation } from './usePrMutation';
 
@@ -69,7 +70,7 @@ const REVIEW_ICON: Partial<Record<ReviewState, ReactNode>> = {
   COMMENTED: <HugeiconsIcon icon={Comment01Icon} className="size-3.5 text-subtle" />,
 };
 
-/** Reviewers, assignees, labels and milestone. People who may triage the PR can change them in place. */
+/** Reviewers, assignees, labels, milestone and projects. People who may triage the PR can change them in place. */
 export function PeopleCard({ pr, queryKey }: { pr: PrWithReview; queryKey: QueryKey }) {
   const viewer = useViewer().data?.login;
   const reviewed = pr.latestOpinionatedReviews.nodes.flatMap(({ author, state }) => (author ? [{ author, state }] : []));
@@ -176,6 +177,7 @@ export function PeopleCard({ pr, queryKey }: { pr: PrWithReview; queryKey: Query
           )}
         </Field>
       )}
+      <ProjectsField pr={pr} />
     </Card>
   );
 }

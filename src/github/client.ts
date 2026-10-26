@@ -5,7 +5,8 @@ import { apiFetch } from './early';
 
 /** Why a GitHub request failed, in terms the UI can act on. */
 export type GitHubProblem =
-  | { kind: 'auth' | 'not-found' | 'other' }
+  /** `scope`: the token lacks a scope that the request needs (GraphQL's INSUFFICIENT_SCOPES). */
+  | { kind: 'auth' | 'not-found' | 'scope' | 'other' }
   /** The token's rate limit (or a secondary limit) is spent until `resetAt`, in ms since the epoch. */
   | { kind: 'rate-limit'; resetAt: number }
   /** An organization's SAML SSO hasn't authorized the token. `authorizeUrl` is GitHub's page for it, when sent. */
@@ -189,6 +190,7 @@ function classify(res: Response, message: string, types: (string | undefined)[] 
   if ((status === 403 && sso) || /SAML/.test(message)) {
     return new GitHubError(message, status, { kind: 'sso', authorizeUrl: sso?.match(/url=(\S+)/)?.[1] });
   }
+  if (types.includes('INSUFFICIENT_SCOPES')) return new GitHubError(message, status, { kind: 'scope' });
   if (status === 404 || (types.length && types.every((type) => type === 'NOT_FOUND'))) {
     return new GitHubError(message, status, { kind: 'not-found' });
   }
