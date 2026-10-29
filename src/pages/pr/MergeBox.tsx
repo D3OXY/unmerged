@@ -150,11 +150,13 @@ function OpenBox({ repo, pr, queryKey }: { repo: Repo; pr: PrWithMerge; queryKey
       ? { tone: 'neutral', label: 'No checks' }
       : counts.FAILURE
         ? { tone: 'fail', label: `${counts.FAILURE} failing check${counts.FAILURE > 1 ? 's' : ''}`, detail: `${counts.SUCCESS} passed` }
-        : counts.ACTION_REQUIRED
-          ? { tone: 'wait', label: counts.ACTION_REQUIRED > 1 ? `${counts.ACTION_REQUIRED} checks need action` : '1 check needs action', detail: `${counts.SUCCESS} passed` }
-          : counts.PENDING
-            ? { tone: 'wait', label: `${counts.PENDING} check${counts.PENDING > 1 ? 's' : ''} running`, detail: `${counts.SUCCESS} passed` }
-            : { tone: 'ok', label: 'All checks passed', detail: `${counts.SUCCESS}` },
+        : counts.CANCELLED
+          ? { tone: 'fail', label: `${counts.CANCELLED} cancelled check${counts.CANCELLED > 1 ? 's' : ''}`, detail: `${counts.SUCCESS} passed` }
+          : counts.ACTION_REQUIRED
+            ? { tone: 'wait', label: counts.ACTION_REQUIRED > 1 ? `${counts.ACTION_REQUIRED} checks need action` : '1 check needs action', detail: `${counts.SUCCESS} passed` }
+            : counts.PENDING
+              ? { tone: 'wait', label: `${counts.PENDING} check${counts.PENDING > 1 ? 's' : ''} running`, detail: `${counts.SUCCESS} passed` }
+              : { tone: 'ok', label: 'All checks passed', detail: `${counts.SUCCESS}` },
     pr.mergeable === 'CONFLICTING'
       ? {
           tone: 'fail',
