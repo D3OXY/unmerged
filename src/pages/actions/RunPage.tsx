@@ -62,6 +62,7 @@ export function RunPage({ owner, repo, runId, attempt, job }: Props) {
 const TONE: Record<CheckOutcome, string> = {
   SUCCESS: 'text-success bg-success/10 border-success/25',
   FAILURE: 'text-danger bg-danger/10 border-danger/25',
+  CANCELLED: 'text-muted bg-hover border-line',
   PENDING: 'text-warning bg-warning/10 border-warning/25',
   NEUTRAL: 'text-muted bg-hover border-line',
   ACTION_REQUIRED: 'text-warning bg-warning/10 border-warning/25',
@@ -97,7 +98,7 @@ function RunHeader({ run, owner, repo, base, attempt, onRerun }: { run: Workflow
         <h1 data-private="commits" className="min-w-0 flex-1 text-[20px] leading-snug font-semibold tracking-tight break-words">
           {run.display_title}
         </h1>
-        {attempt === undefined && run.status === 'completed' && result === 'FAILURE' && (
+        {attempt === undefined && run.status === 'completed' && (result === 'FAILURE' || result === 'CANCELLED') && (
           <Button size="sm" loading={rerun.isPending} icon={<HugeiconsIcon icon={UndoIcon} className="size-3.5" />} onClick={() => rerun.mutate()}>
             Re-run failed jobs
           </Button>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Alert02Icon, ArrowUpRight01Icon, CancelCircleIcon, InformationCircleIcon, MinusSignIcon, UndoIcon } from '@hugeicons/core-free-icons';
+import { Alert02Icon, ArrowUpRight01Icon, CancelCircleIcon, InformationCircleIcon, MinusSignIcon, StopCircleIcon, UndoIcon } from '@hugeicons/core-free-icons';
 import { gql, rest } from '@/github/client';
 import type { CheckState } from '@/github/types';
 import { cx } from '@/lib/cx';
@@ -108,6 +108,7 @@ function duration(run: CheckRun) {
 
 export function OutcomeIcon({ outcome }: { outcome: CheckOutcome }) {
   if (outcome === 'NEUTRAL') return <HugeiconsIcon icon={MinusSignIcon} className="size-3.5 shrink-0 text-subtle" />;
+  if (outcome === 'CANCELLED') return <HugeiconsIcon icon={StopCircleIcon} className="size-3.5 shrink-0 text-subtle" />;
   if (outcome === 'ACTION_REQUIRED') return <HugeiconsIcon icon={Alert02Icon} className="size-3.5 shrink-0 text-warning" />;
   return <CheckIcon state={outcome} />;
 }
@@ -211,7 +212,8 @@ function SuiteCard({
   onRerun: () => void;
 }) {
   const queryClient = useQueryClient();
-  const failed = runs.some((r) => runOutcome(r) === 'FAILURE');
+  // GitHub's "re-run failed jobs" also re-runs cancelled ones.
+  const failed = runs.some((r) => ['FAILURE', 'CANCELLED'].includes(runOutcome(r)));
   const run = suite.workflowRun;
   const rerun = useMutation({
     mutationFn: () => rest(`/repos/${repoPath(pr)}/actions/runs/${run!.databaseId}/rerun-failed-jobs`, { method: 'POST' }),

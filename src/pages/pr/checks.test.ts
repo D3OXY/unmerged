@@ -13,6 +13,11 @@ describe('runOutcome', () => {
     expect(done('FAILURE')).toBe('FAILURE');
   });
 
+  it('keeps a cancelled run apart from a failure', () => {
+    expect(done('CANCELLED')).toBe('CANCELLED');
+    expect(done('TIMED_OUT')).toBe('FAILURE');
+  });
+
   it('shows skipped, neutral and stale runs as neutral', () => {
     expect(['SKIPPED', 'NEUTRAL', 'STALE'].map(done)).toEqual(['NEUTRAL', 'NEUTRAL', 'NEUTRAL']);
   });
