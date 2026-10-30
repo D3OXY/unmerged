@@ -5,7 +5,9 @@ import { persisted } from '@/lib/persist';
 import type { PrTab } from '@/lib/routes';
 import type { Permission } from '@/pages/repo/query';
 import { summarizeChecks } from './checks';
+import { commitFilesQuery } from '@/pages/commit/query';
 import type { PrFile } from './files/FileDiff';
+import type { PickerCommit } from './files/range';
 
 // The head commit's checks, as the PR header, Conversation tab and merge box show them.
 const ROLLUP = /* GraphQL */ `
@@ -712,6 +714,61 @@ export const prFilesQuery = (owner: string, repo: string, pr: Pick<PullRequest, 
     staleTime: Infinity,
   });
 
+/**
+ * The files changed in some of a pull request's commits (`PrRoute.range`): one commit's (shared with its commit
+ * page), or the changes from one commit to another. GitHub's compare lists at most 300 files. Never changes.
+ */
+export const prRangeFilesQuery = (owner: string, repo: string, range: string) =>
+  queryOptions({
+    queryKey: ['pr-range-files', owner.toLowerCase(), repo.toLowerCase(), range.toLowerCase()],
+    queryFn: async ({ client }) => {
+      const [base, head] = range.split('..') as [string, string | undefined];
+      if (!head) return client.fetchQuery(commitFilesQuery(owner, repo, base));
+      // One commit a page: the files come only with the first page, and the commits aren't needed.
+      return (await rest<{ files?: PrFile[] }>(`/repos/${owner}/${repo}/compare/${base}...${head}?per_page=1`)).files ?? [];
+    },
+    staleTime: Infinity,
+  });
+
+/** GitHub's compare lists no more changed files than this. */
+export const MAX_RANGE_FILES = 300;
+
+const COMMIT_PICKER_QUERY = /* GraphQL */ `
+  query PrCommitPicker($owner: String!, $repo: String!, $number: Int!, $login: String!) {
+    repository(owner: $owner, name: $repo) {
+      pullRequest(number: $number) {
+        commits(last: 100) { totalCount nodes { commit { oid abbreviatedOid messageHeadline committedDate parents(first: 1) { nodes { oid } } } } }
+        viewerReviews: reviews(last: 1, author: $login, states: [APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED]) { nodes { commit { oid } } }
+      }
+    }
+  }
+`;
+
+type CommitPickerData = {
+  repository: {
+    pullRequest: { commits: { totalCount: number; nodes: { commit: PickerCommit }[] }; viewerReviews: { nodes: { commit: { oid: string } | null }[] } } | null;
+  } | null;
+};
+
+/**
+ * What Files changed's commit picker offers: the latest 100 commits, oldest first, and the commit that `login`
+ * (the viewer) last reviewed. Keyed by the head commit, so a push brings the new commits.
+ */
+export const prCommitPickerQuery = (owner: string, repo: string, pr: Pick<PullRequest, 'number' | 'headRefOid'>, login: string) =>
+  queryOptions({
+    queryKey: ['pr-commit-picker', ...prKey(owner, repo, pr.number), pr.headRefOid, login],
+    queryFn: async () => {
+      const data = await gql<CommitPickerData>(COMMIT_PICKER_QUERY, { owner, repo, number: pr.number, login });
+      const found = data.repository?.pullRequest;
+      return {
+        commits: found?.commits.nodes.map((n) => n.commit) ?? [],
+        totalCount: found?.commits.totalCount ?? 0,
+        reviewedOid: found?.viewerReviews.nodes[0]?.commit?.oid,
+      };
+    },
+    staleTime: Infinity,
+  });
+
 export type ViewedState = 'VIEWED' | 'UNVIEWED' | 'DISMISSED';
 type FilesPage = { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: { path: string; viewerViewedState: ViewedState }[] };
 
@@ -762,7 +819,7 @@ export const prViewedQuery = (owner: string, repo: string, number: number) =>
   });
 
 /** What a pull request URL will show, started early (page load, link hover) by src/app/prefetch.ts. */
-export function prefetchPr(client: QueryClient, owner: string, repo: string, number: number, tab: PrTab) {
+export function prefetchPr(client: QueryClient, owner: string, repo: string, number: number, tab: PrTab, range?: string) {
   const head = client.fetchQuery(prQuery(owner, repo, number));
   head.catch(() => {});
   client.prefetchQuery(prMergeQuery(owner, repo, number));
@@ -770,6 +827,7 @@ export function prefetchPr(client: QueryClient, owner: string, repo: string, num
   client.prefetchQuery(prTimelineQuery(owner, repo, number));
   if (tab !== 'files') return;
   client.prefetchQuery(prViewedQuery(owner, repo, number));
+  if (range) return void client.prefetchQuery(prRangeFilesQuery(owner, repo, range));
   // Patches are keyed by the head commit, which the first part brings.
   head.then(({ repository }) => repository?.pullRequest && client.prefetchQuery(prFilesQuery(owner, repo, repository.pullRequest))).catch(() => {});
 }

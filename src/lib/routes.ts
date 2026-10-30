@@ -26,7 +26,11 @@ const isSearchType = (type: string): type is SearchType => (SEARCH_TYPES as read
 /** Repo views Unmerged renders; the other repo tabs (Settings…) stay on GitHub. */
 export type RepoView = 'code' | 'commits' | 'issues' | 'pulls';
 
-export type PrRoute = { kind: 'pr'; owner: string; repo: string; number: number; tab: PrTab };
+/**
+ * `range`: Files changed for some of the commits, as GitHub's URLs say it (/files/<range>): "<sha>" for one commit,
+ * "<base>..<head>" for the changes from commit `base` to commit `head`.
+ */
+export type PrRoute = { kind: 'pr'; owner: string; repo: string; number: number; tab: PrTab; range?: string };
 export type IssueRoute = { kind: 'issue'; owner: string; repo: string; number: number };
 
 /**
@@ -168,6 +172,9 @@ export function matchRoute(url: URL): Route | null {
     if (fifth === 'commits' && parts.length === 6 && isSha(sixth)) return { kind: 'commit', owner: first, repo: second, sha: sixth, pr: Number(fourth) };
     const tab = parts.length === 4 ? 'conversation' : parts.length === 5 && fifth ? PR_TABS[fifth] : undefined;
     if (tab) return { kind: 'pr', owner: first, repo: second, number: Number(fourth), tab };
+    if ((fifth === 'files' || fifth === 'changes') && parts.length === 6 && sixth && /^[0-9a-f]{7,}(?:\.\.[0-9a-f]{7,})?$/i.test(sixth)) {
+      return { kind: 'pr', owner: first, repo: second, number: Number(fourth), tab: 'files', range: sixth };
+    }
   }
 
   return null;

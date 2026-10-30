@@ -24,8 +24,11 @@ type Note = { side: Side; line: number; threads: ReviewThread[]; draft?: Draft }
 
 /** The repo and commit a diff's new side is read from when someone expands unchanged lines. */
 export type DiffSource = { nameWithOwner: string; oid: string };
-/** A pull request's side of a diff: its threads on the file, line comments, and the query to refresh after posting. */
-export type Review = { pr: PullRequest; queryKey: QueryKey; threads: ReviewThread[] };
+/**
+ * A pull request's side of a diff: its threads on the file, line comments, and the query to refresh after posting.
+ * `newSideOnly`: new comments go on new lines only (some commits only, where old lines aren't the pull request's).
+ */
+export type Review = { pr: PullRequest; queryKey: QueryKey; threads: ReviewThread[]; newSideOnly?: boolean };
 
 const FILE_QUERY = /* GraphQL */ `
   query FileAt($owner: String!, $repo: String!, $expression: String!) {
@@ -60,6 +63,7 @@ export function DiffBody({ file, patch, source, review, mode, wrap }: {
   const fileDiff = useMemo(() => api?.getSingularPatch(gitPatch(file, patch)), [api, file, patch]);
   const threads = review?.threads;
   const commentable = !!review;
+  const newSideOnly = !!review?.newSideOnly;
 
   const notes = useMemo(() => {
     const byLine = new Map<string, Note>();
@@ -83,8 +87,10 @@ export function DiffBody({ file, patch, source, review, mode, wrap }: {
       overflow: wrap ? ('wrap' as const) : ('scroll' as const),
       enableGutterUtility: commentable,
       enableLineSelection: commentable,
-      onGutterUtilityClick: ({ start, side = 'additions', end, endSide = side }: SelectedLineRange) =>
-        setDraft(start <= end ? { start, startSide: side, end, side: endSide } : { start: end, startSide: endSide, end: start, side }),
+      onGutterUtilityClick: ({ start, side = 'additions', end, endSide = side }: SelectedLineRange) => {
+        if (newSideOnly && (side === 'deletions' || endSide === 'deletions')) return toast.error('Here you can comment only on new lines.');
+        setDraft(start <= end ? { start, startSide: side, end, side: endSide } : { start: end, startSide: endSide, end: start, side });
+      },
       // Full files are only fetched when someone expands unchanged lines.
       loadDiffFiles: async () => {
         const [owner, repo] = source.nameWithOwner.split('/');
@@ -100,7 +106,7 @@ export function DiffBody({ file, patch, source, review, mode, wrap }: {
         };
       },
     }),
-    [dark, mode, wrap, commentable, source.nameWithOwner, source.oid, file, patch],
+    [dark, mode, wrap, commentable, newSideOnly, source.nameWithOwner, source.oid, file, patch],
   );
 
   useLayoutEffect(() => {

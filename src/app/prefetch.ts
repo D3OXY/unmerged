@@ -81,7 +81,7 @@ export function prefetchRoute(client: QueryClient, route: Route, url: URL) {
       client.prefetchQuery(newIssueQuery(route.owner, route.repo));
       return;
     case 'pr':
-      prefetchPr(client, route.owner, route.repo, route.number, route.tab);
+      prefetchPr(client, route.owner, route.repo, route.number, route.tab, route.range);
       return;
     case 'commit':
       prefetchCommit(client, route.owner, route.repo, route.sha, route.pr);
