@@ -36,7 +36,7 @@ export function TokenGate({ rejected }: { rejected?: boolean }) {
           The token is kept in the extension's storage and sent only to api.github.com. Classic token scopes:{' '}
           <code className="font-mono">repo</code>, <code className="font-mono">read:org</code>,{' '}
           <code className="font-mono">read:user</code>, <code className="font-mono">user:follow</code>,{' '}
-          <code className="font-mono">notifications</code>. A fine-grained token can be limited to the repos and
+          <code className="font-mono">notifications</code>, <code className="font-mono">project</code>. A fine-grained token can be limited to the repos and
           permissions you pick; Notifications still needs a classic one.
         </p>
       </div>
