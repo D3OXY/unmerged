@@ -7,15 +7,30 @@ import { usePageHotkey } from '@/app/keyboard';
 import { gql } from '@/github/client';
 import { cx } from '@/lib/cx';
 import { loadDiffs } from '@/lib/diffs';
+import { navigate } from '@/lib/navigation';
 import { editUrl } from '@/pages/repo/urls';
 import { Menu, type MenuOption } from '@/ui/Menu';
 import { Skeleton } from '@/ui/primitives';
 import { toast } from '@/ui/toast';
-import { MAX_FILES, MUTATIONS, prFilesQuery, prViewedQuery, repoPath, type PrHead, type PullRequest, type ReviewThread, type ViewedState } from '../query';
+import {
+  MAX_FILES,
+  MAX_RANGE_FILES,
+  MUTATIONS,
+  prFilesQuery,
+  prRangeFilesQuery,
+  prViewedQuery,
+  repoPath,
+  type PrHead,
+  type PullRequest,
+  type ReviewThread,
+  type ViewedState,
+} from '../query';
 import { diffAnchor } from './anchor';
+import { CommitPicker } from './CommitPicker';
 import { FileDiff, type DiffMode, type FileReview, type PrFile } from './FileDiff';
 import { fileTypes, isShown, useFileFilter, type FileType, type Hidden } from './filter';
 import { FileTree } from './FileTree';
+import { rangeHead } from './range';
 import { ReviewPanel } from './ReviewPanel';
 import { isOpenLineThread, nextOpenThread } from './threads';
 
@@ -56,12 +71,16 @@ const TYPE_LABELS: Partial<Record<FileType, string>> = { dotfile: 'Dotfiles', no
  * Keys (also in the palette): n / p next or previous file, v toggle viewed, ] next unresolved thread.
  * `pr` is enough to show the files; review threads and line comments wait for the `full` pull request.
  * The filter hides viewed files, deleted files or file types, from the list, the tree and the keys.
+ * With a `range` (PrRoute.range) it shows only those commits' changes. There, comments are possible only when
+ * the range ends at the head commit, and only on new lines: the line numbers of old lines are the range's.
  */
-export function FilesTab({ pr, full, queryKey, panel = false }: { pr: PrHead; full?: PullRequest; queryKey: QueryKey; panel?: boolean }) {
+export function FilesTab({ pr, full, queryKey, range, panel = false }: { pr: PrHead; full?: PullRequest; queryKey: QueryKey; range?: string; panel?: boolean }) {
   const queryClient = useQueryClient();
   const [owner, repo] = repoPath(pr).split('/') as [string, string];
-  // After a push, the previous commit's files stay up until the new ones arrive.
-  const files = useQuery({ ...prFilesQuery(owner, repo, pr), placeholderData: keepPreviousData });
+  // After a push, or a pick of other commits, the previous files stay up until the new ones arrive.
+  const allFiles = useQuery({ ...prFilesQuery(owner, repo, pr), placeholderData: keepPreviousData, enabled: !range });
+  const rangeFiles = useQuery({ ...prRangeFilesQuery(owner, repo, range ?? ''), placeholderData: keepPreviousData, enabled: !!range });
+  const files = range ? rangeFiles : allFiles;
   const viewedQuery = prViewedQuery(owner, repo, pr.number);
   const viewedKey = viewedQuery.queryKey;
   const viewed = useQuery(viewedQuery);
@@ -76,7 +95,13 @@ export function FilesTab({ pr, full, queryKey, panel = false }: { pr: PrHead; fu
   const list = files.data;
   // Pages render as they arrive; until the last one is in, the count comes from the pull request.
   const partial = files.isFetching && !files.isPlaceholderData;
-  const reviewThreads = full?.reviewThreads.nodes ?? NO_THREADS;
+  const head = range ? rangeHead(range) : pr.headRefOid;
+  const atHead = pr.headRefOid.startsWith(head.toLowerCase());
+  const reviewThreads = useMemo(() => {
+    const all = full?.reviewThreads.nodes ?? NO_THREADS;
+    if (!range) return all;
+    return atHead ? all.filter((t) => t.diffSide === 'RIGHT' || t.subjectType === 'FILE') : NO_THREADS;
+  }, [full, range, atHead]);
   const [hidden, setHidden] = useFileFilter(panel);
   const shown = useMemo(() => {
     if (!list || !hidden?.length) return list;
@@ -108,11 +133,14 @@ export function FilesTab({ pr, full, queryKey, panel = false }: { pr: PrHead; fu
     if (el) cards.current.set(path, el);
     else cards.current.delete(path);
   }, []);
-  const source = useMemo(() => ({ nameWithOwner: `${owner}/${repo}`, oid: pr.headRefOid }), [owner, repo, pr.headRefOid]);
+  const source = useMemo(() => ({ nameWithOwner: `${owner}/${repo}`, oid: head }), [owner, repo, head]);
   // GitHub's editor commits to the head branch, so it is offered to people who can push there.
   const headRepo = pr.state === 'OPEN' && pr.viewerCanEditFiles ? pr.headRepository?.nameWithOwner : undefined;
   const editHref = useMemo(() => (headRepo ? (path: string) => editUrl(headRepo, pr.headRefName, path) : undefined), [headRepo, pr.headRefName]);
-  const review = useMemo<FileReview>(() => ({ pr: full, queryKey, onToggleViewed: toggleViewed, editHref }), [full, queryKey, toggleViewed, editHref]);
+  const review = useMemo<FileReview>(
+    () => ({ pr: atHead ? full : undefined, newSideOnly: !!range, queryKey, onToggleViewed: toggleViewed, editHref }),
+    [atHead, full, range, queryKey, toggleViewed, editHref],
+  );
 
   const threadsByPath = useMemo(() => {
     const map = new Map<string, ReviewThread[]>();
@@ -260,8 +288,8 @@ export function FilesTab({ pr, full, queryKey, panel = false }: { pr: PrHead; fu
     );
   }
 
-  const fileCount = partial ? Math.min(pr.changedFiles, MAX_FILES) : list.length;
-  const notListed = pr.changedFiles - MAX_FILES;
+  const fileCount = partial && !range ? Math.min(pr.changedFiles, MAX_FILES) : list.length;
+  const notListed = range ? 0 : pr.changedFiles - MAX_FILES;
   const viewedCount = list.filter((f) => isViewed(f.filename)).length;
   const deletedCount = list.filter((f) => f.status === 'removed').length;
   const filtered = shown.length < list.length;
@@ -299,6 +327,7 @@ export function FilesTab({ pr, full, queryKey, panel = false }: { pr: PrHead; fu
             </span>
             {viewedCount} / {fileCount} viewed
           </span>
+          {!panel && <CommitPicker pr={pr} range={range} />}
           <div className="ml-auto flex items-center gap-2">
             {filtered && (
               <button type="button" onClick={() => setHidden([])} className="cursor-pointer text-muted hover:text-fg">
@@ -353,6 +382,16 @@ export function FilesTab({ pr, full, queryKey, panel = false }: { pr: PrHead; fu
           </div>
         </div>
 
+        {range && (
+          <p className="rounded-xl border border-line bg-panel px-4 py-3 text-[12.5px] text-muted">
+            Only the changes of the commits you picked show here.{' '}
+            {list.length >= MAX_RANGE_FILES && `GitHub lists only the first ${MAX_RANGE_FILES} changed files of these commits. `}
+            {!atHead && 'To comment, pick commits up to the latest one. '}
+            <button type="button" onClick={() => navigate(`${pr.url}/files${location.search}`)} className="cursor-pointer text-accent hover:underline">
+              Show all changes
+            </button>
+          </p>
+        )}
         {notListed > 0 && (
           <p className="rounded-xl border border-line bg-panel px-4 py-3 text-[12.5px] text-muted">
             GitHub lists only the first {MAX_FILES.toLocaleString()} changed files. {notListed.toLocaleString()} more files do not show here or on GitHub. To see all changes, check out

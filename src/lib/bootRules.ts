@@ -39,8 +39,9 @@ const SEARCH_TYPE = `(?:${SEARCH_TYPES.join('|')})`;
  * One that matched more would cost those loads a second round trip.
  *
  * Chrome skips a regex that compiles to more than 2 KB, and then the whole update with it: each literal character
- * and each repeat counts, so keep patterns short (check with `declarativeNetRequest.isRegexSupported`). A kind may
- * have more than one pattern.
+ * and each repeat counts, so keep patterns short. Check a new pattern by installing it as a redirect rule:
+ * `declarativeNetRequest.isRegexSupported` passes some that the redirect's capture group puts over the limit.
+ * A kind may have more than one pattern.
  *
  * SITE pages start with a reserved segment (RESERVED in routes.ts) and win over the rule that keeps reserved
  * segments out; OWNER pages lose to it, so `/settings/profile` is never taken for a repository.
@@ -58,6 +59,8 @@ const OWNER_PAGES: [Route['kind'], string][] = [
   ['repo', `/${OWNER}/${REPO}/(?:tree|blob)(?:/${SEGMENT})+/?${ANY_QUERY}`],
   ['repo', `/${OWNER}/${REPO}/commits(?:/${SEGMENT})*/?${ANY_QUERY}`],
   ['pr', `/${OWNER}/${REPO}/pull/${NUMBER}(?:/(?:commits|checks|files|changes))?/?${ANY_QUERY}`],
+  // Some commits' changes, apart from the tabs: together they compile to more than 2 KB.
+  ['pr', `/${OWNER}/${REPO}/pull/${NUMBER}/(?:files|changes)/${SHA}(?:\\.\\.${SHA})?/?${ANY_QUERY}`],
   ['issue', `/${OWNER}/${REPO}/issues/${NUMBER}/?${ANY_QUERY}`],
   // YAML issue forms are GitHub's, so a template must be Markdown.
   [

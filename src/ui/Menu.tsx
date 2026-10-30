@@ -33,7 +33,8 @@ export function Menu<T extends string>({
 }: {
   value: T | T[] | null;
   options: MenuOption<T>[];
-  onChange: (value: T) => void;
+  /** `event` tells whether Shift was held, e.g. to pick a span. */
+  onChange: (value: T, event: { shiftKey: boolean }) => void;
   trigger: (open: () => void) => ReactNode;
   header?: ReactNode;
   align?: 'left' | 'right';
@@ -117,8 +118,8 @@ export function Menu<T extends string>({
           role={actions ? 'menuitem' : multiple ? 'menuitemcheckbox' : 'menuitemradio'}
           aria-checked={actions ? undefined : isSelected(option.value)}
           tabIndex={-1}
-          onClick={() => {
-            onChange(option.value);
+          onClick={(e) => {
+            onChange(option.value, e);
             if (!multiple) close();
           }}
           className="flex w-full cursor-pointer items-start gap-2 rounded-lg px-2.5 py-2 text-left hover:bg-hover"

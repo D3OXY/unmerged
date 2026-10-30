@@ -13,6 +13,7 @@ import { toast } from '@/ui/toast';
 import { MUTATIONS, repoPath, type PullRequest, type ReviewThread } from '../query';
 import { Thread } from '../Threads';
 import { gitPatch, newLines, oldContents } from './diff';
+import { isLineThread } from './threads';
 import type { DiffMode, PrFile } from './FileDiff';
 
 type Side = 'additions' | 'deletions';
@@ -23,8 +24,11 @@ type Note = { side: Side; line: number; threads: ReviewThread[]; draft?: Draft }
 
 /** The repo and commit a diff's new side is read from when someone expands unchanged lines. */
 export type DiffSource = { nameWithOwner: string; oid: string };
-/** A pull request's side of a diff: its threads on the file, line comments, and the query to refresh after posting. */
-export type Review = { pr: PullRequest; queryKey: QueryKey; threads: ReviewThread[] };
+/**
+ * A pull request's side of a diff: its threads on the file, line comments, and the query to refresh after posting.
+ * `newSideOnly`: new comments go on new lines only (some commits only, where old lines aren't the pull request's).
+ */
+export type Review = { pr: PullRequest; queryKey: QueryKey; threads: ReviewThread[]; newSideOnly?: boolean };
 
 const FILE_QUERY = /* GraphQL */ `
   query FileAt($owner: String!, $repo: String!, $expression: String!) {
@@ -59,6 +63,7 @@ export function DiffBody({ file, patch, source, review, mode, wrap }: {
   const fileDiff = useMemo(() => api?.getSingularPatch(gitPatch(file, patch)), [api, file, patch]);
   const threads = review?.threads;
   const commentable = !!review;
+  const newSideOnly = !!review?.newSideOnly;
 
   const notes = useMemo(() => {
     const byLine = new Map<string, Note>();
@@ -68,7 +73,7 @@ export function DiffBody({ file, patch, source, review, mode, wrap }: {
       byLine.set(key, note);
       return note;
     };
-    for (const thread of threads ?? []) if (thread.line !== null) noteAt(sideOf(thread), thread.line).threads.push(thread);
+    for (const thread of threads ?? []) if (isLineThread(thread)) noteAt(sideOf(thread), thread.line).threads.push(thread);
     if (draft) noteAt(draft.side, draft.end).draft = draft;
     return [...byLine.values()];
   }, [threads, draft]);
@@ -82,8 +87,10 @@ export function DiffBody({ file, patch, source, review, mode, wrap }: {
       overflow: wrap ? ('wrap' as const) : ('scroll' as const),
       enableGutterUtility: commentable,
       enableLineSelection: commentable,
-      onGutterUtilityClick: ({ start, side = 'additions', end, endSide = side }: SelectedLineRange) =>
-        setDraft(start <= end ? { start, startSide: side, end, side: endSide } : { start: end, startSide: endSide, end: start, side }),
+      onGutterUtilityClick: ({ start, side = 'additions', end, endSide = side }: SelectedLineRange) => {
+        if (newSideOnly && (side === 'deletions' || endSide === 'deletions')) return toast.error('Here you can comment only on new lines.');
+        setDraft(start <= end ? { start, startSide: side, end, side: endSide } : { start: end, startSide: endSide, end: start, side });
+      },
       // Full files are only fetched when someone expands unchanged lines.
       loadDiffFiles: async () => {
         const [owner, repo] = source.nameWithOwner.split('/');
@@ -99,7 +106,7 @@ export function DiffBody({ file, patch, source, review, mode, wrap }: {
         };
       },
     }),
-    [dark, mode, wrap, commentable, source.nameWithOwner, source.oid, file, patch],
+    [dark, mode, wrap, commentable, newSideOnly, source.nameWithOwner, source.oid, file, patch],
   );
 
   useLayoutEffect(() => {
@@ -149,7 +156,7 @@ export function DiffBody({ file, patch, source, review, mode, wrap }: {
           {note.threads.map((thread) => (
             <Thread key={thread.id} thread={thread} queryKey={review.queryKey} inline />
           ))}
-          {note.draft && <LineComposer pr={review.pr} path={file.filename} patch={patch} draft={note.draft} queryKey={review.queryKey} onDone={() => setDraft(null)} />}
+          {note.draft && <ReviewComposer pr={review.pr} path={file.filename} patch={patch} target={note.draft} queryKey={review.queryKey} onDone={() => setDraft(null)} />}
         </div>
       ))}
     </div>
@@ -159,29 +166,38 @@ export function DiffBody({ file, patch, source, review, mode, wrap }: {
 type StartedReview = { addPullRequestReview: { pullRequestReview: { id: string } } };
 
 /**
- * Comments on a line or a range of lines: adds it to the viewer's pending review (starting one if needed)
- * or, while no review is under way, posts it on its own. Like GitHub, single comments go away while a
- * review is pending. The draft is kept per line.
+ * Comments on lines (`target` a Draft) or on the whole file (`target` 'file'): adds it to the viewer's pending
+ * review (starting one if needed) or, while no review is under way, posts it on its own. Like GitHub, single
+ * comments go away while a review is pending. The draft is kept per line, or per file.
  */
-function LineComposer({ pr, path, patch, draft, queryKey, onDone }: { pr: PullRequest; path: string; patch: string; draft: Draft; queryKey: QueryKey; onDone: () => void }) {
-  const [body, setBody, clearBody] = useDraft(`${pr.id}:${path}:${draft.side}:${draft.end}`);
+export function ReviewComposer({ pr, path, patch, target, queryKey, onDone }: {
+  pr: PullRequest;
+  path: string;
+  /** For a suggestion's lines; not needed on a file. */
+  patch?: string;
+  target: Draft | 'file';
+  queryKey: QueryKey;
+  onDone: () => void;
+}) {
+  const lines = target === 'file' ? undefined : target;
+  const [body, setBody, clearBody] = useDraft(`${pr.id}:${path}:${lines ? `${lines.side}:${lines.end}` : 'file'}`);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
   const pending = pr.viewerPendingReview?.nodes[0];
-  const range = draft.start !== draft.end || draft.startSide !== draft.side;
+  const range = !!lines && (lines.start !== lines.end || lines.startSide !== lines.side);
   const text = body.trim();
   const send = useMutation({
     mutationFn: async (to: 'review' | 'single') => {
-      const side = githubSide(draft.side);
-      const startSide = githubSide(draft.startSide);
       if (to === 'single') {
-        return rest(`/repos/${repoPath(pr)}/pulls/${pr.number}/comments`, {
-          method: 'POST',
-          body: { body: text, commit_id: pr.headRefOid, path, line: draft.end, side, ...(range && { start_line: draft.start, start_side: startSide }) },
-        });
+        const at = lines
+          ? { line: lines.end, side: githubSide(lines.side), ...(range && { start_line: lines.start, start_side: githubSide(lines.startSide) }) }
+          : { subject_type: 'file' };
+        return rest(`/repos/${repoPath(pr)}/pulls/${pr.number}/comments`, { method: 'POST', body: { body: text, commit_id: pr.headRefOid, path, ...at } });
       }
       const review = pending?.id ?? (await gql<StartedReview>(MUTATIONS.startReview, { id: pr.id, oid: pr.headRefOid })).addPullRequestReview.pullRequestReview.id;
-      return gql(MUTATIONS.addReviewThread, { review, path, body: text, line: draft.end, side, ...(range && { startLine: draft.start, startSide }) });
+      if (!lines) return gql(MUTATIONS.addFileThread, { review, path, body: text });
+      const side = githubSide(lines.side);
+      return gql(MUTATIONS.addReviewThread, { review, path, body: text, line: lines.end, side, ...(range && { startLine: lines.start, startSide: githubSide(lines.startSide) }) });
     },
     onSuccess: async () => {
       clearBody();
@@ -200,12 +216,13 @@ function LineComposer({ pr, path, patch, draft, queryKey, onDone }: { pr: PullRe
 
   // Suggestions replace new-side lines, so they're offered only there. The lines' text comes from the patch;
   // lines outside it (expanded context) leave an empty block to fill in.
-  const canSuggest = draft.side === 'additions' && draft.startSide === 'additions';
+  const canSuggest = lines?.side === 'additions' && lines.startSide === 'additions';
   const suggest = () => {
+    if (!lines) return;
     const el = textarea.current;
     const at = el?.selectionStart ?? body.length;
     const before = body.slice(0, at);
-    const head = `${before && !before.endsWith('\n') ? '\n' : ''}\`\`\`suggestion\n${(newLines(patch, draft.start, draft.end) ?? []).join('\n')}`;
+    const head = `${before && !before.endsWith('\n') ? '\n' : ''}\`\`\`suggestion\n${(newLines(patch ?? '', lines.start, lines.end) ?? []).join('\n')}`;
     setBody(`${before}${head}\n\`\`\`\n${body.slice(el?.selectionEnd ?? at)}`);
     // Caret at the end of the suggested lines, where the edit starts.
     requestAnimationFrame(() => {
@@ -222,8 +239,8 @@ function LineComposer({ pr, path, patch, draft, queryKey, onDone }: { pr: PullRe
       onClose={onDone}
       autoFocus
       textareaRef={textarea}
-      placeholder={range ? `Comment on lines ${draft.start}–${draft.end}…` : `Comment on line ${draft.end}…`}
-      preview={repoPath(pr)}
+      placeholder={!lines ? 'Comment on this file…' : range ? `Comment on lines ${lines.start}–${lines.end}…` : `Comment on line ${lines.end}…`}
+      repo={repoPath(pr)}
       className="border-line-strong"
     >
       {canSuggest && (

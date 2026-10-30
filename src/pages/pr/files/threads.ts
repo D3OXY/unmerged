@@ -14,4 +14,7 @@ export function nextOpenThread(threads: ReviewThread[], files: PrFile[], last?: 
 }
 
 /** An unresolved thread anchored to a diff line, so `]` can jump to it. */
-export const isOpenLineThread = (t: ReviewThread): t is ReviewThread & { line: number } => !t.isResolved && t.line !== null;
+export const isOpenLineThread = (t: ReviewThread): t is ReviewThread & { line: number } => !t.isResolved && isLineThread(t);
+
+/** A thread on a line of the diff: not on the whole file, and not outdated (no line). */
+export const isLineThread = (t: ReviewThread): t is ReviewThread & { line: number } => t.subjectType !== 'FILE' && t.line !== null;

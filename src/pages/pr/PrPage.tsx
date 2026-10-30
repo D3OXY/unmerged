@@ -45,13 +45,13 @@ import {
 import { SlideToMerge } from './SlideToMerge';
 import { usePrMutation } from './usePrMutation';
 
-type Props = { owner: string; repo: string; number: number; tab: PrTab };
+type Props = { owner: string; repo: string; number: number; tab: PrTab; range?: string };
 
 /** Above this many changed files, other tabs don't download the patches in the background. */
 const IDLE_PREFETCH_MAX_FILES = 300;
 
 /** A pull request: shared header and tab bar over Conversation, Commits, Checks and Files changed. */
-export function PrPage({ owner, repo, number, tab }: Props) {
+export function PrPage({ owner, repo, number, tab, range }: Props) {
   const shown = useQuery(prQuery(owner, repo, number)).data?.repository;
   const pr = shown?.pullRequest;
   useTitle(pr && `${pr.title} · Pull Request #${number} · ${owner}/${repo}`);
@@ -75,7 +75,7 @@ export function PrPage({ owner, repo, number, tab }: Props) {
           )
         }
       />
-      <PrContent owner={owner} repo={repo} number={number} tab={tab} />
+      <PrContent owner={owner} repo={repo} number={number} tab={tab} range={range} />
     </Shell>
   );
 }
@@ -84,7 +84,7 @@ export function PrPage({ owner, repo, number, tab }: Props) {
  * The pull request without the page's frame: on its own page and in a list's side panel (`panel`), where its
  * tabs switch the panel instead of leaving the list.
  */
-export function PrContent({ owner, repo, number, tab, panel }: Props & { panel?: boolean }) {
+export function PrContent({ owner, repo, number, tab, range, panel }: Props & { panel?: boolean }) {
   const query = prQuery(owner, repo, number);
   const { queryKey } = query;
   const head = useQuery(query);
@@ -129,7 +129,7 @@ export function PrContent({ owner, repo, number, tab, panel }: Props & { panel?:
   const { full } = loaded;
   return (
     <>
-      <PrView loaded={loaded} tab={tab} queryKey={queryKey} poll={poll} panel={panel} />
+      <PrView loaded={loaded} tab={tab} range={range} queryKey={queryKey} poll={poll} panel={panel} />
       {/* Outside PrView: its entry animation's transform would pin the fixed slider to the page, not the window. */}
       {full && <SlideToMerge pr={full.pr} repo={full.repo} queryKey={queryKey} />}
     </>
@@ -178,9 +178,10 @@ function useStatusPoll(owner: string, repo: string, number: number, pr: PrWithMe
  * The header and the open tab. The first part is enough for the header, Commits, Checks and Files changed;
  * Conversation fills in each other part as it lands, and Approve waits for `full`.
  */
-function PrView({ loaded, tab, queryKey, poll, panel }: {
+function PrView({ loaded, tab, range, queryKey, poll, panel }: {
   loaded: LoadedPr;
   tab: PrTab;
+  range?: string;
   queryKey: QueryKey;
   poll: StatusPoll;
   panel?: boolean;
@@ -290,7 +291,7 @@ function PrView({ loaded, tab, queryKey, poll, panel }: {
       {tab === 'conversation' && <ConversationTab loaded={loaded} queryKey={queryKey} />}
       {tab === 'commits' && <CommitsTab pr={pr} />}
       {tab === 'checks' && <ChecksTab pr={pr} watching={poll.watching} slow={poll.slow} onRerun={poll.watch} onPolling={poll.setChecksPolling} />}
-      {tab === 'files' && <FilesTab pr={pr} full={full?.pr} queryKey={queryKey} panel={panel} />}
+      {tab === 'files' && <FilesTab pr={pr} full={full?.pr} queryKey={queryKey} range={range} panel={panel} />}
     </div>
   );
 }

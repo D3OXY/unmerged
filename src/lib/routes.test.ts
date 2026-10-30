@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { matchRoute, type PrTab, type RepoView, type Route } from './routes';
 
 const repo = (view: RepoView, rest: string[] = []): Route => ({ kind: 'repo', owner: 'o', repo: 'r', view, rest });
-const pr = (tab: PrTab): Route => ({ kind: 'pr', owner: 'o', repo: 'r', number: 12, tab });
+const pr = (tab: PrTab, range?: string): Route => ({ kind: 'pr', owner: 'o', repo: 'r', number: 12, tab, ...(range && { range }) });
 const compare = (spec: { base?: string; head?: string; expand?: boolean }): Route => ({ kind: 'compare', owner: 'o', repo: 'r', expand: false, ...spec });
 
 describe('matchRoute', () => {
@@ -83,6 +83,10 @@ describe('matchRoute', () => {
     ['https://github.com/o/r/pull/12/checks', pr('checks')],
     ['https://github.com/o/r/pull/12/files', pr('files')],
     ['https://github.com/o/r/pull/12/changes', pr('files')],
+    ['https://github.com/o/r/pull/12/files/abcdef1', pr('files', 'abcdef1')],
+    ['https://github.com/o/r/pull/12/changes/abcdef1..1234567', pr('files', 'abcdef1..1234567')],
+    ['https://github.com/o/r/pull/12/files/abcdef1...1234567', null],
+    ['https://github.com/o/r/pull/12/files/main', null],
     ['https://github.com/o/r/pull/12/unknown', null],
     ['https://github.com/o/r/pull/new', null],
 
