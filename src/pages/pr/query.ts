@@ -506,7 +506,7 @@ export const MUTATIONS = {
   replyToThread: m('AddPullRequestReviewThreadReply', '{ pullRequestReviewThreadId: $id, body: $body }', '$id: ID!, $body: String!'),
 };
 
-// ── Edits: reviewers, assignees, labels, milestone, title, base and description, comments, reactions, notifications ──
+// ── Edits: reviewers, assignees, labels, milestone, title, base and description, comments, projects, reactions, notifications ──
 export const EDIT_MUTATIONS = {
   // `ids` are people, `teams` teams.
   requestReviews: m('RequestReviews', '{ pullRequestId: $id, userIds: $ids, teamIds: $teams, union: true }', '$id: ID!, $ids: [ID!], $teams: [ID!]'),
@@ -528,11 +528,20 @@ export const EDIT_MUTATIONS = {
   deleteComment: m('DeleteIssueComment', '{ id: $id }', '$id: ID!'),
   updateReviewComment: m('UpdatePullRequestReviewComment', '{ pullRequestReviewCommentId: $id, body: $body }', '$id: ID!, $body: String!'),
   deleteReviewComment: m('DeletePullRequestReviewComment', '{ id: $id }', '$id: ID!'),
+  // Projects need the token's `project` scope.
+  addToProject: m('AddProjectV2ItemById', '{ projectId: $project, contentId: $id }', '$project: ID!, $id: ID!'),
+  removeFromProject: m('DeleteProjectV2Item', '{ projectId: $project, itemId: $item }', '$project: ID!, $item: ID!'),
+  setProjectStatus: m(
+    'UpdateProjectV2ItemFieldValue',
+    '{ projectId: $project, itemId: $item, fieldId: $field, value: { singleSelectOptionId: $option } }',
+    '$project: ID!, $item: ID!, $field: ID!, $option: String!',
+  ),
   addReaction: m('AddReaction', '{ subjectId: $id, content: $content }', '$id: ID!, $content: ReactionContent!'),
   removeReaction: m('RemoveReaction', '{ subjectId: $id, content: $content }', '$id: ID!, $content: ReactionContent!'),
 };
 
-const prKey = (owner: string, repo: string, number: number) => [owner.toLowerCase(), repo.toLowerCase(), number] as const;
+/** A pull request's place in query keys. */
+export const prKey = (owner: string, repo: string, number: number) => [owner.toLowerCase(), repo.toLowerCase(), number] as const;
 
 /**
  * One part of a pull request, persisted, so a revisit shows every part at once. Each part's key starts with the
