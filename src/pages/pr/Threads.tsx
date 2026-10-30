@@ -52,7 +52,8 @@ export function Thread({ thread, queryKey, inline }: { thread: ReviewThread; que
   const [collapsed, setCollapsed] = useState(thread.isResolved);
   const toggle = usePrMutation(queryKey);
   const first = thread.comments.nodes[0];
-  const hunk = first?.diffHunk.split('\n').slice(-6) ?? [];
+  // A comment on the whole file has no hunk.
+  const hunk = first?.diffHunk ? first.diffHunk.split('\n').slice(-6) : [];
 
   return (
     <div className={cx('overflow-hidden rounded-xl border border-line bg-panel', thread.isResolved && 'opacity-75')}>
@@ -60,13 +61,16 @@ export function Thread({ thread, queryKey, inline }: { thread: ReviewThread; que
         <button type="button" onClick={() => setCollapsed((c) => !c)} className="flex min-w-0 cursor-pointer items-center gap-2 text-left">
           <HugeiconsIcon icon={ArrowRight01Icon} className={cx('size-3.5 shrink-0 text-subtle transition-transform', !collapsed && 'rotate-90')} />
           {inline ? (
-            <span className="text-[12px] text-muted">{thread.isResolved ? 'Resolved thread' : 'Thread'}</span>
+            <span className="text-[12px] text-muted">
+              {thread.isResolved ? 'Resolved thread' : 'Thread'}
+              {thread.subjectType === 'FILE' && ' on this file'}
+            </span>
           ) : (
             <>
               <HugeiconsIcon icon={FileCodeIcon} className="size-3.5 shrink-0 text-subtle" />
               <span className="truncate font-mono text-[12px]">
                 {thread.path}
-                {thread.line && <span className="text-subtle">:{thread.line}</span>}
+                {thread.subjectType === 'FILE' ? <span className="font-sans text-subtle"> · file</span> : thread.line && <span className="text-subtle">:{thread.line}</span>}
               </span>
             </>
           )}

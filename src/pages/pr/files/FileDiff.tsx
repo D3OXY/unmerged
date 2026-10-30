@@ -1,11 +1,12 @@
-import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { QueryKey } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowRight01Icon, Copy01Icon, File02Icon, PencilEdit02Icon, Tick02Icon } from '@hugeicons/core-free-icons';
+import { ArrowRight01Icon, Comment01Icon, Copy01Icon, File02Icon, PencilEdit02Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { copy } from '@/lib/clipboard';
 import { cx } from '@/lib/cx';
 import type { PullRequest, ReviewThread, ViewedState } from '../query';
-import { DiffBody, type DiffSource } from './DiffBody';
+import { Thread } from '../Threads';
+import { DiffBody, ReviewComposer, type DiffSource } from './DiffBody';
 
 /** One changed file of a pull request or commit (GitHub REST). `patch` is missing for binary or huge files. */
 export type PrFile = {
@@ -59,7 +60,8 @@ type Props = {
 };
 
 /**
- * A file card: sticky header with view state, then the diff with inline review threads. Until the card comes
+ * A file card: sticky header with view state, then the comments on the whole file, then the diff with inline
+ * review threads. Until the card comes
  * within ~2 screens of the viewport it is only its path at roughly its full height, so a pull request with
  * thousands of files mounts fast. It stays the same element (anchors, refs and scroll pins hold) and stays
  * mounted once near.
@@ -67,6 +69,8 @@ type Props = {
 export const FileDiff = memo(function FileDiff({ file, source, review, anchor, mode: preferredMode, wrap, open, viewState, threads = NO_THREADS, onSetOpen, cardRef }: Props) {
   const section = useRef<HTMLElement>(null);
   const [near, setNear] = useState(false);
+  const [commenting, setCommenting] = useState(false);
+  const fileThreads = useMemo(() => threads.filter((t) => t.subjectType === 'FILE'), [threads]);
   useEffect(() => {
     if (!near && section.current) return whenNear(section.current, () => setNear(true));
   }, [near]);
@@ -118,6 +122,20 @@ export const FileDiff = memo(function FileDiff({ file, source, review, anchor, m
         <a href={file.blob_url} title="View file" className="flex size-7 shrink-0 items-center justify-center rounded-md text-subtle hover:bg-hover hover:text-fg">
           <HugeiconsIcon icon={File02Icon} className="size-3.5" />
         </a>
+        {review?.pr?.state === 'OPEN' && (
+          <button
+            type="button"
+            onClick={() => {
+              setCommenting(true);
+              if (!open) onToggleOpen();
+            }}
+            title="Comment on this file"
+            aria-label="Comment on this file"
+            className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-subtle hover:bg-hover hover:text-fg"
+          >
+            <HugeiconsIcon icon={Comment01Icon} className="size-3.5" />
+          </button>
+        )}
         {review?.editHref && file.status !== 'removed' && (
           <a href={review.editHref(file.filename)} title="Edit file" aria-label="Edit file" className="flex size-7 shrink-0 items-center justify-center rounded-md text-subtle hover:bg-hover hover:text-fg">
             <HugeiconsIcon icon={PencilEdit02Icon} className="size-3.5" />
@@ -146,6 +164,14 @@ export const FileDiff = memo(function FileDiff({ file, source, review, anchor, m
         )}
       </header>
 
+      {open && review?.pr && (fileThreads.length > 0 || commenting) && (
+        <div className="flex flex-col gap-2 border-b border-line bg-bg px-3 py-3">
+          {fileThreads.map((thread) => (
+            <Thread key={thread.id} thread={thread} queryKey={review.queryKey} inline />
+          ))}
+          {commenting && <ReviewComposer pr={review.pr} path={file.filename} target="file" queryKey={review.queryKey} onDone={() => setCommenting(false)} />}
+        </div>
+      )}
       {open &&
         (!file.patch ? (
           <div className="px-4 py-6 text-center text-[12.5px] text-subtle">

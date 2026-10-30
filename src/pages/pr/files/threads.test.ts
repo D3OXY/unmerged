@@ -10,7 +10,9 @@ const thread = (id: string, path: string, line: number | null, isResolved = fals
 const b5 = thread('b5', 'b.ts', 5);
 const b20 = thread('b20', 'b.ts', 20);
 const a1 = thread('a1', 'a.ts', 1);
-const threads = [a1, b20, thread('resolved', 'b.ts', 10, true), thread('outdated', 'b.ts', null), b5];
+// GitHub gives a comment on a whole file line 1; it isn't on a line, so `]` skips it.
+const onFile = { ...thread('file', 'b.ts', 1), subjectType: 'FILE' } as ReviewThread;
+const threads = [a1, b20, thread('resolved', 'b.ts', 10, true), thread('outdated', 'b.ts', null), onFile, b5];
 
 describe('nextOpenThread', () => {
   it.each([
