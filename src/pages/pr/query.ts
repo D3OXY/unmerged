@@ -1,4 +1,4 @@
-import { queryOptions, type QueryClient } from '@tanstack/react-query';
+import { infiniteQueryOptions, queryOptions, type QueryClient } from '@tanstack/react-query';
 import { gql, rest } from '@/github/client';
 import type { Actor, CheckState, IssueState, IssueStateReason, Label, PrState, ReviewDecision } from '@/github/types';
 import { persisted } from '@/lib/persist';
@@ -31,6 +31,8 @@ const REACTIONS = 'viewerCanReact reactionGroups { content viewerHasReacted reac
 // An issue or pull request mentioned in the timeline or linked to close.
 const ISSUE_REF = 'number title url state stateReason repository { nameWithOwner }';
 const REF = `__typename ... on Issue { ${ISSUE_REF} } ... on PullRequest { number title url state repository { nameWithOwner } }`;
+// What a comment's header and its menu need: its link, the author's role, an edit mark, and hiding.
+const COMMENT_META = 'url authorAssociation lastEditedAt isMinimized minimizedReason viewerCanMinimize viewerCanUnminimize';
 
 // A pull request loads in four parts, asked for at once. GitHub resolves a query's fields one after another, so
 // four small queries finish sooner than one big one, and the page paints as soon as the first part is in.
@@ -47,10 +49,11 @@ const prPart = (name: string, repoFields: string, prFields: string) => /* GraphQ
 const PR_HEAD_QUERY = prPart(
   'PullRequest',
   'nameWithOwner isPrivate',
-  `id number title url state isDraft createdAt viewerCanUpdate bodyHTML body ${REACTIONS}
+  `id number title url state isDraft createdAt viewerCanUpdate viewerCanEditFiles bodyHTML body lastEditedAt ${REACTIONS}
   author { login avatarUrl }
   baseRefName headRefName headRefOid isCrossRepository
   headRepositoryOwner { login }
+  headRepository { id nameWithOwner }
   additions deletions changedFiles
   commits(last: 1) { totalCount nodes { commit { statusCheckRollup { state contexts(first: 100) { nodes { __typename } } } } } }`,
 );
@@ -59,7 +62,7 @@ const PR_HEAD_QUERY = prPart(
 const PR_MERGE_QUERY = prPart(
   'PullRequestMerge',
   'mergeCommitAllowed squashMergeAllowed rebaseMergeAllowed autoMergeAllowed viewerDefaultMergeMethod viewerPermission',
-  `mergedAt closedAt headRef { id }
+  `mergedAt closedAt headRef { id } viewerCanDeleteHeadRef
   mergeable mergeStateStatus reviewDecision
   isMergeQueueEnabled isInMergeQueue
   mergeQueueEntry { position }
@@ -77,13 +80,14 @@ const PR_MERGE_QUERY = prPart(
 const PR_REVIEW_QUERY = prPart(
   'PullRequestReview',
   '',
-  `viewerDidAuthor viewerCanLabel viewerCanAssign
+  `viewerDidAuthor viewerCanLabel viewerCanAssign viewerCanSubscribe viewerSubscription locked activeLockReason
   baseRepository { defaultBranchRef { name } }
+  milestone { id title url }
   labels(first: 20) { nodes { id name color } }
   assignees(first: 10) { nodes { id login avatarUrl } }
   closingIssuesReferences(first: 10) { nodes { id ${ISSUE_REF} } }
   reviewRequests(first: 20) {
-    nodes { requestedReviewer { __typename ... on User { login avatarUrl } ... on Team { name avatarUrl } ... on Bot { login avatarUrl } } }
+    nodes { requestedReviewer { __typename ... on User { login avatarUrl } ... on Team { name slug avatarUrl } ... on Bot { login avatarUrl } } }
   }
   latestOpinionatedReviews(first: 20) { nodes { state author { login avatarUrl ... on User { id } } } }
   viewerPendingReview: reviews(first: 1, states: PENDING) { nodes { id comments { totalCount } } }
@@ -94,31 +98,31 @@ const PR_REVIEW_QUERY = prPart(
       id isResolved isOutdated path line diffSide viewerCanResolve viewerCanUnresolve viewerCanReply
       comments(first: 30) {
         totalCount
-        nodes { id author { login avatarUrl } bodyHTML body createdAt diffHunk state viewerCanUpdate viewerCanDelete ${REACTIONS} }
+        nodes { id author { login avatarUrl } bodyHTML body createdAt diffHunk state viewerCanUpdate viewerCanDelete ${REACTIONS} ${COMMENT_META} }
       }
     }
   }`,
 );
 
-// The activity: usually the slowest part.
-const PR_TIMELINE_QUERY = prPart(
-  'PullRequestTimeline',
-  '',
-  `timelineItems(
-    last: 100
+// The kinds of activity the timeline shows, and what it needs of each. `args` pages the connection.
+const timelineItems = (args: string) => /* GraphQL */ `
+  timelineItems(
+    ${args}
     itemTypes: [
       ISSUE_COMMENT, PULL_REQUEST_REVIEW, PULL_REQUEST_COMMIT, MERGED_EVENT, CLOSED_EVENT, REOPENED_EVENT,
       HEAD_REF_FORCE_PUSHED_EVENT, LABELED_EVENT, REVIEW_REQUESTED_EVENT, READY_FOR_REVIEW_EVENT,
       CONVERT_TO_DRAFT_EVENT, HEAD_REF_DELETED_EVENT, RENAMED_TITLE_EVENT, CROSS_REFERENCED_EVENT, CONNECTED_EVENT,
       DISCONNECTED_EVENT, ASSIGNED_EVENT, UNASSIGNED_EVENT, UNLABELED_EVENT, REVIEW_DISMISSED_EVENT,
-      AUTO_MERGE_ENABLED_EVENT, AUTO_MERGE_DISABLED_EVENT, BASE_REF_FORCE_PUSHED_EVENT
+      AUTO_MERGE_ENABLED_EVENT, AUTO_MERGE_DISABLED_EVENT, BASE_REF_FORCE_PUSHED_EVENT, BASE_REF_CHANGED_EVENT,
+      REVIEW_REQUEST_REMOVED_EVENT, HEAD_REF_RESTORED_EVENT, MILESTONED_EVENT, DEMILESTONED_EVENT, LOCKED_EVENT,
+      UNLOCKED_EVENT, ADDED_TO_MERGE_QUEUE_EVENT, REMOVED_FROM_MERGE_QUEUE_EVENT, REFERENCED_EVENT, DEPLOYED_EVENT
     ]
   ) {
-    totalCount
+    pageInfo { hasPreviousPage hasNextPage endCursor }
     nodes {
       __typename
-      ... on IssueComment { id author { login avatarUrl } bodyHTML body createdAt viewerCanUpdate viewerCanDelete ${REACTIONS} }
-      ... on PullRequestReview { id author { login avatarUrl } state bodyHTML submittedAt createdAt }
+      ... on IssueComment { id author { login avatarUrl } bodyHTML body createdAt viewerCanUpdate viewerCanDelete ${REACTIONS} ${COMMENT_META} }
+      ... on PullRequestReview { id author { login avatarUrl } state bodyHTML submittedAt createdAt url authorAssociation }
       ... on PullRequestCommit {
         id
         commit { oid abbreviatedOid messageHeadline committedDate url author { name user { login avatarUrl } } statusCheckRollup { state } }
@@ -146,9 +150,35 @@ const PR_TIMELINE_QUERY = prPart(
       ... on AutoMergeEnabledEvent { id actor { login avatarUrl } createdAt }
       ... on AutoMergeDisabledEvent { id actor { login avatarUrl } createdAt }
       ... on BaseRefForcePushedEvent { id actor { login avatarUrl } createdAt ref { name } }
+      ... on BaseRefChangedEvent { id actor { login avatarUrl } createdAt previousRefName currentRefName }
+      ... on ReviewRequestRemovedEvent {
+        id actor { login avatarUrl } createdAt
+        requestedReviewer { __typename ... on User { login } ... on Team { name } ... on Bot { login } }
+      }
+      ... on HeadRefRestoredEvent { id actor { login avatarUrl } createdAt }
+      ... on MilestonedEvent { id actor { login avatarUrl } createdAt milestoneTitle }
+      ... on DemilestonedEvent { id actor { login avatarUrl } createdAt milestoneTitle }
+      ... on LockedEvent { id actor { login avatarUrl } createdAt lockReason }
+      ... on UnlockedEvent { id actor { login avatarUrl } createdAt }
+      ... on AddedToMergeQueueEvent { id actor { login avatarUrl } createdAt }
+      ... on RemovedFromMergeQueueEvent { id actor { login avatarUrl } createdAt reason }
+      ... on ReferencedEvent { id actor { login avatarUrl } createdAt commit { abbreviatedOid messageHeadline url } }
+      ... on DeployedEvent { id actor { login avatarUrl } createdAt deployment { environment } }
     }
-  }`,
-);
+  }
+`;
+
+// The activity: usually the slowest part. Only the newest 100 items; older ones load on request (`prEarlierTimelineQuery`).
+const PR_TIMELINE_QUERY = prPart('PullRequestTimeline', '', timelineItems('last: 100'));
+
+// Older activity, from the first item on: new activity can't move these pages.
+const PR_EARLIER_TIMELINE_QUERY = /* GraphQL */ `
+  query PullRequestEarlierTimeline($owner: String!, $repo: String!, $number: Int!, $after: String) {
+    repository(owner: $owner, name: $repo) {
+      pullRequest(number: $number) { ${timelineItems('first: 100, after: $after')} }
+    }
+  }
+`;
 
 export type MergeMethod = 'MERGE' | 'SQUASH' | 'REBASE';
 export type MergeStateStatus = 'BEHIND' | 'BLOCKED' | 'CLEAN' | 'DIRTY' | 'DRAFT' | 'HAS_HOOKS' | 'UNKNOWN' | 'UNSTABLE';
@@ -178,8 +208,27 @@ export type CheckContext =
 
 type Reviewer =
   | { __typename: 'User' | 'Bot'; login: string; avatarUrl: string }
-  | { __typename: 'Team'; name: string; avatarUrl: string | null }
+  | { __typename: 'Team'; name: string; slug: string; avatarUrl: string | null }
   | { __typename: 'Mannequin' };
+
+/** The author's role in the repository, as GitHub labels a comment. */
+export type AuthorAssociation = 'MEMBER' | 'OWNER' | 'MANNEQUIN' | 'COLLABORATOR' | 'CONTRIBUTOR' | 'FIRST_TIME_CONTRIBUTOR' | 'FIRST_TIMER' | 'NONE';
+
+/** Why a comment is hidden: GitHub's `ReportedContentClassifiers`, in its own case (`minimizedReason` is lowercase). */
+export type HideReason = 'SPAM' | 'ABUSE' | 'OFF_TOPIC' | 'OUTDATED' | 'DUPLICATE' | 'RESOLVED' | 'LOW_QUALITY';
+
+/** A comment's link, its author's role, its last edit, and whether it is hidden. */
+export type CommentMeta = {
+  url: string;
+  authorAssociation: AuthorAssociation;
+  lastEditedAt: string | null;
+  isMinimized: boolean;
+  minimizedReason: string | null;
+  viewerCanMinimize: boolean;
+  viewerCanUnminimize: boolean;
+};
+
+export type LockReason = 'OFF_TOPIC' | 'TOO_HEATED' | 'RESOLVED' | 'SPAM';
 
 export type ReactionContent = 'THUMBS_UP' | 'THUMBS_DOWN' | 'LAUGH' | 'HOORAY' | 'CONFUSED' | 'HEART' | 'ROCKET' | 'EYES';
 export type ReactionGroup = { content: ReactionContent; viewerHasReacted: boolean; reactors: { totalCount: number } };
@@ -188,6 +237,8 @@ export type ReactionGroup = { content: ReactionContent; viewerHasReacted: boolea
 export type CommentFields = {
   id: string;
   body: string;
+  /** Where it shows on GitHub; its repository renders the edit's preview. */
+  url?: string;
   viewerCanUpdate: boolean;
   viewerCanDelete?: boolean;
   viewerCanReact: boolean;
@@ -210,8 +261,18 @@ export type Reference =
 type Event<T extends string, Extra = object> = { __typename: T; id: string; actor: Actor; createdAt: string } & Extra;
 
 export type TimelineItem =
-  | ({ __typename: 'IssueComment'; author: Actor; bodyHTML: string; createdAt: string } & CommentFields)
-  | { __typename: 'PullRequestReview'; id: string; author: Actor; state: ReviewState; bodyHTML: string; submittedAt: string | null; createdAt: string }
+  | ({ __typename: 'IssueComment'; author: Actor; bodyHTML: string; createdAt: string } & CommentFields & CommentMeta)
+  | {
+      __typename: 'PullRequestReview';
+      id: string;
+      author: Actor;
+      state: ReviewState;
+      bodyHTML: string;
+      submittedAt: string | null;
+      createdAt: string;
+      url: string;
+      authorAssociation: AuthorAssociation;
+    }
   | {
       __typename: 'PullRequestCommit';
       id: string;
@@ -244,7 +305,20 @@ export type TimelineItem =
   | Event<'ReviewDismissedEvent', { dismissalMessage: string | null; review: { author: { login: string } | null } | null }>
   | Event<'AutoMergeEnabledEvent'>
   | Event<'AutoMergeDisabledEvent'>
-  | Event<'BaseRefForcePushedEvent', { ref: { name: string } | null }>;
+  | Event<'BaseRefForcePushedEvent', { ref: { name: string } | null }>
+  | Event<'BaseRefChangedEvent', { previousRefName: string; currentRefName: string }>
+  | Event<'ReviewRequestRemovedEvent', { requestedReviewer: { __typename: string; login?: string; name?: string } | null }>
+  | Event<'HeadRefRestoredEvent'>
+  | Event<'MilestonedEvent' | 'DemilestonedEvent', { milestoneTitle: string }>
+  | Event<'LockedEvent', { lockReason: LockReason | null }>
+  | Event<'UnlockedEvent'>
+  | Event<'AddedToMergeQueueEvent'>
+  | Event<'RemovedFromMergeQueueEvent', { reason: string | null }>
+  | Event<'ReferencedEvent', { commit: { abbreviatedOid: string; messageHeadline: string; url: string } | null }>
+  | Event<'DeployedEvent', { deployment: { environment: string | null } }>;
+
+/** Some of a pull request's activity, oldest first. */
+export type TimelinePage = { pageInfo: { hasPreviousPage: boolean; hasNextPage: boolean; endCursor: string | null }; nodes: TimelineItem[] };
 
 export type ReviewThread = {
   id: string;
@@ -259,7 +333,7 @@ export type ReviewThread = {
   /** PENDING comments belong to the viewer's unsubmitted review; only the viewer sees them. */
   comments: {
     totalCount: number;
-    nodes: ({ author: Actor; bodyHTML: string; createdAt: string; diffHunk: string; state: 'PENDING' | 'SUBMITTED' } & CommentFields)[];
+    nodes: ({ author: Actor; bodyHTML: string; createdAt: string; diffHunk: string; state: 'PENDING' | 'SUBMITTED' } & CommentFields & CommentMeta)[];
   };
 };
 
@@ -271,6 +345,7 @@ export type PullRequest = {
   state: PrState;
   isDraft: boolean;
   createdAt: string;
+  lastEditedAt: string | null;
   mergedAt: string | null;
   closedAt: string | null;
   bodyHTML: string;
@@ -283,7 +358,10 @@ export type PullRequest = {
   headRefOid: string;
   isCrossRepository: boolean;
   headRepositoryOwner: { login: string } | null;
+  /** The repository the head branch lives in: a fork's for a cross-repository PR. Null once that fork is deleted. */
+  headRepository: { id: string; nameWithOwner: string } | null;
   headRef: { id: string } | null;
+  viewerCanDeleteHeadRef: boolean;
   additions: number;
   deletions: number;
   changedFiles: number;
@@ -297,12 +375,19 @@ export type PullRequest = {
   mergedBy: Actor;
   viewerDidAuthor: boolean;
   viewerCanUpdate: boolean;
+  /** Whether the viewer can push to the head branch, so GitHub's editor can change its files. */
+  viewerCanEditFiles: boolean;
   viewerCanMergeAsAdmin: boolean;
   viewerCanUpdateBranch: boolean;
   viewerCanEnableAutoMerge: boolean;
   viewerCanDisableAutoMerge: boolean;
   viewerCanLabel: boolean;
   viewerCanAssign: boolean;
+  viewerCanSubscribe: boolean;
+  viewerSubscription: 'SUBSCRIBED' | 'UNSUBSCRIBED' | 'IGNORED' | null;
+  locked: boolean;
+  activeLockReason: LockReason | null;
+  milestone: { id: string; title: string; url: string } | null;
   mergeHeadline: string;
   mergeBody: string;
   squashHeadline: string;
@@ -324,17 +409,18 @@ export type PullRequest = {
   };
   files: { totalCount: number; nodes: { path: string; additions: number; deletions: number; changeType: string }[] };
   reviewThreads: { totalCount: number; nodes: ReviewThread[] };
-  timelineItems: { totalCount: number; nodes: TimelineItem[] };
+  timelineItems: TimelinePage;
 };
 
 // The fields of `PullRequest` that each part after the first brings. The first part brings `PrHead`.
 type MergeFields =
-  | 'mergedAt' | 'closedAt' | 'headRef' | 'mergeable' | 'mergeStateStatus' | 'reviewDecision' | 'isMergeQueueEnabled'
+  | 'mergedAt' | 'closedAt' | 'headRef' | 'viewerCanDeleteHeadRef' | 'mergeable' | 'mergeStateStatus' | 'reviewDecision' | 'isMergeQueueEnabled'
   | 'isInMergeQueue' | 'mergeQueueEntry' | 'autoMergeRequest' | 'mergedBy' | 'viewerCanMergeAsAdmin' | 'viewerCanUpdateBranch'
   | 'viewerCanEnableAutoMerge' | 'viewerCanDisableAutoMerge' | 'mergeHeadline' | 'mergeBody' | 'squashHeadline' | 'squashBody'
   | 'commits';
 type ReviewFields =
-  | 'viewerDidAuthor' | 'viewerCanLabel' | 'viewerCanAssign' | 'baseRepository' | 'labels' | 'assignees' | 'closingIssuesReferences'
+  | 'viewerDidAuthor' | 'viewerCanLabel' | 'viewerCanAssign' | 'viewerCanSubscribe' | 'viewerSubscription' | 'locked'
+  | 'activeLockReason' | 'baseRepository' | 'milestone' | 'labels' | 'assignees' | 'closingIssuesReferences'
   | 'reviewRequests' | 'latestOpinionatedReviews' | 'viewerPendingReview' | 'files' | 'reviewThreads';
 
 /**
@@ -401,12 +487,18 @@ export const MUTATIONS = {
   disableAutoMerge: m('DisablePullRequestAutoMerge', '{ pullRequestId: $id }', '$id: ID!'),
   enqueue: m('EnqueuePullRequest', '{ pullRequestId: $id, expectedHeadOid: $oid }', '$id: ID!, $oid: GitObjectID'),
   dequeue: m('DequeuePullRequest', '{ id: $id }', '$id: ID!'),
-  updateBranch: m('UpdatePullRequestBranch', '{ pullRequestId: $id }', '$id: ID!'),
+  updateBranch: m('UpdatePullRequestBranch', '{ pullRequestId: $id, updateMethod: $method }', '$id: ID!, $method: PullRequestBranchUpdateMethod'),
   readyForReview: m('MarkPullRequestReadyForReview', '{ pullRequestId: $id }', '$id: ID!'),
   convertToDraft: m('ConvertPullRequestToDraft', '{ pullRequestId: $id }', '$id: ID!'),
   close: m('ClosePullRequest', '{ pullRequestId: $id }', '$id: ID!'),
   reopen: m('ReopenPullRequest', '{ pullRequestId: $id }', '$id: ID!'),
   deleteBranch: m('DeleteRef', '{ refId: $id }', '$id: ID!'),
+  restoreBranch: m('CreateRef', '{ repositoryId: $repo, name: $name, oid: $oid }', '$repo: ID!, $name: String!, $oid: GitObjectID!'),
+  // Opens a pull request that reverts this merged one, and returns it.
+  revert: /* GraphQL */ `mutation RevertPullRequest($id: ID!) {
+    revertPullRequest(input: { pullRequestId: $id }) { revertPullRequest { url } }
+  }`,
+  discardReview: m('DeletePullRequestReview', '{ pullRequestReviewId: $id }', '$id: ID!'),
   resolveThread: m('ResolveReviewThread', '{ threadId: $id }', '$id: ID!'),
   unresolveThread: m('UnresolveReviewThread', '{ threadId: $id }', '$id: ID!'),
   markViewed: m('MarkFileAsViewed', '{ pullRequestId: $id, path: $path }', '$id: ID!, $path: String!'),
@@ -414,24 +506,42 @@ export const MUTATIONS = {
   replyToThread: m('AddPullRequestReviewThreadReply', '{ pullRequestReviewThreadId: $id, body: $body }', '$id: ID!, $body: String!'),
 };
 
-// ── Edits: reviewers, assignees, labels, title and description, comments, reactions ──
+// ── Edits: reviewers, assignees, labels, milestone, title, base and description, comments, projects, reactions, notifications ──
 export const EDIT_MUTATIONS = {
-  requestReviews: m('RequestReviews', '{ pullRequestId: $id, userIds: $ids, union: true }', '$id: ID!, $ids: [ID!]!'),
+  // `ids` are people, `teams` teams.
+  requestReviews: m('RequestReviews', '{ pullRequestId: $id, userIds: $ids, teamIds: $teams, union: true }', '$id: ID!, $ids: [ID!], $teams: [ID!]'),
   addAssignees: m('AddAssigneesToAssignable', '{ assignableId: $id, assigneeIds: $ids }', '$id: ID!, $ids: [ID!]!'),
   removeAssignees: m('RemoveAssigneesFromAssignable', '{ assignableId: $id, assigneeIds: $ids }', '$id: ID!, $ids: [ID!]!'),
   addLabels: m('AddLabelsToLabelable', '{ labelableId: $id, labelIds: $ids }', '$id: ID!, $ids: [ID!]!'),
   removeLabels: m('RemoveLabelsFromLabelable', '{ labelableId: $id, labelIds: $ids }', '$id: ID!, $ids: [ID!]!'),
   updateTitle: m('UpdatePullRequest', '{ pullRequestId: $id, title: $title }', '$id: ID!, $title: String!'),
   updateBody: m('UpdatePullRequest', '{ pullRequestId: $id, body: $body }', '$id: ID!, $body: String!'),
+  updateBase: m('UpdatePullRequest', '{ pullRequestId: $id, baseRefName: $base }', '$id: ID!, $base: String!'),
+  // A null milestone removes it.
+  updateMilestone: m('UpdatePullRequest', '{ pullRequestId: $id, milestoneId: $milestone }', '$id: ID!, $milestone: ID'),
+  subscribe: m('UpdateSubscription', '{ subscribableId: $id, state: $state }', '$id: ID!, $state: SubscriptionState!'),
+  lock: m('LockLockable', '{ lockableId: $id, lockReason: $reason }', '$id: ID!, $reason: LockReason'),
+  unlock: m('UnlockLockable', '{ lockableId: $id }', '$id: ID!'),
+  hideComment: m('MinimizeComment', '{ subjectId: $id, classifier: $reason }', '$id: ID!, $reason: ReportedContentClassifiers!'),
+  unhideComment: m('UnminimizeComment', '{ subjectId: $id }', '$id: ID!'),
   updateComment: m('UpdateIssueComment', '{ id: $id, body: $body }', '$id: ID!, $body: String!'),
   deleteComment: m('DeleteIssueComment', '{ id: $id }', '$id: ID!'),
   updateReviewComment: m('UpdatePullRequestReviewComment', '{ pullRequestReviewCommentId: $id, body: $body }', '$id: ID!, $body: String!'),
   deleteReviewComment: m('DeletePullRequestReviewComment', '{ id: $id }', '$id: ID!'),
+  // Projects need the token's `project` scope.
+  addToProject: m('AddProjectV2ItemById', '{ projectId: $project, contentId: $id }', '$project: ID!, $id: ID!'),
+  removeFromProject: m('DeleteProjectV2Item', '{ projectId: $project, itemId: $item }', '$project: ID!, $item: ID!'),
+  setProjectStatus: m(
+    'UpdateProjectV2ItemFieldValue',
+    '{ projectId: $project, itemId: $item, fieldId: $field, value: { singleSelectOptionId: $option } }',
+    '$project: ID!, $item: ID!, $field: ID!, $option: String!',
+  ),
   addReaction: m('AddReaction', '{ subjectId: $id, content: $content }', '$id: ID!, $content: ReactionContent!'),
   removeReaction: m('RemoveReaction', '{ subjectId: $id, content: $content }', '$id: ID!, $content: ReactionContent!'),
 };
 
-const prKey = (owner: string, repo: string, number: number) => [owner.toLowerCase(), repo.toLowerCase(), number] as const;
+/** A pull request's place in query keys. */
+export const prKey = (owner: string, repo: string, number: number) => [owner.toLowerCase(), repo.toLowerCase(), number] as const;
 
 /**
  * One part of a pull request, persisted, so a revisit shows every part at once. Each part's key starts with the
@@ -441,7 +551,7 @@ const partQuery = <T>(query: string, owner: string, repo: string, number: number
   queryOptions({
     // The version keeps results persisted by an older build (missing newer fields) from rendering.
     // Bump it whenever a part gains fields.
-    queryKey: ['pr', 5, ...prKey(owner, repo, number), ...part],
+    queryKey: ['pr', 7, ...prKey(owner, repo, number), ...part],
     queryFn: () => gql<T>(query, { owner, repo, number }, true),
     persister: persisted,
   });
@@ -476,6 +586,37 @@ export function joinPr(head: HeadPart | undefined, merge: MergePart | undefined,
   return { pr, repo, merge: withMerge, review: withReview, timelineItems, full };
 }
 export type LoadedPr = NonNullable<ReturnType<typeof joinPr>>;
+
+/**
+ * The activity older than the timeline part's newest 100 items, 100 at a time from the first item on, as GitHub's
+ * "Load more" does. Pages from the start stay valid as new activity comes in; the last ones can overlap the
+ * newest 100 (see `earlierItems`). Loaded only on request, and not persisted.
+ */
+export const prEarlierTimelineQuery = (owner: string, repo: string, number: number) =>
+  infiniteQueryOptions({
+    queryKey: ['pr-timeline-earlier', ...prKey(owner, repo, number)],
+    queryFn: async ({ pageParam, signal }) => {
+      const data = await gql<TimelinePart>(PR_EARLIER_TIMELINE_QUERY, { owner, repo, number, after: pageParam }, true, signal);
+      const page = data.repository?.pullRequest?.timelineItems;
+      if (!page) throw new Error('Pull request not found.');
+      return page;
+    },
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => (last.pageInfo.hasNextPage ? last.pageInfo.endCursor : undefined),
+  });
+
+/**
+ * The loaded older activity that isn't among the `newest` items, and whether more is hidden between them: until
+ * a page reaches the newest items (or the last item) there is.
+ */
+export function earlierItems(pages: TimelinePage[], newest: TimelinePage) {
+  if (!newest.pageInfo.hasPreviousPage) return { items: [], more: false };
+  const shown = new Set(newest.nodes.map((item) => item.id));
+  const loaded = pages.flatMap((page) => page.nodes);
+  const items = loaded.filter((item) => !shown.has(item.id));
+  const last = pages.at(-1);
+  return { items, more: !last || (last.pageInfo.hasNextPage && items.length === loaded.length) };
+}
 
 const PR_STATUS_QUERY = /* GraphQL */ `
   query PullRequestStatus($owner: String!, $repo: String!, $number: Int!) {

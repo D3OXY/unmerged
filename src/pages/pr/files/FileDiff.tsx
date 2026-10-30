@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { QueryKey } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowRight01Icon, Copy01Icon, File02Icon, Tick02Icon } from '@hugeicons/core-free-icons';
+import { ArrowRight01Icon, Copy01Icon, File02Icon, PencilEdit02Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { copy } from '@/lib/clipboard';
 import { cx } from '@/lib/cx';
 import type { PullRequest, ReviewThread, ViewedState } from '../query';
@@ -35,6 +35,8 @@ export type FileReview = {
   pr?: PullRequest;
   queryKey: QueryKey;
   onToggleViewed: (change: { path: string; wasViewed: boolean }) => void;
+  /** GitHub's editor for a file on the head branch; undefined when the viewer can't push there. */
+  editHref?: (path: string) => string;
 };
 
 const NO_THREADS: ReviewThread[] = [];
@@ -116,6 +118,11 @@ export const FileDiff = memo(function FileDiff({ file, source, review, anchor, m
         <a href={file.blob_url} title="View file" className="flex size-7 shrink-0 items-center justify-center rounded-md text-subtle hover:bg-hover hover:text-fg">
           <HugeiconsIcon icon={File02Icon} className="size-3.5" />
         </a>
+        {review?.editHref && file.status !== 'removed' && (
+          <a href={review.editHref(file.filename)} title="Edit file" aria-label="Edit file" className="flex size-7 shrink-0 items-center justify-center rounded-md text-subtle hover:bg-hover hover:text-fg">
+            <HugeiconsIcon icon={PencilEdit02Icon} className="size-3.5" />
+          </a>
+        )}
         {viewState === 'DISMISSED' && (
           <span title="Changed since you marked it viewed" className="shrink-0 rounded-full bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning">
             Changed since viewed

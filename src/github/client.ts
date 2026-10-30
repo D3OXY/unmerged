@@ -5,7 +5,8 @@ import { apiFetch } from './early';
 
 /** Why a GitHub request failed, in terms the UI can act on. */
 export type GitHubProblem =
-  | { kind: 'auth' | 'not-found' | 'other' }
+  /** `scope`: the token lacks a scope that the request needs (GraphQL's INSUFFICIENT_SCOPES). */
+  | { kind: 'auth' | 'not-found' | 'scope' | 'other' }
   /** The token's rate limit (or a secondary limit) is spent until `resetAt`, in ms since the epoch. */
   | { kind: 'rate-limit'; resetAt: number }
   /** An organization's SAML SSO hasn't authorized the token. `authorizeUrl` is GitHub's page for it, when sent. */
@@ -148,6 +149,21 @@ export async function restText(path: string, signal?: AbortSignal): Promise<stri
   return res.text();
 }
 
+/**
+ * GitHub's own (sanitized) HTML for Markdown, as a comment would show it. `context` ("owner/repo") resolves
+ * `#123` and other references in that repository.
+ */
+export async function renderMarkdown(text: string, context: string, signal?: AbortSignal): Promise<string> {
+  const res = await apiFetch('https://api.github.com/markdown', {
+    method: 'POST',
+    headers: { ...(await authHeaders()), Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, mode: 'gfm', context }),
+    signal,
+  });
+  if (!res.ok) throw await httpError(res);
+  return res.text();
+}
+
 /** A non-2xx response as a GitHubError, with GitHub's message when the body has one. */
 async function httpError(res: Response) {
   const body = (await res.json().catch(() => null)) as { message?: string } | null;
@@ -174,6 +190,7 @@ function classify(res: Response, message: string, types: (string | undefined)[] 
   if ((status === 403 && sso) || /SAML/.test(message)) {
     return new GitHubError(message, status, { kind: 'sso', authorizeUrl: sso?.match(/url=(\S+)/)?.[1] });
   }
+  if (types.includes('INSUFFICIENT_SCOPES')) return new GitHubError(message, status, { kind: 'scope' });
   if (status === 404 || (types.length && types.every((type) => type === 'NOT_FOUND'))) {
     return new GitHubError(message, status, { kind: 'not-found' });
   }

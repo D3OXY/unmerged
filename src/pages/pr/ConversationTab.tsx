@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import type { QueryKey } from '@tanstack/react-query';
+import { canPushWith } from '@/pages/repo/query';
 import { Skeleton } from '@/ui/primitives';
-import { Composer } from './Composer';
+import { Composer, quoteReply } from './Composer';
 import { MergeBox } from './MergeBox';
-import { ChecksCard, FilesCard, LinkedIssuesCard, PeopleCard } from './PrSidebar';
+import { ChecksCard, FilesCard, LinkedIssuesCard, NotificationsCard, participantsOf, PeopleCard } from './PrSidebar';
 import type { LoadedPr } from './query';
 import { Threads } from './Threads';
 import { CommentCard, MoreOnGitHub, Timeline } from './Timeline';
@@ -14,16 +16,24 @@ import { CommentCard, MoreOnGitHub, Timeline } from './Timeline';
 export function ConversationTab({ loaded, queryKey }: { loaded: LoadedPr; queryKey: QueryKey }) {
   const { pr, merge, review, timelineItems } = loaded;
   const hiddenThreads = review ? review.reviewThreads.totalCount - review.reviewThreads.nodes.length : 0;
+  const participants = useMemo(() => review && timelineItems && participantsOf(review, timelineItems.nodes), [review, timelineItems]);
   return (
     <div className="grid gap-8 @3xl:grid-cols-[minmax(0,1fr)_340px]">
       <div className="flex min-w-0 flex-col gap-6">
-        <CommentCard author={pr.author} createdAt={pr.createdAt} html={pr.bodyHTML} editable={{ kind: 'pr', node: pr, queryKey }} />
+        <CommentCard
+          author={pr.author}
+          createdAt={pr.createdAt}
+          html={pr.bodyHTML}
+          editable={{ kind: 'pr', node: pr, queryKey }}
+          meta={{ url: pr.url, lastEditedAt: pr.lastEditedAt }}
+          onQuote={pr.body ? () => quoteReply(pr.id, pr.body) : undefined}
+        />
         {review && <Threads threads={review.reviewThreads.nodes} queryKey={queryKey} />}
         {hiddenThreads > 0 && <MoreOnGitHub count={hiddenThreads} noun="review threads" className="-mt-3 px-1" />}
         {/* Waits for the threads too, so the activity doesn't move down when they land. */}
         {review && timelineItems ? (
           <>
-            <Timeline items={timelineItems.nodes} hiddenCount={timelineItems.nodes.length === 100 ? timelineItems.totalCount - 100 : 0} queryKey={queryKey} />
+            <Timeline newest={timelineItems} queryKey={queryKey} pr={pr} />
             <Composer pr={review} queryKey={queryKey} />
           </>
         ) : (
@@ -44,6 +54,7 @@ export function ConversationTab({ loaded, queryKey }: { loaded: LoadedPr; queryK
             <PeopleCard pr={review} queryKey={queryKey} />
             <LinkedIssuesCard pr={review} queryKey={queryKey} />
             <FilesCard pr={review} />
+            {participants && <NotificationsCard pr={review} participants={participants} canLock={canPushWith(merge?.repo.viewerPermission)} queryKey={queryKey} />}
           </>
         ) : (
           <Skeleton className="h-48 rounded-xl" />

@@ -9,8 +9,8 @@ import { Button } from '@/ui/Button';
 import { CommentBox } from '@/ui/CommentBox';
 import { Avatar, Pill, SectionHeader } from '@/ui/primitives';
 import { CommentBody } from './CommentBody';
-import { MUTATIONS, type ReviewThread } from './query';
-import { MoreOnGitHub } from './Timeline';
+import { MUTATIONS, repoPath, type ReviewThread } from './query';
+import { CommentBadges, CommentMenu, HiddenNote, MoreOnGitHub } from './Timeline';
 import { usePrMutation } from './usePrMutation';
 
 /** Inline review threads pulled up into the conversation, unresolved first. */
@@ -105,16 +105,7 @@ export function Thread({ thread, queryKey, inline }: { thread: ReviewThread; que
           )}
           <div className="flex flex-col divide-y divide-line">
             {thread.comments.nodes.map((comment) => (
-              <div key={comment.id} className="flex gap-3 px-4 py-3">
-                <Avatar src={comment.author?.avatarUrl} size={22} />
-                <div className="min-w-0 flex-1">
-                  <div className="mb-1 text-[12.5px]">
-                    <span className="font-semibold">{comment.author?.login}</span> <span className="text-subtle">{timeAgo(comment.createdAt)}</span>
-                    {comment.state === 'PENDING' && <Pill className="ml-1.5 h-[18px] border-warning/40 text-warning">Pending</Pill>}
-                  </div>
-                  <CommentBody html={comment.bodyHTML} className="text-[13px]" kind="reviewComment" node={comment} queryKey={queryKey} />
-                </div>
-              </div>
+              <ThreadComment key={comment.id} comment={comment} queryKey={queryKey} />
             ))}
           </div>
           {thread.comments.totalCount > thread.comments.nodes.length && (
@@ -123,6 +114,32 @@ export function Thread({ thread, queryKey, inline }: { thread: ReviewThread; que
           {thread.viewerCanReply && <ThreadReply thread={thread} queryKey={queryKey} />}
         </>
       )}
+    </div>
+  );
+}
+
+/** One comment of a thread, with its menu (copy link, hide); a hidden one stays folded until opened. */
+function ThreadComment({ comment, queryKey }: { comment: ReviewThread['comments']['nodes'][number]; queryKey: QueryKey }) {
+  const [revealed, setRevealed] = useState(false);
+  return (
+    <div className="flex gap-3 px-4 py-3">
+      <Avatar src={comment.author?.avatarUrl} size={22} />
+      <div className="min-w-0 flex-1">
+        <div className="mb-1 flex items-center gap-1.5 text-[12.5px]">
+          <span className="font-semibold">{comment.author?.login}</span>
+          <span className="text-subtle">{timeAgo(comment.createdAt)}</span>
+          {comment.lastEditedAt && <span className="text-subtle">· edited</span>}
+          {comment.state === 'PENDING' && <Pill className="h-[18px] border-warning/40 text-warning">Pending</Pill>}
+          <span className="ml-auto flex items-center gap-1.5">
+            <CommentBadges association={comment.authorAssociation} isPrAuthor={false} />
+            <CommentMenu meta={comment} subjectId={comment.id} queryKey={queryKey} />
+          </span>
+        </div>
+        {comment.isMinimized && (
+          <HiddenNote reason={comment.minimizedReason} revealed={revealed} onToggle={() => setRevealed((r) => !r)} className="mb-1" />
+        )}
+        {(!comment.isMinimized || revealed) && <CommentBody html={comment.bodyHTML} className="text-[13px]" kind="reviewComment" node={comment} queryKey={queryKey} />}
+      </div>
     </div>
   );
 }
@@ -138,7 +155,7 @@ function ThreadReply({ thread, queryKey }: { thread: ReviewThread; queryKey: Que
 
   return (
     <div className="border-t border-line p-2.5">
-      <CommentBox value={reply} onChange={setReply} onSubmit={submit} rows={2} placeholder="Reply…" className="bg-bg">
+      <CommentBox value={reply} onChange={setReply} onSubmit={submit} rows={2} placeholder="Reply…" preview={thread.comments.nodes[0] && repoPath(thread.comments.nodes[0])} className="bg-bg">
         <Button size="sm" variant="primary" disabled={!text} loading={send.isPending} onClick={submit} className="ml-auto">
           Reply
         </Button>

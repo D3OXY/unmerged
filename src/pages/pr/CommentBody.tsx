@@ -7,7 +7,7 @@ import { Button } from '@/ui/Button';
 import { CommentBox } from '@/ui/CommentBox';
 import { Menu, type MenuOption } from '@/ui/Menu';
 import { Markdown } from '@/ui/primitives';
-import { EDIT_MUTATIONS, type CommentFields, type ReactionContent, type ReactionGroup } from './query';
+import { EDIT_MUTATIONS, repoPath, type CommentFields, type ReactionContent, type ReactionGroup } from './query';
 import { usePrMutation } from './usePrMutation';
 
 // What each kind of comment saves and deletes with. The description can be edited but not deleted.
@@ -42,6 +42,7 @@ export function CommentBody({ html, kind, node, queryKey, className }: Editable 
         onClose={() => setDraft(null)}
         rows={Math.min(20, Math.max(4, draft.split('\n').length + 1))}
         placeholder={kind === 'pr' ? 'Describe this pull request… Markdown supported' : 'Markdown supported'}
+        preview={node.url && repoPath({ url: node.url })}
         className="bg-bg"
       >
         <Button size="sm" variant="ghost" onClick={() => setDraft(null)} className="ml-auto">

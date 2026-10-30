@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Alert02Icon, ArrowUpRight01Icon, CancelCircleIcon, InformationCircleIcon, MinusSignIcon, StopCircleIcon, UndoIcon } from '@hugeicons/core-free-icons';
+import { Alert02Icon, ArrowUpRight01Icon, CancelCircleIcon, InformationCircleIcon, MinusSignIcon, RefreshIcon, StopCircleIcon, UndoIcon } from '@hugeicons/core-free-icons';
 import { gql, rest } from '@/github/client';
 import type { CheckState } from '@/github/types';
 import { cx } from '@/lib/cx';
@@ -26,7 +26,7 @@ const CHECKS_QUERY = /* GraphQL */ `
               oid
               checkSuites(first: 50) {
                 nodes {
-                  id
+                  id status conclusion
                   app { name logoUrl }
                   workflowRun { databaseId runNumber event url workflow { name } }
                   checkRuns(first: 100) {
@@ -77,6 +77,8 @@ type CheckRun = {
 
 type Suite = {
   id: string;
+  status: string;
+  conclusion: string | null;
   app: { name: string; logoUrl: string } | null;
   workflowRun: { databaseId: number; runNumber: number; event: string; url: string; workflow: { name: string } } | null;
   checkRuns: { nodes: CheckRun[] };
@@ -151,14 +153,15 @@ export function ChecksTab({ pr, watching, slow, onRerun, onPolling }: {
   if (isPending) return <Skeleton className="h-80 rounded-xl" />;
 
   const commit = data.node.commits.nodes[0]?.commit;
+  // A workflow run that waits for a maintainer's approval (a fork's first pull request) has no check runs yet.
   const suites = (commit?.checkSuites.nodes ?? [])
-    .filter((s) => s.checkRuns.nodes.length)
+    .filter((s) => s.checkRuns.nodes.length || (s.workflowRun && runOutcome(s) === 'ACTION_REQUIRED'))
     .map((s) => ({ ...s, runs: [...s.checkRuns.nodes].sort((a, b) => ORDER[runOutcome(a)] - ORDER[runOutcome(b)]) }))
-    .sort((a, b) => ORDER[runOutcome(a.runs[0]!)] - ORDER[runOutcome(b.runs[0]!)]);
+    .sort((a, b) => ORDER[runOutcome(a.runs[0] ?? a)] - ORDER[runOutcome(b.runs[0] ?? b)]);
   const statuses = commit?.status?.contexts ?? [];
   const allRuns = suites.flatMap((s) => s.runs);
 
-  if (!allRuns.length && !statuses.length) {
+  if (!suites.length && !statuses.length) {
     return (
       <Panel>
         <Empty>No checks reported for the latest commit.</Empty>
@@ -196,6 +199,13 @@ export function ChecksTab({ pr, watching, slow, onRerun, onPolling }: {
   );
 }
 
+// What each workflow run button asks of GitHub Actions, and what its toast says.
+const RUN_ACTIONS = {
+  failed: ['rerun-failed-jobs', 'Re-running failed jobs in'],
+  all: ['rerun', 'Re-running all jobs in'],
+  approve: ['approve', 'Approved and running'],
+} as const;
+
 function SuiteCard({
   suite,
   runs,
@@ -214,11 +224,13 @@ function SuiteCard({
   const queryClient = useQueryClient();
   // GitHub's "re-run failed jobs" also re-runs cancelled ones.
   const failed = runs.some((r) => ['FAILURE', 'CANCELLED'].includes(runOutcome(r)));
+  const finished = runs.length > 0 && runs.every((r) => r.status === 'COMPLETED');
+  const waiting = runOutcome(suite) === 'ACTION_REQUIRED';
   const run = suite.workflowRun;
   const rerun = useMutation({
-    mutationFn: () => rest(`/repos/${repoPath(pr)}/actions/runs/${run!.databaseId}/rerun-failed-jobs`, { method: 'POST' }),
-    onSuccess: () => {
-      toast.success(`Re-running failed jobs in ${run!.workflow.name}`);
+    mutationFn: (action: keyof typeof RUN_ACTIONS) => rest(`/repos/${repoPath(pr)}/actions/runs/${run!.databaseId}/${RUN_ACTIONS[action][0]}`, { method: 'POST' }),
+    onSuccess: (_, action) => {
+      toast.success(`${RUN_ACTIONS[action][1]} ${run!.workflow.name}`);
       onRerun();
       return queryClient.invalidateQueries({ queryKey: ['pr-checks', pr.id] });
     },
@@ -237,12 +249,29 @@ function SuiteCard({
           <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">{suite.app?.name ?? 'Checks'}</span>
         )}
         {run && <span className="text-[11.5px] text-subtle">#{run.runNumber} · {run.event.replace(/_/g, ' ')}</span>}
+        {run && waiting && (
+          <Button size="sm" loading={rerun.isPending} onClick={() => rerun.mutate('approve')} title="Approve this fork's workflows to run">
+            Approve and run
+          </Button>
+        )}
         {run && failed && (
-          <Button size="sm" variant="ghost" loading={rerun.isPending} icon={<HugeiconsIcon icon={UndoIcon} className="size-3" />} onClick={() => rerun.mutate()}>
+          <Button size="sm" variant="ghost" loading={rerun.isPending && rerun.variables === 'failed'} icon={<HugeiconsIcon icon={UndoIcon} className="size-3" />} onClick={() => rerun.mutate('failed')}>
             Re-run failed
           </Button>
         )}
+        {run && finished && (
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label="Re-run all jobs"
+            title="Re-run all jobs"
+            loading={rerun.isPending && rerun.variables === 'all'}
+            icon={<HugeiconsIcon icon={RefreshIcon} className="size-3.5" />}
+            onClick={() => rerun.mutate('all')}
+          />
+        )}
       </div>
+      {waiting && !runs.length && <p className="px-2.5 pb-2 text-[12px] text-muted">This workflow waits for a maintainer to approve it.</p>}
       {runs.map((r) => (
         <button
           key={r.id}

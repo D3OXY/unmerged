@@ -13,7 +13,7 @@ export const TOKEN_DOCS_URL = 'https://github.com/D3OXY/unmerged#token';
 export const SUPPORT_EMAIL = 'hello@deoxy.dev';
 /** Prefilled classic token with the scopes the extension asks for (same link as the README). */
 export const TOKEN_URL =
-  'https://github.com/settings/tokens/new?description=Unmerged&scopes=repo,read:org,read:user,user:follow,notifications';
+  'https://github.com/settings/tokens/new?description=Unmerged&scopes=repo,read:org,read:user,user:follow,notifications,project';
 
 export const TAGLINE = 'GitHub, as if it never got acquired.';
 export const DESCRIPTION =

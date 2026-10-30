@@ -7,6 +7,7 @@ import { usePageHotkey } from '@/app/keyboard';
 import { gql } from '@/github/client';
 import { cx } from '@/lib/cx';
 import { loadDiffs } from '@/lib/diffs';
+import { editUrl } from '@/pages/repo/urls';
 import { Menu, type MenuOption } from '@/ui/Menu';
 import { Skeleton } from '@/ui/primitives';
 import { toast } from '@/ui/toast';
@@ -15,6 +16,7 @@ import { diffAnchor } from './anchor';
 import { FileDiff, type DiffMode, type FileReview, type PrFile } from './FileDiff';
 import { fileTypes, isShown, useFileFilter, type FileType, type Hidden } from './filter';
 import { FileTree } from './FileTree';
+import { ReviewPanel } from './ReviewPanel';
 import { isOpenLineThread, nextOpenThread } from './threads';
 
 /**
@@ -107,7 +109,10 @@ export function FilesTab({ pr, full, queryKey, panel = false }: { pr: PrHead; fu
     else cards.current.delete(path);
   }, []);
   const source = useMemo(() => ({ nameWithOwner: `${owner}/${repo}`, oid: pr.headRefOid }), [owner, repo, pr.headRefOid]);
-  const review = useMemo<FileReview>(() => ({ pr: full, queryKey, onToggleViewed: toggleViewed }), [full, queryKey, toggleViewed]);
+  // GitHub's editor commits to the head branch, so it is offered to people who can push there.
+  const headRepo = pr.state === 'OPEN' && pr.viewerCanEditFiles ? pr.headRepository?.nameWithOwner : undefined;
+  const editHref = useMemo(() => (headRepo ? (path: string) => editUrl(headRepo, pr.headRefName, path) : undefined), [headRepo, pr.headRefName]);
+  const review = useMemo<FileReview>(() => ({ pr: full, queryKey, onToggleViewed: toggleViewed, editHref }), [full, queryKey, toggleViewed, editHref]);
 
   const threadsByPath = useMemo(() => {
     const map = new Map<string, ReviewThread[]>();
@@ -344,6 +349,7 @@ export function FilesTab({ pr, full, queryKey, panel = false }: { pr: PrHead; fu
                 </button>
               ))}
             </div>
+            {full?.state === 'OPEN' && <ReviewPanel pr={full} queryKey={queryKey} />}
           </div>
         </div>
 
