@@ -1,5 +1,28 @@
 # unmerged
 
+## 0.1.3 (2026-11-02)
+
+### Patch Changes
+
+- [New][Sidebar] Click your name in the sidebar to open GitHub's account menu: profile, repositories, stars, settings, sign out and more.
+- [Fixed][Actions] A workflow run that waits for a maintainer's approval now shows a yellow warning, as on GitHub, not a red failure. Checks that wait for approval on a pull request show the same warning.
+- [Fixed][Actions] A cancelled workflow run or job now shows a gray stop icon, as on GitHub, not a red failure. A cancelled check on a pull request shows the same icon, and the merge box says "cancelled check", not "failing check".
+- [Improved][Profiles & organizations] Hover a day in the contribution graph to see its count and full date in a clear tooltip, which shows at once.
+- [Improved][Pull requests] An open pull request uses about half as much of your GitHub API limit while CI runs. After two minutes, check results update every 30 seconds.
+- [New][Pull requests] Files changed has a Filter menu, as on GitHub: hide viewed files, deleted files, or files of a type such as `.lock`. A new setting, Keep file filters, keeps the filters after a reload: in the page's URL, or for all pull requests. It is off by default.
+- [New][Pull requests] Comments have a menu, as on GitHub: copy a comment's link, quote it in your reply, or hide it as outdated, resolved, off-topic, spam and more. Hidden comments stay folded until you show them, and comments show the author's role and an "edited" mark. Every comment box has a Preview tab, and with text in the box, Close becomes Close with comment.
+- [New][Pull requests] Files changed can show the changes since your last review, one commit, or a span of commits (Shift-click), from the new commit menu. These views use GitHub's URLs, so links to them open in Unmerged, and you can comment on the new lines when the commits go up to the latest one.
+- [New][Pull requests] A long conversation can load its older activity: "Load more" adds the next 100 events from the start, as on GitHub, so you no longer need classic GitHub to read them.
+- [Fixed][Pull requests] A comment on a whole file no longer shows as a comment on line 1.
+- [New][Pull requests] In Files changed, you can comment on a whole file with the comment button in the file's header, as a single comment or as part of your review. Comments on a whole file show above the file's diff.
+- [New][Pull requests] Typing @ in a comment suggests people who can be mentioned in the repository. Use the arrow keys and Enter or Tab to pick one, or click it.
+- [New][Pull requests] The pencil next to the base branch changes it. The merge box can update a branch with a rebase, revert a merged pull request, restore a deleted branch and convert an open pull request to a draft. The timeline shows more events: base branch changes, milestones, locks, merge queue, deployments, restored branches, removed review requests and commits that reference the pull request.
+- [New][Pull requests] The sidebar shows the pull request's projects with their status. You can change the status, and add the pull request to a project or remove it. A token needs the `project` scope for this; the "Create a token" link now asks for it.
+- [New][Pull requests] Submit or discard your review from Files changed with the new Review button, and open a file in GitHub's editor with the pencil on its header. The Checks tab can re-run all jobs of a workflow and approve a fork's workflows that wait to run.
+- [New][Pull requests] The sidebar shows and sets the milestone, removes review requests, subscribes you to or unsubscribes you from the pull request, shows its participants, and lets maintainers lock and unlock the conversation.
+- [New][Pull requests] You can request a review from a team: the reviewer picker lists the organization's teams that have access to the repository, next to people.
+- [Fixed][Pull requests] When a pull request changes more than 3,000 files, Files changed now tells you that GitHub lists only the first 3,000, and how many more files there are. The sidebar's Files card now shows the full count.
+
 ## 0.1.2 (2026-10-21)
 
 ### Patch Changes
