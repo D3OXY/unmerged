@@ -10,6 +10,7 @@ import { matchRoute } from '@/lib/routes';
 import { appearanceItem, pinsItem, useStorageItem, type Appearance, type Blur } from '@/lib/settings';
 import { useUnreadCount } from '@/pages/notifications/queries';
 import { Avatar, Kbd } from '@/ui/primitives';
+import { AccountMenu } from './AccountMenu';
 import { paletteOpen } from './commands';
 import { Logo } from './Logo';
 import { settingsOpen } from './SettingsDialog';
@@ -109,13 +110,8 @@ export function Sidebar({ active }: { active?: NavSection }) {
         )}
       </div>
 
-      <div className="flex items-center gap-2 border-t border-line px-1.5 pt-3">
-        {viewer && (
-          <a href={`/${viewer.login}`} className="flex min-w-0 items-center gap-2 rounded-md">
-            <Avatar src={viewer.avatarUrl} size={22} />
-            <span className="truncate text-[12.5px] font-medium">{viewer.login}</span>
-          </a>
-        )}
+      <div className="relative flex items-center gap-2 border-t border-line px-1.5 pt-3">
+        {viewer && <AccountMenu viewer={viewer} />}
         <AppearanceButton />
         <button
           type="button"

@@ -6,6 +6,7 @@ const VIEWER_QUERY = /* GraphQL */ `
   query Viewer {
     viewer {
       login name avatarUrl
+      status { message emojiHTML }
       organizations(first: 8) { nodes { login avatarUrl url } }
     }
   }
@@ -15,6 +16,8 @@ export type Viewer = {
   login: string;
   name: string | null;
   avatarUrl: string;
+  /** Absent from a viewer that an older version cached. */
+  status?: { message: string | null; emojiHTML: string | null } | null;
   organizations: { nodes: { login: string; avatarUrl: string; url: string }[] };
 };
 
