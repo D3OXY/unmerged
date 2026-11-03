@@ -1,5 +1,14 @@
 # unmerged
 
+## 0.1.4 (2026-11-03)
+
+### Patch Changes
+
+- [Fixed][Settings] "Change token" in the Settings dialog on GitHub now closes the dialog and opens the token form in a new tab. When you save or cancel, the tab closes and you are back on GitHub.
+- [Fixed][Updates] After Unmerged updates, a page that Unmerged shows in a tab that was already open reloads with the new version. Before, the page could go blank.
+- [Improved][Privacy] By default, Privacy now blurs only email addresses. You can turn on blur for organizations, private repository names, commit messages and titles in Settings.
+- [Improved][Settings] The "Create a token" link now sets the token to never expire, so Unmerged doesn't stop working without warning. You can still pick a date on GitHub's form. A new "Why a token?" link explains why Unmerged needs a token, where the token goes, and how to limit or revoke it.
+
 ## 0.1.3 (2026-11-02)
 
 ### Patch Changes
