@@ -220,7 +220,7 @@ function PrivacyPage() {
   const privacy = useStorageItem(privacyItem);
   if (!privacy) return null;
   const keys = Object.keys(BLURS) as Blur[];
-  // A kind added after the setting was saved is on, as in `blurredKinds`.
+  // A kind added after the setting was saved takes its default, as in `blurredKinds`.
   const blur = { ...DEFAULT_PRIVACY.blur, ...privacy.blur };
 
   return (

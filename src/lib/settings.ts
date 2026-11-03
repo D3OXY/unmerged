@@ -85,13 +85,13 @@ export type Blur = 'orgs' | 'repos' | 'commits' | 'titles' | 'emails';
 /** Privacy blurs details on screen (for screen sharing) until the user hovers them. `on` is the master switch. */
 export type Privacy = { on: boolean; blur: Record<Blur, boolean> };
 
-export const DEFAULT_PRIVACY: Privacy = { on: true, blur: { orgs: true, repos: true, commits: true, titles: true, emails: true } };
+export const DEFAULT_PRIVACY: Privacy = { on: true, blur: { orgs: false, repos: false, commits: false, titles: false, emails: true } };
 
 export const privacyItem = storage.defineItem<Privacy>('local:privacy', { fallback: DEFAULT_PRIVACY });
 
-/** The kinds to blur now. A kind added after the setting was saved is on, as it is by default. */
+/** The kinds to blur now. A kind added after the setting was saved takes its default. */
 export function blurredKinds({ on, blur }: Privacy) {
-  return on ? (Object.keys(DEFAULT_PRIVACY.blur) as Blur[]).filter((kind) => blur[kind] ?? true) : [];
+  return on ? (Object.keys(DEFAULT_PRIVACY.blur) as Blur[]).filter((kind) => blur[kind] ?? DEFAULT_PRIVACY.blur[kind]) : [];
 }
 
 /** Light or dark. "auto" follows GitHub's own appearance setting, then the OS. Stored under its old name. */
