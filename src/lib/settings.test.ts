@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { blurredKinds, DEFAULT_PRIVACY, type Privacy } from './settings';
 
 describe('blurredKinds', () => {
-  it('blurs every kind by default', () => {
-    expect(blurredKinds(DEFAULT_PRIVACY)).toEqual(['orgs', 'repos', 'commits', 'titles', 'emails']);
+  it('blurs only email addresses by default', () => {
+    expect(blurredKinds(DEFAULT_PRIVACY)).toEqual(['emails']);
   });
 
   it('blurs nothing while the master switch is off, whatever the kinds say', () => {
@@ -11,11 +11,12 @@ describe('blurredKinds', () => {
   });
 
   it('leaves out the kinds switched off', () => {
-    expect(blurredKinds({ on: true, blur: { ...DEFAULT_PRIVACY.blur, commits: false, emails: false } })).toEqual(['orgs', 'repos', 'titles']);
+    const blur = { orgs: true, repos: true, commits: false, titles: true, emails: false };
+    expect(blurredKinds({ on: true, blur })).toEqual(['orgs', 'repos', 'titles']);
   });
 
-  it('blurs a kind that a setting saved before it existed does not list', () => {
-    const saved = { on: true, blur: { orgs: false } } as unknown as Privacy;
-    expect(blurredKinds(saved)).toEqual(['repos', 'commits', 'titles', 'emails']);
+  it('uses the default for a kind that a setting saved before it existed does not list', () => {
+    const saved = { on: true, blur: { orgs: true } } as unknown as Privacy;
+    expect(blurredKinds(saved)).toEqual(['orgs', 'emails']);
   });
 });
