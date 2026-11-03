@@ -208,10 +208,13 @@ function GitHubStage() {
   );
 }
 
-/** Classic or fine-grained, with what each allows. The README's token section has the full list of permissions. */
+/**
+ * Classic or fine-grained, with what each allows. The README's token section has the full list of permissions.
+ * Its three columns match the steps above, so the dividers line up.
+ */
 function WhichToken() {
   return (
-    <div className="hidden overflow-hidden rounded-xl border border-line bg-panel md:grid md:grid-cols-[292px_1fr_1fr]">
+    <div className="hidden overflow-hidden rounded-xl border border-line bg-panel md:grid md:grid-cols-3">
       <div className="px-7 py-6">
         <h3 className="flex items-center gap-2 text-[15px] font-medium">
           <HugeiconsIcon icon={Key01Icon} className="size-4 text-subtle" />
