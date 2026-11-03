@@ -21,11 +21,14 @@ export function Setup() {
           </span>
         </Step>
         <Step n={2} title="Paste a token" stage={<PopupStage />} body="Click the Unmerged icon in the toolbar. The token goes only to api.github.com.">
-          <span className="hidden md:block">
-            <ArrowLink href={TOKEN_URL}>Create a token with the right scopes</ArrowLink>
-          </span>
-          <span className="md:hidden">
-            <ArrowLink href="/#which-token">Which token to use</ArrowLink>
+          <span className="flex flex-wrap gap-x-4 gap-y-1">
+            <span className="hidden md:block">
+              <ArrowLink href={TOKEN_URL}>Create a token with the right scopes</ArrowLink>
+            </span>
+            <span className="md:hidden">
+              <ArrowLink href="/#which-token">Which token to use</ArrowLink>
+            </span>
+            <ArrowLink href="/token">Why a token?</ArrowLink>
           </span>
         </Step>
         <Step n={3} title="Open any GitHub link" stage={<GitHubStage />} wide body="Pull requests, issues and notifications open in Unmerged, at the same URLs.">

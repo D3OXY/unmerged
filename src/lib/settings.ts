@@ -37,11 +37,17 @@ export const tokenItem = storage.defineItem<string>('local:token', { fallback: '
  */
 export const accountItem = storage.defineItem<string>('local:account', { fallback: '' });
 
-/** GitHub's "new token" page, prefilled with the scopes Unmerged uses. */
+/** GitHub's "new token" page, prefilled with the scopes Unmerged uses and no expiration (the user can still pick one). */
 export const NEW_TOKEN_URL =
-  'https://github.com/settings/tokens/new?description=Unmerged&scopes=repo,read:org,read:user,user:follow,notifications,project';
+  'https://github.com/settings/tokens/new?description=Unmerged&scopes=repo,read:org,read:user,user:follow,notifications,project&default_expires_at=none';
 
-/** From github.com: opens Unmerged's settings page in a tab, where the token is entered (see background.ts). */
+/** The site's page on why Unmerged needs a token and how it keeps it safe; linked wherever a token is asked for. */
+export const TOKEN_HELP_URL = 'https://unmerged.deoxy.dev/token';
+
+/**
+ * From github.com: opens Unmerged's settings page in a tab at `#token`, where the token is entered (see background.ts).
+ * That page opens on the token form and closes itself once the user saves or cancels.
+ */
 export function openSettingsPage() {
   browser.runtime.sendMessage('open-settings');
 }

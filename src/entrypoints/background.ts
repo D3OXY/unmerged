@@ -20,9 +20,10 @@ const githubPages = new Map<number, string>();
 export default defineBackground(() => {
   browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message === 'reload') browser.runtime.reload();
-    if (message === 'open-settings') browser.runtime.openOptionsPage();
-    const github = githubPageRequest(message);
     const tabId = sender.tab?.id;
+    // Beside the GitHub tab, which the browser shows again when the settings page closes itself.
+    if (message === 'open-settings') browser.tabs.create({ url: `${browser.runtime.getURL('/options.html')}#token`, openerTabId: tabId });
+    const github = githubPageRequest(message);
     if (github !== undefined && tabId !== undefined) {
       letTabLoad(tabId, github).then(() => sendResponse(true), () => sendResponse(false));
       return true;

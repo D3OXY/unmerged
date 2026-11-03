@@ -1,6 +1,6 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowRight02Icon } from '@hugeicons/core-free-icons';
-import { NEW_TOKEN_URL, openSettingsPage } from '@/lib/settings';
+import { NEW_TOKEN_URL, openSettingsPage, TOKEN_HELP_URL } from '@/lib/settings';
 import { openClassic } from '@/lib/classic';
 import { Button } from '@/ui/Button';
 import { Logo } from './Logo';
@@ -37,7 +37,10 @@ export function TokenGate({ rejected }: { rejected?: boolean }) {
           <code className="font-mono">repo</code>, <code className="font-mono">read:org</code>,{' '}
           <code className="font-mono">read:user</code>, <code className="font-mono">user:follow</code>,{' '}
           <code className="font-mono">notifications</code>, <code className="font-mono">project</code>. A fine-grained token can be limited to the repos and
-          permissions you pick; Notifications still needs a classic one.
+          permissions you pick; Notifications still needs a classic one.{' '}
+          <a href={TOKEN_HELP_URL} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+            Why Unmerged needs a token
+          </a>
         </p>
       </div>
     </div>

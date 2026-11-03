@@ -44,11 +44,11 @@ In Chrome, open `chrome://extensions`, turn on Developer mode, click **Load unpa
 
 Unmerged keeps the token in extension storage and sends it only to `api.github.com`. You type it into the
 extension's own page, never into github.com. Changing the token, or **Disconnect**, deletes everything cached
-for the old one.
+for the old one. [Why Unmerged needs a token](https://unmerged.deoxy.dev/token) has more.
 
 **Classic token** (simplest, everything works):
-[create one](https://github.com/settings/tokens/new?description=Unmerged&scopes=repo,read:org,read:user,user:follow,notifications)
-with `repo`, `read:org`, `read:user`, `user:follow` and `notifications`. `repo` gives write access to private
+[create one](https://github.com/settings/tokens/new?description=Unmerged&scopes=repo,read:org,read:user,user:follow,notifications,project&default_expires_at=none)
+with `repo`, `read:org`, `read:user`, `user:follow`, `notifications` and `project`, and no expiration. `repo` gives write access to private
 repos (classic tokens have no read-only scope for them). If you only read public code, use `public_repo`.
 
 **Fine-grained token** (least privilege):
