@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as SupportRouteImport } from './routes/support'
+import { Route as TokenRouteImport } from './routes/token'
 import { Route as InstallIndexRouteImport } from './routes/install/index'
 import { Route as InstallSourceRouteImport } from './routes/install/source'
 
@@ -30,6 +31,11 @@ const SupportRoute = SupportRouteImport.update({
   path: '/support',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TokenRoute = TokenRouteImport.update({
+  id: '/token',
+  path: '/token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InstallIndexRoute = InstallIndexRouteImport.update({
   id: '/install/',
   path: '/install/',
@@ -45,6 +51,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/privacy': typeof PrivacyRoute
   '/support': typeof SupportRoute
+  '/token': typeof TokenRoute
   '/install/source': typeof InstallSourceRoute
   '/install/': typeof InstallIndexRoute
 }
@@ -52,6 +59,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/privacy': typeof PrivacyRoute
   '/support': typeof SupportRoute
+  '/token': typeof TokenRoute
   '/install/source': typeof InstallSourceRoute
   '/install': typeof InstallIndexRoute
 }
@@ -60,22 +68,31 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/privacy': typeof PrivacyRoute
   '/support': typeof SupportRoute
+  '/token': typeof TokenRoute
   '/install/source': typeof InstallSourceRoute
   '/install/': typeof InstallIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/privacy' | '/support' | '/install/source' | '/install/'
+  fullPaths:
+    '/' | '/privacy' | '/support' | '/token' | '/install/source' | '/install/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/privacy' | '/support' | '/install/source' | '/install'
+  to: '/' | '/privacy' | '/support' | '/token' | '/install/source' | '/install'
   id:
-    '__root__' | '/' | '/privacy' | '/support' | '/install/source' | '/install/'
+    | '__root__'
+    | '/'
+    | '/privacy'
+    | '/support'
+    | '/token'
+    | '/install/source'
+    | '/install/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PrivacyRoute: typeof PrivacyRoute
   SupportRoute: typeof SupportRoute
+  TokenRoute: typeof TokenRoute
   InstallSourceRoute: typeof InstallSourceRoute
   InstallIndexRoute: typeof InstallIndexRoute
 }
@@ -103,6 +120,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SupportRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/token': {
+      id: '/token'
+      path: '/token'
+      fullPath: '/token'
+      preLoaderRoute: typeof TokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/install/': {
       id: '/install/'
       path: '/install'
@@ -124,6 +148,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PrivacyRoute: PrivacyRoute,
   SupportRoute: SupportRoute,
+  TokenRoute: TokenRoute,
   InstallSourceRoute: InstallSourceRoute,
   InstallIndexRoute: InstallIndexRoute,
 }

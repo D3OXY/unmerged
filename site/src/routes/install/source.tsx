@@ -40,7 +40,7 @@ pnpm build:firefox    # Firefox → .output/firefox-mv2`}
       <Section title="Then add a token">
         <p>
           Click the Unmerged toolbar icon and paste a personal access token. <a href={TOKEN_URL}>This link</a> fills in
-          the scopes it needs.
+          the scopes it needs. <a href="/token">Why Unmerged needs a token</a> explains what each scope is for.
         </p>
       </Section>
 

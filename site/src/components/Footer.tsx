@@ -24,6 +24,7 @@ const FOOTER_LINKS: { title: string; links: { href: string; label: string }[] }[
     title: 'Help',
     links: [
       { href: '/support', label: 'Support' },
+      { href: '/token', label: 'Why a token' },
       { href: NEW_ISSUE_URL, label: 'Report a problem' },
       { href: '/privacy', label: 'Privacy policy' },
     ],

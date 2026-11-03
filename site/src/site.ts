@@ -11,9 +11,9 @@ export const NEW_ISSUE_URL = 'https://github.com/D3OXY/unmerged/issues/new';
 export const TOKEN_DOCS_URL = 'https://github.com/D3OXY/unmerged#token';
 /** Where users write for help; the support page and the privacy policy show it. */
 export const SUPPORT_EMAIL = 'hello@deoxy.dev';
-/** Prefilled classic token with the scopes the extension asks for (same link as the README). */
+/** Prefilled classic token with the scopes the extension asks for and no expiration (same link as the README). */
 export const TOKEN_URL =
-  'https://github.com/settings/tokens/new?description=Unmerged&scopes=repo,read:org,read:user,user:follow,notifications,project';
+  'https://github.com/settings/tokens/new?description=Unmerged&scopes=repo,read:org,read:user,user:follow,notifications,project&default_expires_at=none';
 
 export const TAGLINE = 'GitHub, as if it never got acquired.';
 export const DESCRIPTION =

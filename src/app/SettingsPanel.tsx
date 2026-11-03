@@ -4,7 +4,7 @@ import { Analytics01Icon, ArrowUpRight01Icon, Book02Icon, Building03Icon, CheckL
 import { GitHubError, rest } from '@/github/client';
 import { cx } from '@/lib/cx';
 import { saveToken } from '@/lib/persist';
-import { appearanceItem, customThemesItem, DEFAULT_PRIVACY, fontItem, issueSplitItem, keepFileFiltersItem, nestIssuesItem, NEW_TOKEN_URL, openSettingsPage, privacyItem, repoPulseItem, sidePanelItem, slideToMergeItem, surfacesItem, themeIdItem, tokenItem, useStorageItem, type Appearance, type Blur, type Font, type KeepFileFilters, type Surface } from '@/lib/settings';
+import { appearanceItem, customThemesItem, DEFAULT_PRIVACY, fontItem, issueSplitItem, keepFileFiltersItem, nestIssuesItem, NEW_TOKEN_URL, openSettingsPage, privacyItem, repoPulseItem, sidePanelItem, slideToMergeItem, surfacesItem, themeIdItem, TOKEN_HELP_URL, tokenItem, useStorageItem, type Appearance, type Blur, type Font, type KeepFileFilters, type Surface } from '@/lib/settings';
 import { Switch } from '@/ui/Switch';
 import { ThemePicker } from './ThemePicker';
 
@@ -62,9 +62,9 @@ const PAGES: { id: SettingsPage; label: string; icon: IconSvgElement }[] = [
  * Pages (which pages it takes over) and Privacy (what it blurs). Shown in the toolbar popup (and the options
  * page, its copy in a tab) and in the in-page Settings dialog; every change applies to open tabs at once.
  * Narrow, the pages are tabs along the top; wide, a list down the side. The token itself is only ever typed into the extension's pages,
- * not into github.com.
+ * not into github.com. `onClose` closes the in-page dialog when it sends the user to the settings page for that.
  */
-export function SettingsPanel({ initialPage = 'general' }: { initialPage?: SettingsPage }) {
+export function SettingsPanel({ initialPage = 'general', onClose }: { initialPage?: SettingsPage; onClose?: () => void }) {
   const [page, setPage] = useState(initialPage);
 
   return (
@@ -94,14 +94,14 @@ export function SettingsPanel({ initialPage = 'general' }: { initialPage?: Setti
           ))}
         </nav>
         <div role="tabpanel" aria-label={PAGES.find((p) => p.id === page)?.label} className="@container min-h-0 flex-1 overflow-y-auto">
-          {page === 'general' ? <GeneralPage /> : page === 'appearance' ? <AppearancePage /> : page === 'pages' ? <PagesPage /> : <PrivacyPage />}
+          {page === 'general' ? <GeneralPage onClose={onClose} /> : page === 'appearance' ? <AppearancePage /> : page === 'pages' ? <PagesPage /> : <PrivacyPage />}
         </div>
       </div>
     </div>
   );
 }
 
-function GeneralPage() {
+function GeneralPage({ onClose }: { onClose?: () => void }) {
   const token = useStorageItem(tokenItem);
   const sidePanel = useStorageItem(sidePanelItem);
   const issueSplit = useStorageItem(issueSplitItem);
@@ -112,7 +112,7 @@ function GeneralPage() {
 
   return (
     <>
-      <Section title="Account">{token !== null && <Account token={token} />}</Section>
+      <Section title="Account">{token !== null && <Account token={token} onClose={onClose} />}</Section>
       <Section title="Lists">
         <div className="-mx-1.5 flex flex-col">
           {sidePanel !== null && (
@@ -336,11 +336,24 @@ const STATUS_LINE: Record<Exclude<AccountState['status'], 'rejected'>, { text: s
 
 // The in-page Settings dialog sends token changes to the extension's settings page instead.
 const onGitHub = location.hostname === 'github.com';
+// The settings page that github.com opened for a token change (see openSettingsPage): it closes once that's done.
+const forToken = !onGitHub && location.hash === '#token';
+
+/** Closes the settings page's tab, so the browser shows the GitHub tab that opened it again. */
+async function closeTab() {
+  const tab = await browser.tabs.getCurrent();
+  if (tab?.id !== undefined) await browser.tabs.remove(tab.id);
+}
 
 /** Who the saved token signs in as, with a form to set, replace or remove it (outside github.com). */
-function Account({ token }: { token: string }) {
+function Account({ token, onClose }: { token: string; onClose?: () => void }) {
   const [account, setAccount] = useState<AccountState>({ status: 'checking' });
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(forToken);
+  const done = forToken ? closeTab : () => setEditing(false);
+  const toSettingsPage = () => {
+    openSettingsPage();
+    onClose?.();
+  };
 
   useEffect(() => {
     if (!token) return;
@@ -363,7 +376,7 @@ function Account({ token }: { token: string }) {
           {rejected ? <span className="text-danger">GitHub rejected the saved token.</span> : 'No GitHub token yet.'} Tokens are added in
           Unmerged's settings.
         </p>
-        <SmallButton onClick={openSettingsPage}>Open settings</SmallButton>
+        <SmallButton onClick={toSettingsPage}>Open settings</SmallButton>
       </div>
     );
   }
@@ -371,9 +384,9 @@ function Account({ token }: { token: string }) {
     return (
       <TokenForm
         problem={rejected && !editing ? 'GitHub rejected the saved token.' : undefined}
-        onCancel={editing ? () => setEditing(false) : undefined}
+        onCancel={editing ? done : undefined}
         onDisconnect={token ? () => saveToken('') : undefined}
-        onSaved={() => setEditing(false)}
+        onSaved={done}
       />
     );
   }
@@ -399,7 +412,7 @@ function Account({ token }: { token: string }) {
           {line.text}
         </div>
       </div>
-      <SmallButton onClick={onGitHub ? openSettingsPage : () => setEditing(true)}>Change token</SmallButton>
+      <SmallButton onClick={onGitHub ? toSettingsPage : () => setEditing(true)}>Change token</SmallButton>
     </div>
   );
 }
@@ -429,7 +442,10 @@ function TokenForm({ problem, onCancel, onDisconnect, onSaved }: { problem?: str
     >
       <p className="mb-2 text-[12.5px] leading-snug text-muted">
         {problem && <span className="text-danger">{problem} </span>}
-        Paste a GitHub token. It's kept in the extension's storage and sent only to api.github.com.
+        Paste a GitHub token. It's kept in the extension's storage and sent only to api.github.com.{' '}
+        <a href={TOKEN_HELP_URL} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+          Why a token?
+        </a>
       </p>
       <div className="flex gap-2">
         <label className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-lg border border-line bg-bg px-2.5 transition-colors focus-within:border-accent/60">

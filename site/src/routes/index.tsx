@@ -410,14 +410,22 @@ function Timeline() {
  * What people ask before they install. `narrow` answers show only below md, where the setup section leaves out the
  * token comparison; `which-token` is the target of setup step 2's link there.
  */
-const QUESTIONS: { id?: string; q: string; a: string; narrow?: boolean }[] = [
+const QUESTIONS: { id?: string; q: string; a: ReactNode; narrow?: boolean }[] = [
   {
     q: 'What data does Unmerged collect?',
     a: 'None. It has no server, no analytics and no accounts. Your token and your GitHub data go only to GitHub.',
   },
   {
     q: 'Why does it need a token?',
-    a: "Unmerged reads your pull requests, issues and notifications from GitHub's API, and the API needs a token.",
+    a: (
+      <>
+        Unmerged reads your pull requests, issues and notifications from GitHub's API, and the API needs a token.{' '}
+        <a href="/token" className="text-fg underline underline-offset-2">
+          Where the token goes, and how to limit it
+        </a>
+        .
+      </>
+    ),
   },
   {
     id: 'which-token',

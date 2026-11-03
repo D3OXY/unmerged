@@ -24,7 +24,8 @@ function Support() {
           </li>
           <li>
             <b>"GitHub rejected the saved token."</b> The token expired or was revoked.{' '}
-            <a href={TOKEN_URL}>Create a new one</a> and paste it into Unmerged's settings.
+            <a href={TOKEN_URL}>Create a new one</a> and paste it into Unmerged's settings.{' '}
+            <a href="/token">Why Unmerged needs a token</a> tells you where it goes.
           </li>
           <li>
             <b>Private repositories or organizations are missing.</b> A classic token needs the <code>repo</code> and{' '}

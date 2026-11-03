@@ -44,7 +44,7 @@ function Dialog({ page }: { page: SettingsPage }) {
         </button>
       </header>
 
-      <SettingsPanel key={page} initialPage={page} />
+      <SettingsPanel key={page} initialPage={page} onClose={close} />
 
       <footer className="flex h-11 shrink-0 items-center justify-between border-t border-line px-4 text-[11.5px] text-subtle">
         <span className="tabular-nums">Unmerged v{browser.runtime.getManifest().version}</span>
