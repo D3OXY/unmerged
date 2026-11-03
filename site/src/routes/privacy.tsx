@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { DocPage, Lede, Section } from '../components/doc';
 import { SUPPORT_EMAIL } from '../site';
 
-// The privacy policy the extension stores link to. Keep it true to what the extension does.
+// The privacy policy the extension stores link to. Keep it true to what the extension and this website do.
 export const Route = createFileRoute('/privacy')({
   head: () => ({ meta: [{ title: 'Privacy policy · Unmerged' }] }),
   component: Privacy,
@@ -10,7 +10,7 @@ export const Route = createFileRoute('/privacy')({
 
 function Privacy() {
   return (
-    <DocPage title="Privacy policy" updated="October 18, 2026">
+    <DocPage title="Privacy policy" updated="November 3, 2026">
       <Lede>
         Unmerged is a browser extension that re-skins github.com. It has no server, no accounts, no analytics and no
         crash reporting. Its developer never receives any of your data, and nothing is sold or shared.
@@ -85,6 +85,14 @@ function Privacy() {
           Disconnecting your token in Unmerged's settings deletes it and everything cached for it.
           Uninstalling the extension deletes all of its storage. The entries Unmerged keeps in github.com's local storage
           start with <code>unmerged:</code> and go away when you clear github.com's site data in your browser.
+        </p>
+      </Section>
+
+      <Section title="This website">
+        <p>
+          This website (unmerged.deoxy.dev), not the extension, counts visits with Vercel Web Analytics: which pages
+          are viewed, the referring site, and the country, browser and device type. It uses no cookies and stores no
+          personal data.
         </p>
       </Section>
 

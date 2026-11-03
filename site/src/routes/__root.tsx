@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router';
+import { Analytics } from '@vercel/analytics/react';
 import favicon from '../../../src/assets/logo/holdout-16.svg?url';
 import appleIcon from '../../../public/icon/128.png?url';
 import { DESCRIPTION, SITE_URL, TAGLINE } from '../site';
@@ -40,6 +41,8 @@ function RootDocument({ children }: { children: ReactNode }) {
       </head>
       <body>
         {children}
+        {/* Vercel Web Analytics: cookieless page view counts for this website only, never the extension. */}
+        <Analytics />
         <Scripts />
       </body>
     </html>
