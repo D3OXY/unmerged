@@ -190,7 +190,12 @@ export function useStorageItem<T>(item: Item<T>): T | null {
   const [value, setValue] = useState<T | null>(null);
   useEffect(() => {
     item.getValue().then(setValue);
-    return item.watch(setValue);
+    const unwatch = item.watch(setValue);
+    // After an update, this tab's old context can't call extension APIs (they throw), and its listeners are
+    // already gone. WXT unmounts our UI just then (see github.content).
+    return () => {
+      if (browser.runtime?.id) unwatch();
+    };
   }, [item]);
   return value;
 }

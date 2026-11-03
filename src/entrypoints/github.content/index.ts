@@ -155,6 +155,8 @@ export default defineContentScript({
     let mounted = false;
     let latest = new URL(location.href);
     const sync = (url: URL) => {
+      // After an update, the reload below takes over: reloadOnGitHub needs the background, which this script can't reach.
+      if (ctx.isInvalid) return;
       latest = url;
       clearClassicUnless(url.pathname);
       const result = resolve(url);
@@ -182,6 +184,12 @@ export default defineContentScript({
     };
 
     sync(new URL(location.href));
+
+    // After an update, WXT removes our UI the first time `resolve` finds this script's context invalid (a link
+    // hover, a navigation). GitHub's page under ours stays hidden, so reload: the new version shows the page.
+    ctx.onInvalidated(() => {
+      if (isOwning()) location.reload();
+    });
 
     const setSurfaces = (value: Surfaces) => {
       surfaces = value;
