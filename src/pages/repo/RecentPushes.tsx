@@ -4,18 +4,19 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { Cancel01Icon, GitBranchIcon, GitPullRequestCreateIcon } from '@hugeicons/core-free-icons';
 import { sessionLogin } from '@/lib/session';
 import { timeAgo } from '@/lib/time';
-import { recentPushesQuery, type Repo } from './query';
+import { canPushWith, recentPushesQuery, type Repo } from './query';
 
 /**
  * GitHub's "had recent pushes" banner: the viewer's branches pushed in the last hour with no open pull request,
- * each with Compare & pull request. Dismissing hides those pushes (per repo, across page loads); later ones show.
+ * each with Compare & pull request. Only a viewer who can push gets it. Dismissing hides those pushes (per repo,
+ * across page loads); later ones show.
  */
 export function RecentPushes({ repo }: { repo: Repo }) {
   const [owner, name] = repo.nameWithOwner.split('/') as [string, string];
   const login = sessionLogin();
   const dismissKey = `unmerged:pushes-dismissed:${repo.nameWithOwner.toLowerCase()}`;
   const [dismissedAt, setDismissedAt] = useState(() => Number(localStorage.getItem(dismissKey)));
-  const pushes = useQuery({ ...recentPushesQuery(owner, name, login ?? ''), enabled: !!login && !repo.isArchived });
+  const pushes = useQuery({ ...recentPushesQuery(owner, name, login ?? ''), enabled: !!login && !repo.isArchived && canPushWith(repo.viewerPermission) });
 
   const shown = (pushes.data ?? []).filter((push) => push.name !== repo.defaultBranchRef?.name && Date.parse(push.committedDate) > dismissedAt);
   if (!shown.length) return null;
