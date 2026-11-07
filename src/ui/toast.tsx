@@ -33,7 +33,7 @@ export function Toaster() {
   const list = toasts.use();
   const lifted = toastsLifted.use();
   return (
-    <div className={cx('pointer-events-none fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2 transition-transform duration-300', lifted && '-translate-y-14')}>
+    <div className={cx('pointer-events-none fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2 transition-transform duration-300', lifted && '-translate-y-[154px]' /* Slide to merge's 146px card and an 8px gap. */)}>
       {list.map(({ id, tone, message, action }) => (
         <div
           key={id}
