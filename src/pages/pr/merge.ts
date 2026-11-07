@@ -9,8 +9,8 @@ export const METHOD_LABEL: Record<MergeMethod, string> = {
   REBASE: 'Rebase and merge',
 };
 
-const METHOD_HINT: Record<MergeMethod, string> = {
-  SQUASH: 'Combine all commits into one on the base branch',
+export const METHOD_HINT: Record<MergeMethod, string> = {
+  SQUASH: 'Combine all commits into one',
   MERGE: 'Keep every commit and add a merge commit',
   REBASE: 'Replay commits onto the base branch',
 };
