@@ -3,7 +3,7 @@ import { gql, restHtml } from '@/github/client';
 import { absolutizeReadme } from '@/github/readme';
 import { persisted } from '@/lib/persist';
 import type { RepoView } from '@/lib/routes';
-import { repoPulseItem } from '@/lib/settings';
+import { repoOverviewItem, repoPulseItem } from '@/lib/settings';
 import { repoChurnQuery, repoPulseQuery } from './pulse';
 import { blobUrl, encodePath, rawUrl } from './urls';
 import type { Actor, CheckState, Language } from '@/github/types';
@@ -331,7 +331,14 @@ export function prefetchRepo(client: QueryClient, owner: string, name: string, v
       client.prefetchQuery(repoChurnQuery(owner, name));
     });
   }
-  const resolved = rest.length ? client.fetchQuery(repoResolveQuery(owner, name, rest)) : Promise.resolve({ ref: DEFAULT_REVISION, path: '', isTree: true });
+  // An Overview (the root with the setting on) shows the root's README, not its entries.
+  const resolved = rest.length
+    ? client.fetchQuery(repoResolveQuery(owner, name, rest))
+    : repoOverviewItem.getValue().then((overview) => {
+        if (!overview) return { ref: DEFAULT_REVISION, path: '', isTree: true };
+        client.prefetchQuery(repoReadmeQuery(`${owner}/${name}`, DEFAULT_REVISION, ''));
+        return null;
+      });
   resolved
     .then(async (target) => {
       if (!target) return;

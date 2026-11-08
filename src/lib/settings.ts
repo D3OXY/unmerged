@@ -65,8 +65,14 @@ export const issueSplitItem = storage.defineItem<boolean>('local:issueSplit', { 
 /** Whether an issue list nests sub-issues under their parent issue. Off, issue lists ask GitHub for nothing more. */
 export const nestIssuesItem = storage.defineItem<boolean>('local:nestIssues', { fallback: false });
 
-/** Whether a repository's front page shows its last 12 weeks of activity (RepoPulse) above the files. */
+/** Whether a repository's front page shows its last 12 weeks of activity (RepoPulse). */
 export const repoPulseItem = storage.defineItem<boolean>('local:repoPulse', { fallback: true });
+
+/**
+ * Whether a repository's front page is an Overview (its README, no files) with the files under a Files tab
+ * (/tree/<default branch>). Off, the front page lists the files as GitHub's Code tab does.
+ */
+export const repoOverviewItem = storage.defineItem<boolean>('local:repoOverview', { fallback: true });
 
 /** Whether a pull request that can merge now shows Slide to merge in the bottom-right corner, on every tab. */
 export const slideToMergeItem = storage.defineItem<boolean>('local:slideToMerge', { fallback: true });

@@ -18,7 +18,6 @@ export function TreeView({ nameWithOwner, gitRef, revision, path, entries, lastC
   const commits = useQuery(repoEntryCommitsQuery(owner, name, revision, path, entries));
 
   const readmeEntry = sorted.find((e) => e.type === 'blob' && /^readme(\.(md|markdown|mdx|rst|txt))?$/i.test(e.name));
-  const readme = useQuery({ ...repoReadmeQuery(nameWithOwner, revision, path), enabled: !!readmeEntry });
 
   const parent = path.split('/').slice(0, -1).join('/');
 
@@ -66,24 +65,32 @@ export function TreeView({ nameWithOwner, gitRef, revision, path, entries, lastC
         })}
       </Panel>
 
-      {readmeEntry && (
-        <Panel className="overflow-hidden">
-          <div className="flex h-10 items-center gap-2 border-b border-line px-4 text-[12.5px] font-medium">
-            <HugeiconsIcon icon={BookOpen01Icon} className="size-3.5 text-subtle" />
-            {readmeEntry.name}
-          </div>
-          <div className="px-8 py-6">
-            {readme.data ? (
-              <Markdown html={readme.data} />
-            ) : readme.error ? (
-              <LoadError what="the README" error={readme.error} retry={readme.refetch} />
-            ) : (
-              readme.isPending && <Skeleton className="h-40" />
-            )}
-          </div>
-        </Panel>
-      )}
+      {readmeEntry && <ReadmePanel nameWithOwner={nameWithOwner} revision={revision} path={path} name={readmeEntry.name} />}
     </div>
+  );
+}
+
+/** A folder's README, rendered by GitHub. `name` is its file's name; the Overview doesn't list files, so doesn't know it. */
+export function ReadmePanel({ nameWithOwner, revision, path, name = 'README' }: { nameWithOwner: string; revision: string; path: string; name?: string }) {
+  const readme = useQuery(repoReadmeQuery(nameWithOwner, revision, path));
+  return (
+    <Panel className="overflow-hidden">
+      <div className="flex h-10 items-center gap-2 border-b border-line px-4 text-[12.5px] font-medium">
+        <HugeiconsIcon icon={BookOpen01Icon} className="size-3.5 text-subtle" />
+        {name}
+      </div>
+      <div className="px-8 py-6">
+        {readme.data ? (
+          <Markdown html={readme.data} />
+        ) : readme.error ? (
+          <LoadError what="the README" error={readme.error} retry={readme.refetch} />
+        ) : readme.isPending ? (
+          <Skeleton className="h-40" />
+        ) : (
+          <p className="text-[13px] text-muted">No README.</p>
+        )}
+      </div>
+    </Panel>
   );
 }
 

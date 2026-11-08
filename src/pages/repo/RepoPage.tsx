@@ -8,7 +8,7 @@ import { copy } from '@/lib/clipboard';
 import { loadDiffs } from '@/lib/diffs';
 import { navigate } from '@/lib/navigation';
 import { pin, unpin, useIsPinned } from '@/lib/pins';
-import { repoPulseItem, useStorageItem } from '@/lib/settings';
+import { repoOverviewItem, repoPulseItem, useStorageItem } from '@/lib/settings';
 import { useTitle } from '@/lib/useTitle';
 import { Button } from '@/ui/Button';
 import { Kbd, Panel } from '@/ui/primitives';
@@ -22,12 +22,15 @@ import { RecentPushes } from './RecentPushes';
 import { RepoFrame, useRepo } from './RepoFrame';
 import { RepoPulse } from './RepoPulse';
 import { RepoSidebar } from './RepoSidebar';
-import { TreeSkeleton, TreeView } from './TreeView';
+import { ReadmePanel, TreeSkeleton, TreeView } from './TreeView';
 import { treeUrl } from './urls';
 
 type Props = { owner: string; repo: string; view: 'code' | 'commits'; rest: string[] };
 
-/** A repository's code browser (root with sidebar, folders, files) or its commit history. */
+/**
+ * A repository's code browser (root with sidebar, folders, files) or its commit history. With the Overview
+ * setting on, the root shows only its README; its files are at /tree/<default branch> (the Files tab).
+ */
 export function RepoPage({ owner, repo: name, view, rest }: Props) {
   // Warm up the code renderer (file highlighting) while idle, so opening a file doesn't wait for it.
   useEffect(() => {
@@ -36,11 +39,13 @@ export function RepoPage({ owner, repo: name, view, rest }: Props) {
   }, []);
   const repo = useRepo(owner, name).data?.repository;
   const showPulse = useStorageItem(repoPulseItem);
+  // The setting is null until storage answers: the default (on) until then. The hook runs first, so always.
+  const overview = useStorageItem(repoOverviewItem) !== false && view === 'code' && !rest.length;
 
   // "<ref>/<path…>" → ref + path. The root reads the default branch as HEAD, so it needn't wait for `repo`.
   const resolved = useQuery({ ...repoResolveQuery(owner, name, rest), enabled: rest.length > 0 });
   const revision = rest.length ? resolved.data : { ref: DEFAULT_REVISION, path: '' };
-  const content = useQuery({ ...repoContentQuery(owner, name, revision?.ref ?? '', revision?.path ?? ''), enabled: !!revision && view === 'code' });
+  const content = useQuery({ ...repoContentQuery(owner, name, revision?.ref ?? '', revision?.path ?? ''), enabled: !!revision && view === 'code' && !overview });
   // What links and the branch picker show: the branch's name rather than HEAD.
   const target = revision && (revision.ref === DEFAULT_REVISION ? repo?.defaultBranchRef && { ref: repo.defaultBranchRef.name, path: '' } : revision);
 
@@ -60,7 +65,7 @@ export function RepoPage({ owner, repo: name, view, rest }: Props) {
   const notFound = !!repo && ((rest.length > 0 && resolved.data === null) || (content.data && !object));
 
   return (
-    <RepoFrame owner={owner} name={name} view={view}>
+    <RepoFrame owner={owner} name={name} view={overview ? 'overview' : view}>
       {repo?.isEmpty ? (
         <Panel className="p-8 text-[13px] text-muted">
           This repository is empty. Clone it with <code className="font-mono text-fg">gh repo clone {nwo}</code> and push your first commit.
@@ -81,8 +86,10 @@ export function RepoPage({ owner, repo: name, view, rest }: Props) {
           {!repo || !target ? (
             <TreeSkeleton />
           ) : (
-            <Toolbar repo={repo} gitRef={target.ref} path={target.path} aside={object?.__typename === 'Tree' && !target.path && <RepoSidebar repo={repo} />}>
-              {!object ? (
+            <Toolbar repo={repo} gitRef={target.ref} path={target.path} aside={(overview || (object?.__typename === 'Tree' && !target.path)) && <RepoSidebar repo={repo} />}>
+              {overview ? (
+                <ReadmePanel nameWithOwner={nwo} revision={DEFAULT_REVISION} path="" />
+              ) : !object ? (
                 <TreeSkeleton />
               ) : object.__typename === 'Blob' ? (
                 <BlobView

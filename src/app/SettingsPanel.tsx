@@ -4,7 +4,7 @@ import { Analytics01Icon, ArrowUpRight01Icon, Book02Icon, Building03Icon, CheckL
 import { GitHubError, rest } from '@/github/client';
 import { cx } from '@/lib/cx';
 import { saveToken } from '@/lib/persist';
-import { appearanceItem, customThemesItem, DEFAULT_PRIVACY, fontItem, issueSplitItem, keepFileFiltersItem, nestIssuesItem, NEW_TOKEN_URL, openSettingsPage, privacyItem, repoPulseItem, sidePanelItem, slideToMergeItem, surfacesItem, themeIdItem, TOKEN_HELP_URL, tokenItem, useStorageItem, type Appearance, type Blur, type Font, type KeepFileFilters, type Surface } from '@/lib/settings';
+import { appearanceItem, customThemesItem, DEFAULT_PRIVACY, fontItem, issueSplitItem, keepFileFiltersItem, nestIssuesItem, NEW_TOKEN_URL, openSettingsPage, privacyItem, repoOverviewItem, repoPulseItem, sidePanelItem, slideToMergeItem, surfacesItem, themeIdItem, TOKEN_HELP_URL, tokenItem, useStorageItem, type Appearance, type Blur, type Font, type KeepFileFilters, type Surface } from '@/lib/settings';
 import { Switch } from '@/ui/Switch';
 import { ThemePicker } from './ThemePicker';
 
@@ -107,6 +107,7 @@ function GeneralPage({ onClose }: { onClose?: () => void }) {
   const issueSplit = useStorageItem(issueSplitItem);
   const nestIssues = useStorageItem(nestIssuesItem);
   const repoPulse = useStorageItem(repoPulseItem);
+  const repoOverview = useStorageItem(repoOverviewItem);
   const slideToMerge = useStorageItem(slideToMergeItem);
   const keepFileFilters = useStorageItem(keepFileFiltersItem);
 
@@ -168,13 +169,22 @@ function GeneralPage({ onClose }: { onClose?: () => void }) {
       </Section>
       <Section title="Repositories">
         <div className="-mx-1.5 flex flex-col">
+          {repoOverview !== null && (
+            <ToggleRow
+              on={repoOverview}
+              onClick={() => repoOverviewItem.setValue(!repoOverview)}
+              icon={<HugeiconsIcon icon={Book02Icon} />}
+              label="Overview tab"
+              path="The front page shows the README; the files move to a Files tab"
+            />
+          )}
           {repoPulse !== null && (
             <ToggleRow
               on={repoPulse}
               onClick={() => repoPulseItem.setValue(!repoPulse)}
               icon={<HugeiconsIcon icon={Analytics01Icon} />}
               label="Show activity"
-              path="The last 12 weeks above the files: commits, pull requests, issues, CI and release"
+              path="The last 12 weeks on the front page: commits, pull requests, issues, CI and release"
             />
           )}
         </div>
