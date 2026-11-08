@@ -11,7 +11,7 @@ import { releasesQuery, tagsQuery } from '@/pages/releases/query';
 import { codeSearchQuery, repoSearchQuery, workSearchQuery } from '@/pages/search/queries';
 import { defaultQuery, issueFamilyQuery, prefetchWorkList, repoListQuery, workDetailsQuery, workListQuery, workQueryOf, type ListPage } from '@/pages/work/queries';
 import { StatsPending, STATS_RETRY } from '@/pages/repo/pulse';
-import { DEFAULT_REVISION, repoContentQuery, repoReadmeQuery } from '@/pages/repo/query';
+import { DEFAULT_REVISION, repoContentQuery, repoHeadCommitQuery, repoReadmeQuery } from '@/pages/repo/query';
 import { earlyClient, prefetchRoute, prefetchVisibleRows, rowsToPrefetch } from './prefetch';
 
 /** The list keys `prefetchRoute` starts for `href`, without fetching anything. */
@@ -139,7 +139,7 @@ describe('prefetchRoute for search', () => {
   });
 });
 
-// An Overview shows only the root's README, so it starts neither the root's entries nor their commits.
+// An Overview shows only the latest commit and the root's README, so it starts neither the root's entries nor their commits.
 describe('prefetchRoute for a repo root', () => {
   beforeEach(() => fakeBrowser.reset());
   const readme = repoReadmeQuery('o/r', DEFAULT_REVISION, '').queryKey;
@@ -161,8 +161,10 @@ describe('prefetchRoute for a repo root', () => {
     });
   }
 
-  it('starts the README and not the entries with the Overview on', async () => {
-    expect(await prefetchedRootUntil(readme)).not.toContainEqual(content);
+  it('starts the latest commit and the README, and not the entries, with the Overview on', async () => {
+    const keys = await prefetchedRootUntil(readme);
+    expect(keys).toContainEqual(repoHeadCommitQuery('o', 'r').queryKey);
+    expect(keys).not.toContainEqual(content);
   });
 
   it('starts the entries with the Overview off', async () => {

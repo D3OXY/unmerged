@@ -105,6 +105,14 @@ export async function resolveRefPath(owner: string, name: string, rest: string[]
   return index === -1 ? null : { ...candidates[index]!, isTree: data.repository?.[`c${index}`]?.__typename === 'Tree' };
 }
 
+const LAST_COMMIT_FRAGMENT = /* GraphQL */ `
+  fragment LastCommit on Commit {
+    oid abbreviatedOid messageHeadline committedDate url
+    author { name user { login avatarUrl } }
+    statusCheckRollup { state }
+  }
+`;
+
 export const CONTENT_QUERY = /* GraphQL */ `
   query RepoContent($owner: String!, $name: String!, $expr: String!, $ref: String!, $branch: String!, $path: String) {
     repository(owner: $owner, name: $name) {
@@ -122,11 +130,17 @@ export const CONTENT_QUERY = /* GraphQL */ `
       }
     }
   }
-  fragment LastCommit on Commit {
-    oid abbreviatedOid messageHeadline committedDate url
-    author { name user { login avatarUrl } }
-    statusCheckRollup { state }
+  ${LAST_COMMIT_FRAGMENT}
+`;
+
+// The Overview's commit strip: the default branch's latest commit, without the root's entries.
+const HEAD_COMMIT_QUERY = /* GraphQL */ `
+  query RepoHeadCommit($owner: String!, $name: String!) {
+    repository(owner: $owner, name: $name) {
+      object(expression: "HEAD") { ... on Commit { history(first: 1) { totalCount nodes { ...LastCommit } } } }
+    }
   }
+  ${LAST_COMMIT_FRAGMENT}
 `;
 
 export type TreeEntry = {
@@ -265,6 +279,20 @@ export const repoContentQuery = (owner: string, name: string, revision: string, 
     persister: persisted,
   });
 
+/** The default branch's latest commit and its commit count; null for an empty repository. */
+export const repoHeadCommitQuery = (owner: string, name: string) =>
+  queryOptions({
+    queryKey: ['repo-head-commit', ...key(owner, name)],
+    queryFn: async () => {
+      type Data = { repository: { object: { history: { totalCount: number; nodes: LastCommit[] } } | null } | null };
+      const history = (await gql<Data>(HEAD_COMMIT_QUERY, { owner, name })).repository?.object?.history;
+      const commit = history?.nodes[0];
+      return commit ? { commit, count: history.totalCount } : null;
+    },
+    staleTime: 60_000,
+    persister: persisted,
+  });
+
 /** The latest commit touching each of a folder's entries (by path), fetched once the entries are known. */
 export const repoEntryCommitsQuery = (owner: string, name: string, revision: string, path: string, entries: TreeEntry[]) =>
   queryOptions({
@@ -331,11 +359,12 @@ export function prefetchRepo(client: QueryClient, owner: string, name: string, v
       client.prefetchQuery(repoChurnQuery(owner, name));
     });
   }
-  // An Overview (the root with the setting on) shows the root's README, not its entries.
+  // An Overview (the root with the setting on) shows the latest commit and the root's README, not its entries.
   const resolved = rest.length
     ? client.fetchQuery(repoResolveQuery(owner, name, rest))
     : repoOverviewItem.getValue().then((overview) => {
         if (!overview) return { ref: DEFAULT_REVISION, path: '', isTree: true };
+        client.prefetchQuery(repoHeadCommitQuery(owner, name));
         client.prefetchQuery(repoReadmeQuery(`${owner}/${name}`, DEFAULT_REVISION, ''));
         return null;
       });
