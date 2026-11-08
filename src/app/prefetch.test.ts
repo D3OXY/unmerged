@@ -2,7 +2,7 @@ import { QueryClient, type QueryKey } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { matchRoute } from '@/lib/routes';
-import { issueSplitItem, nestIssuesItem } from '@/lib/settings';
+import { issueSplitItem, nestIssuesItem, repoOverviewItem } from '@/lib/settings';
 import { runsQuery } from '@/pages/actions/query';
 import { branchIndexQuery } from '@/pages/branches/query';
 import { issueQuery, issueTimelineQuery } from '@/pages/issue/query';
@@ -11,6 +11,7 @@ import { releasesQuery, tagsQuery } from '@/pages/releases/query';
 import { codeSearchQuery, repoSearchQuery, workSearchQuery } from '@/pages/search/queries';
 import { defaultQuery, issueFamilyQuery, prefetchWorkList, repoListQuery, workDetailsQuery, workListQuery, workQueryOf, type ListPage } from '@/pages/work/queries';
 import { StatsPending, STATS_RETRY } from '@/pages/repo/pulse';
+import { DEFAULT_REVISION, repoContentQuery, repoReadmeQuery } from '@/pages/repo/query';
 import { earlyClient, prefetchRoute, prefetchVisibleRows, rowsToPrefetch } from './prefetch';
 
 /** The list keys `prefetchRoute` starts for `href`, without fetching anything. */
@@ -135,6 +136,38 @@ describe('prefetchRoute for search', () => {
     ['https://github.com/search?q=leak&type=issues&s=bogus', workSearchQuery('leak', 'issues', '').queryKey],
   ])('starts the page’s results for %s', (href, key) => {
     expect(prefetchedListKeys(href)).toEqual([key]);
+  });
+});
+
+// An Overview shows only the root's README, so it starts neither the root's entries nor their commits.
+describe('prefetchRoute for a repo root', () => {
+  beforeEach(() => fakeBrowser.reset());
+  const readme = repoReadmeQuery('o/r', DEFAULT_REVISION, '').queryKey;
+  const content = repoContentQuery('o', 'r', DEFAULT_REVISION, '').queryKey;
+
+  /** The keys started for a repo root, once `last` starts. */
+  function prefetchedRootUntil(last: QueryKey) {
+    const client = new QueryClient();
+    const keys: QueryKey[] = [];
+    return new Promise<QueryKey[]>((resolve) => {
+      const record = (key: QueryKey) => {
+        keys.push(key);
+        if (JSON.stringify(key) === JSON.stringify(last)) resolve(keys);
+      };
+      vi.spyOn(client, 'prefetchQuery').mockImplementation(async (options) => record(options.queryKey));
+      vi.spyOn(client, 'fetchQuery').mockImplementation(async (options) => (record(options.queryKey), { repository: null }));
+      const url = new URL('https://github.com/o/r');
+      prefetchRoute(client, matchRoute(url)!, url);
+    });
+  }
+
+  it('starts the README and not the entries with the Overview on', async () => {
+    expect(await prefetchedRootUntil(readme)).not.toContainEqual(content);
+  });
+
+  it('starts the entries with the Overview off', async () => {
+    await repoOverviewItem.setValue(false);
+    expect(await prefetchedRootUntil(content)).toContainEqual(readme);
   });
 });
 

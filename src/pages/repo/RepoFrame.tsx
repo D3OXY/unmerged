@@ -7,6 +7,7 @@ import { PageHeader, Shell } from '@/app/Shell';
 import { openClassic } from '@/lib/classic';
 import { cx } from '@/lib/cx';
 import { pin, unpin, useIsPinned } from '@/lib/pins';
+import { repoOverviewItem, useStorageItem } from '@/lib/settings';
 import type { RepoView } from '@/lib/routes';
 import { formatCount } from '@/lib/time';
 import { Button } from '@/ui/Button';
@@ -14,13 +15,17 @@ import { Menu } from '@/ui/Menu';
 import { Avatar, Pill } from '@/ui/primitives';
 import { Tab, TabBar } from '@/ui/Tabs';
 import { toast } from '@/ui/toast';
-import { REPO_MUTATIONS, repoQuery, type Repo, type Subscription } from './query';
+import { DEFAULT_REVISION, REPO_MUTATIONS, repoQuery, type Repo, type Subscription } from './query';
+import { treeUrl } from './urls';
 
 /** The repo's metadata. Shared by the frame and the page inside it (one request). */
 export const useRepo = (owner: string, name: string) => useQuery(repoQuery(owner, name));
 
-/** The tab a frame marks active: a repo route's view, or a page of ours under one of GitHub's tabs. */
-type FrameView = RepoView | 'actions' | 'branches' | 'contributors' | 'releases' | 'tags';
+/**
+ * The tab a frame marks active: a repo route's view, or a page of ours under one of GitHub's tabs. `overview`
+ * is the repo's root with the Overview setting on.
+ */
+type FrameView = RepoView | 'overview' | 'actions' | 'branches' | 'contributors' | 'releases' | 'tags';
 
 const LIST_TITLES: Partial<Record<FrameView, string>> = {
   issues: 'Issues',
@@ -113,13 +118,23 @@ function RepoHeader({ repo }: { repo: Repo }) {
 
 /**
  * Code (with commits, branches, releases and tags under it), Issues and Pull requests are ours, and so are the
- * contributors under Insights; the other tabs link to GitHub's pages.
+ * contributors under Insights; the other tabs link to GitHub's pages. With the Overview setting on, Code is two
+ * tabs: Overview (the root's README) and Files (the default branch's tree, with everything else Code had).
+ * Before the repo loads, Files links to HEAD, which is the default branch for GitHub too.
  * Optional tabs stay hidden until the repo loads. The list views get a New issue link (Unmerged's page) or a
  * New pull request link (GitHub's compare page).
  */
 function RepoTabs({ repo, nwo, view }: { repo?: Repo; nwo: string; view: FrameView }) {
+  // Unknown until storage answers; the default (on) until then.
+  const overview = useStorageItem(repoOverviewItem) !== false;
   const tabs: { label: string; href: string; icon: ReactNode; views?: FrameView[]; count?: number; show?: boolean }[] = [
-    { label: 'Code', href: `/${nwo}`, icon: <HugeiconsIcon icon={CodeIcon} />, views: ['code', 'commits', 'branches', 'releases', 'tags'] },
+    { label: 'Overview', href: `/${nwo}`, icon: <HugeiconsIcon icon={BookOpen01Icon} />, views: ['overview'], show: overview },
+    {
+      label: overview ? 'Files' : 'Code',
+      href: overview ? treeUrl(nwo, repo?.defaultBranchRef?.name ?? DEFAULT_REVISION) : `/${nwo}`,
+      icon: <HugeiconsIcon icon={CodeIcon} />,
+      views: ['code', 'commits', 'branches', 'releases', 'tags'],
+    },
     { label: 'Issues', href: `/${nwo}/issues`, icon: <HugeiconsIcon icon={CircleDotIcon} />, views: ['issues'], count: repo?.issues.totalCount, show: !!repo?.hasIssuesEnabled },
     { label: 'Pull requests', href: `/${nwo}/pulls`, icon: <HugeiconsIcon icon={GitPullRequestIcon} />, views: ['pulls'], count: repo?.pullRequests.totalCount },
     { label: 'Discussions', href: `/${nwo}/discussions`, icon: <HugeiconsIcon icon={MessageMultiple02Icon} />, show: !!repo?.hasDiscussionsEnabled },
