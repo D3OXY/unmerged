@@ -1,5 +1,12 @@
 # unmerged
 
+## 0.1.5 (2026-11-08)
+
+### Patch Changes
+
+- [New][Repositories] A repository's front page is now an Overview that shows its README at the top, without the file list. The files are in a new Files tab. To get the old Code tab back, turn off "Overview tab" in settings.
+- [Improved][Pull requests] Slide to merge is now a card that shows the merge method, what it does, and the branches it merges. Click the method to change it. A wider handle makes the slide easier.
+
 ## 0.1.4 (2026-11-03)
 
 ### Patch Changes
