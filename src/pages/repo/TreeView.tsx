@@ -5,7 +5,7 @@ import { timeAgo, fullDate } from '@/lib/time';
 import { Avatar, Markdown, Panel, Skeleton } from '@/ui/primitives';
 import { CheckIcon } from '@/ui/status';
 import { LoadError } from './LoadError';
-import { repoEntryCommitsQuery, repoReadmeQuery, sortEntries, type LastCommit, type TreeEntry } from './query';
+import { repoEntryCommitsQuery, repoHeadCommitQuery, repoReadmeQuery, sortEntries, type LastCommit, type TreeEntry } from './query';
 import { blobUrl, commitsUrl, treeUrl } from './urls';
 
 /** `gitRef` is what links use (a branch name); `revision` is what data is read at (HEAD at a repo's root). */
@@ -94,11 +94,29 @@ export function ReadmePanel({ nameWithOwner, revision, path, name = 'README' }: 
   );
 }
 
+/** The Overview's strip above the README: the default branch (`gitRef`) and its latest commit. */
+export function HeadCommitPanel({ nameWithOwner, gitRef }: { nameWithOwner: string; gitRef: string }) {
+  const [owner, name] = nameWithOwner.split('/') as [string, string];
+  const head = useQuery(repoHeadCommitQuery(owner, name));
+  if (!head.isPending && !head.data) return null;
+  return (
+    <Panel className="overflow-hidden">
+      {head.data ? (
+        <CommitBar nameWithOwner={nameWithOwner} gitRef={gitRef} path="" commit={head.data.commit} count={head.data.count} />
+      ) : (
+        <div className="flex h-12 items-center px-4">
+          <Skeleton className="h-3 w-72" />
+        </div>
+      )}
+    </Panel>
+  );
+}
+
 /** Latest commit for the current folder, with the history count. */
 export function CommitBar({ nameWithOwner, gitRef, path, commit, count }: { nameWithOwner: string; gitRef: string; path: string; commit: LastCommit; count?: number }) {
   const user = commit.author?.user;
   return (
-    <div className="flex h-12 items-center gap-3 border-b border-line bg-elevated/40 px-4 text-[12.5px]">
+    <div className="flex h-12 items-center gap-3 border-b border-line bg-elevated/40 last:border-b-0 px-4 text-[12.5px]">
       <Avatar src={user?.avatarUrl} size={20} />
       <span className="shrink-0 font-medium">{user?.login ?? commit.author?.name}</span>
       <a href={commit.url} data-private="commits" className="min-w-0 truncate text-muted hover:text-fg hover:underline">

@@ -22,14 +22,14 @@ import { RecentPushes } from './RecentPushes';
 import { RepoFrame, useRepo } from './RepoFrame';
 import { RepoPulse } from './RepoPulse';
 import { RepoSidebar } from './RepoSidebar';
-import { ReadmePanel, TreeSkeleton, TreeView } from './TreeView';
+import { HeadCommitPanel, ReadmePanel, TreeSkeleton, TreeView } from './TreeView';
 import { treeUrl } from './urls';
 
 type Props = { owner: string; repo: string; view: 'code' | 'commits'; rest: string[] };
 
 /**
  * A repository's code browser (root with sidebar, folders, files) or its commit history. With the Overview
- * setting on, the root shows only its README; its files are at /tree/<default branch> (the Files tab).
+ * setting on, the root shows only its latest commit and README; its files are at /tree/<default branch> (the Files tab).
  */
 export function RepoPage({ owner, repo: name, view, rest }: Props) {
   // Warm up the code renderer (file highlighting) while idle, so opening a file doesn't wait for it.
@@ -88,7 +88,10 @@ export function RepoPage({ owner, repo: name, view, rest }: Props) {
           ) : (
             <Toolbar repo={repo} gitRef={target.ref} path={target.path} aside={(overview || (object?.__typename === 'Tree' && !target.path)) && <RepoSidebar repo={repo} />}>
               {overview ? (
-                <ReadmePanel nameWithOwner={nwo} revision={DEFAULT_REVISION} path="" />
+                <div className="flex flex-col gap-4">
+                  <HeadCommitPanel nameWithOwner={nwo} gitRef={target.ref} />
+                  <ReadmePanel nameWithOwner={nwo} revision={DEFAULT_REVISION} path="" />
+                </div>
               ) : !object ? (
                 <TreeSkeleton />
               ) : object.__typename === 'Blob' ? (
