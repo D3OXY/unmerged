@@ -10,6 +10,11 @@
 </p>
 
 <p align="center">
+  <a href="https://chromewebstore.google.com/detail/dimbendmcjfgoldbcebkepgonkfopcab"><img src="https://img.shields.io/badge/Chrome_Web_Store-Install-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Install from the Chrome Web Store"></a>
+  <a href="https://addons.mozilla.org/firefox/addon/unmerged/"><img src="https://img.shields.io/badge/Firefox_Add--ons-Install-FF7139?style=for-the-badge&logo=firefoxbrowser&logoColor=white" alt="Install from Firefox Add-ons"></a>
+</p>
+
+<p align="center">
   <img src=".github/screenshot.png" alt="A repository page in Unmerged, split diagonally between dark and light mode">
 </p>
 
