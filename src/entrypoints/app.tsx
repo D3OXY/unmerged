@@ -14,7 +14,7 @@ import { preloadCode } from '@/lib/diffs';
 import { loadFonts } from '@/lib/fonts';
 import { localCache } from '@/lib/localCache';
 import { emitNavigate, navigate, onNavigate, setOwns } from '@/lib/navigation';
-import { trimPersisted, type Seed } from '@/lib/persist';
+import { trimPersisted, watchLocalEdits, type Seed } from '@/lib/persist';
 import type { Route } from '@/lib/routes';
 import { accountItem, blurredKinds, DEFAULT_PRIVACY, fontItem, privacyItem, type Font, type Privacy } from '@/lib/settings';
 
@@ -56,8 +56,9 @@ function start({ host, seeds, owns, isOwning, sync }: Boot) {
     queryCache: new QueryCache({ onError: onApiError }),
     mutationCache: new MutationCache({ onError: onApiError }),
   });
-  // Dated when each was fetched, so the queries' `staleTime` holds across page loads.
-  for (const { queryKey, data, at } of seeds) queryClient.setQueryData(queryKey, data, { updatedAt: at });
+  // Dated when GitHub last confirmed each, so the queries' `staleTime` holds across page loads.
+  for (const { queryKey, data, checked } of seeds) queryClient.setQueryData(queryKey, data, { updatedAt: checked });
+  watchLocalEdits(queryClient.getQueryCache());
 
   // A new token or Disconnect (in the settings page): everything this tab holds is the old account's.
   accountItem.watch(() => {
