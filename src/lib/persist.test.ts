@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { storage, type StorageItemKey } from '#imports';
-import { persisted, readPersisted, saveToken, trimPersisted } from './persist';
+import { persisted, readPersisted, saveToken, trimPersisted, watchLocalEdits } from './persist';
 import { accountItem, tokenItem } from './settings';
 
 const NOW = new Date('2026-06-01').getTime();
@@ -51,15 +51,48 @@ describe('persisted', () => {
     await trimPersisted();
   };
 
-  it('stores a result only when it changed', async () => {
+  it('stores a result only when it changed, and dates every check', async () => {
     await fetchRepo({ stars: 1 });
     vi.setSystemTime(NOW + 60_000);
     await fetchRepo({ stars: 1 });
     expect(await storage.getItem(KEY)).toEqual({ at: NOW, data: { stars: 1 } });
     expect((await index())[KEY]?.at).toBe(NOW);
+    expect(await storage.getItem(`${KEY}:checked`)).toBe(NOW + 60_000);
 
     await fetchRepo({ stars: 2 });
     expect(await storage.getItem(KEY)).toEqual({ at: NOW + 60_000, data: { stars: 2 } });
+  });
+
+  // A new page load: a new client, so nothing is in memory.
+  const loadRepo = async (queryFn: () => unknown) => {
+    const data = await new QueryClient().fetchQuery({ queryKey: ['repo'], queryFn, persister: persisted, staleTime: 60_000 });
+    await trimPersisted();
+    return data;
+  };
+
+  it("uses the stored result without a request inside the query's staleTime, and fetches after it", async () => {
+    await loadRepo(() => ({ stars: 1 }));
+    const queryFn = vi.fn(() => ({ stars: 2 }));
+
+    vi.setSystemTime(NOW + 59_000);
+    expect(await loadRepo(queryFn)).toEqual({ stars: 1 });
+    expect(queryFn).not.toHaveBeenCalled();
+
+    vi.setSystemTime(NOW + 61_000);
+    expect(await loadRepo(queryFn)).toEqual({ stars: 2 });
+    expect(queryFn).toHaveBeenCalledOnce();
+  });
+
+  it('fetches again in a new page load after this tab changed the data without a fetch', async () => {
+    const client = new QueryClient();
+    watchLocalEdits(client.getQueryCache());
+    await client.fetchQuery({ queryKey: ['repo'], queryFn: () => ({ stars: 1 }), persister: persisted });
+    client.setQueryData(['repo'], { stars: 2 });
+    await trimPersisted();
+
+    const queryFn = vi.fn(() => ({ stars: 2 }));
+    expect(await loadRepo(queryFn)).toEqual({ stars: 2 });
+    expect(queryFn).toHaveBeenCalledOnce();
   });
 });
 
@@ -69,7 +102,7 @@ describe('readPersisted', () => {
     await trimPersisted();
     await storage.setItem('local:query:a:["expired"]', { at: NOW - 8 * DAY, data: 'old' });
 
-    expect(await readPersisted('a', [['viewer'], ['expired'], ['missing']])).toEqual([{ queryKey: ['viewer'], at: NOW, data: 'octocat' }]);
+    expect(await readPersisted('a', [['viewer'], ['expired'], ['missing']])).toEqual([{ queryKey: ['viewer'], checked: NOW, data: 'octocat' }]);
     expect(await readPersisted('b', [['viewer']])).toEqual([]);
   });
 });

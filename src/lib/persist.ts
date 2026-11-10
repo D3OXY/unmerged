@@ -1,4 +1,4 @@
-import { hashKey, type Query, type QueryKey } from '@tanstack/react-query';
+import { hashKey, type Query, type QueryCache, type QueryKey, type StaleTimeFunction } from '@tanstack/react-query';
 import { storage, type StorageItemKey } from '#imports';
 import { clearDrafts } from './drafts';
 import { accountItem, tokenItem } from './settings';
@@ -28,23 +28,45 @@ const enqueue = (task: () => Promise<void>) => (queue = queue.then(task).catch((
 
 /**
  * A query `persister` (opt in per query) that keeps the last result in extension storage. The next time the
- * query runs with nothing in memory (a new page load), the stored result shows as soon as storage answers,
- * while the request goes out as usual and replaces it. One request either way; only the wait disappears.
+ * query runs with nothing in memory (a new page load), the stored result shows as soon as storage answers. If
+ * GitHub confirmed it within the query's `staleTime`, no request goes out; else the request replaces it.
  */
 export async function persisted<T>(queryFn: (context: never) => T | Promise<T>, context: unknown, query: Query): Promise<T> {
   const key = `${prefix(await (account ??= accountItem.getValue()))}${query.queryHash}` as const;
+  const [stored] = query.state.data === undefined ? await read([key]) : [];
+  if (stored && query.state.data === undefined) {
+    // Read first: `setData` clears it.
+    const { isInvalidated } = query.state;
+    // `manual`: show it without ending the fetch. Dated when GitHub last confirmed it, so the query's own
+    // `staleTime` (also a function of the data) tells if it still holds.
+    query.setData(stored.data, { updatedAt: stored.checked, manual: true });
+    if (!isInvalidated && !query.isStaleByTime(staleTimeOf(query))) {
+      // The core dates what this returns now; put back the stored date once it has (as TanStack's own persister does).
+      setTimeout(() => query.setState({ dataUpdatedAt: stored.checked }));
+      return stored.data as T;
+    }
+  }
   // The core hands back the context it made for this very `queryFn`. (Its types can't say so for infinite
   // queries, whose page fetcher gets a context without `pageParam`, hence `never` and this one cast.)
-  const fresh = Promise.resolve(queryFn(context as never));
-  if (query.state.data === undefined) {
-    storage.getItem<Entry>(key).then((entry) => {
-      // `manual`: show it without ending the fetch that's still running.
-      if (entry && Date.now() - entry.at < MAX_AGE && query.state.data === undefined) query.setData(entry.data, { updatedAt: entry.at, manual: true });
-    });
-  }
-  const data = await fresh;
+  const data = await queryFn(context as never);
   enqueue(() => store(key, data));
   return data;
+}
+
+/**
+ * Makes a persisted query's stored result stale when this tab changes the query's data without a fetch: an
+ * optimistic edit (`setQueryData`) or an invalidation. Else a new tab could show the result from before the change,
+ * without a request, until its `staleTime` ends. Writes dated with `updatedAt` came from GitHub and are left out.
+ */
+export function watchLocalEdits(cache: QueryCache) {
+  return cache.subscribe((event) => {
+    if (event.type !== 'updated' || event.query.options.persister !== persisted) return;
+    const { action } = event;
+    if (action.type === 'invalidate' || (action.type === 'success' && action.manual && action.dataUpdatedAt === undefined)) {
+      const { queryHash } = event.query;
+      enqueue(async () => storage.removeItem(checkedKey(`${prefix(await accountItem.getValue())}${queryHash}`)));
+    }
+  });
 }
 
 // The sidebar's queries. It shows on every owned page, so the content script reads their stored results with the
@@ -52,18 +74,16 @@ export async function persisted<T>(queryFn: (context: never) => T | Promise<T>, 
 export const viewerKey = ['viewer'] as const;
 export const recentReposKey = ['recent-repos'] as const;
 
-/** A stored result, with the query it belongs to. */
-export type Seed = { queryKey: QueryKey } & Entry;
+/** A stored result, with the query it belongs to and when GitHub last confirmed it. */
+export type Seed = { queryKey: QueryKey; data: unknown; checked: number };
 
 /**
- * Reads `account`'s stored results for `queryKeys` in one storage call. Results older than MAX_AGE are left out,
- * as `persisted` leaves them out.
+ * Reads `account`'s stored results for `queryKeys`. Results older than MAX_AGE are left out, as `persisted`
+ * leaves them out.
  */
 export async function readPersisted(account: string, queryKeys: QueryKey[]): Promise<Seed[]> {
-  const entries = await storage.getItems(queryKeys.map((queryKey) => `${prefix(account)}${hashKey(queryKey)}` as const));
-  return entries.flatMap(({ value }: { value: Entry | null }, i) =>
-    value && Date.now() - value.at < MAX_AGE ? [{ queryKey: queryKeys[i]!, ...value }] : [],
-  );
+  const stored = await read(queryKeys.map((queryKey) => `${prefix(account)}${hashKey(queryKey)}` as const));
+  return stored.flatMap((value, i) => (value ? [{ queryKey: queryKeys[i]!, ...value }] : []));
 }
 
 /** Drops other accounts' results, expired ones, and the oldest past MAX_BYTES. Reads only the index. */
@@ -86,20 +106,46 @@ export async function saveToken(token: string) {
 }
 
 /**
- * Stores a result unless it's the same as the stored one (same length and hash: polls mostly bring back
- * what they already had, and every write is broadcast to every open tab).
+ * When GitHub last confirmed a stored result: written on every fetch, also when the result didn't change (a small
+ * write, unlike the result). A result without one counts as stale.
+ */
+const checkedKey = (key: StorageItemKey) => `${key}:checked` as const;
+
+/**
+ * Reads stored results in one storage call: each with when GitHub last confirmed it (0 if never), or undefined if
+ * there's none or it's older than MAX_AGE.
+ */
+async function read(keys: StorageItemKey[]) {
+  const values = await storage.getItems(keys.flatMap((key) => [key, checkedKey(key)]));
+  return keys.map((_, i) => {
+    const entry: Entry | null = values[2 * i]!.value;
+    const checked: number | null = values[2 * i + 1]!.value;
+    return entry && Date.now() - entry.at < MAX_AGE ? { data: entry.data, checked: checked ?? 0 } : undefined;
+  });
+}
+
+// `Query.options` has the observer's or fetch's options, `staleTime` included, but its type leaves `staleTime` out.
+function staleTimeOf(query: Query) {
+  const { staleTime } = query.options as { staleTime?: StaleTimeFunction };
+  return typeof staleTime === 'function' ? staleTime(query) : staleTime;
+}
+
+/**
+ * Stores a fetched result unless it's the same as the stored one (same length and hash: polls mostly bring back
+ * what they already had, and every write is broadcast to every open tab). Either way, dates the check.
  */
 async function store(key: StorageItemKey, data: unknown) {
   const json = JSON.stringify(data);
   const line = { at: Date.now(), bytes: json.length, hash: hashOf(json) };
+  const checked = { key: checkedKey(key), value: line.at };
   const index = await indexItem.getValue();
   const stored = index[key];
-  if (stored?.bytes === line.bytes && stored.hash === line.hash) return;
-  await writeTrimmed({ ...index, [key]: line }, [{ key, value: { at: line.at, data } satisfies Entry }]);
+  if (stored?.bytes === line.bytes && stored.hash === line.hash) return storage.setItem(checked.key, checked.value);
+  await writeTrimmed({ ...index, [key]: line }, [{ key, value: { at: line.at, data } satisfies Entry }, checked]);
 }
 
-/** Writes `index`, trimmed, along with any new results, then removes the results trimmed out. */
-async function writeTrimmed(index: Index, writes: { key: StorageItemKey; value: Entry }[] = []) {
+/** Writes `index`, trimmed, along with `writes`, then removes the results trimmed out. */
+async function writeTrimmed(index: Index, writes: { key: StorageItemKey; value: unknown }[] = []) {
   const current = prefix(await accountItem.getValue());
   const now = Date.now();
   const kept: Index = {};
@@ -111,7 +157,7 @@ async function writeTrimmed(index: Index, writes: { key: StorageItemKey; value: 
     else dropped.push(key);
   }
   await storage.setItems([...writes, { item: indexItem, value: kept }]);
-  if (dropped.length) await storage.removeItems(dropped);
+  if (dropped.length) await storage.removeItems(dropped.flatMap((key) => [key, checkedKey(key)]));
 }
 
 /** FNV-1a: a cheap 32-bit fingerprint of a result's JSON, to tell a changed result from a re-fetched one. */
