@@ -20,9 +20,12 @@ import { paintPalette } from '@/lib/theme';
 const OWNING = 'unmerged-owning';
 
 // Applied to github.com itself: hides GitHub's page while Unmerged owns the URL, before first paint, on the
-// theme's background.
+// theme's background. <body> stays rendered (collapsed, its children hidden), not `display: none`: after
+// `window.stop()` a WebKit document stays "loading", and WebKit paints a loading document only once its <body>
+// is rendered. Our UI is in a shadow host on <html>, outside <body>, so it doesn't stand in for one.
 const documentCss = (background: string) => `
-  html.${OWNING} > body { display: none !important; }
+  html.${OWNING} > body { height: 0 !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; }
+  html.${OWNING} > body > * { display: none !important; }
   html.${OWNING} { background: ${background}; overflow-y: auto; scroll-behavior: auto !important; scroll-padding: 0 !important; }
   unmerged-app { display: block; }
 `;
