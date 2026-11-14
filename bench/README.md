@@ -8,7 +8,7 @@ Unmerged against GitHub's own pages, loaded the same way in the same browser. `r
 ```sh
 pnpm install
 pnpm exec playwright install chromium
-pnpm build
+pnpm build:chrome
 pnpm bench                  # all pages, 5 runs each
 pnpm bench --runs 3 --only pr,issue
 pnpm bench --only to-pulls,to-pr,to-files   # only the clicks inside a page

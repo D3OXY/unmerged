@@ -38,8 +38,9 @@ To run your own build instead, build it and load it unpacked:
 
 ```sh
 pnpm install
-pnpm build            # Chrome → .output/chrome-mv3
-pnpm build:firefox    # Firefox → .output/firefox-mv2
+pnpm build            # both: Chrome → .output/chrome-mv3, Firefox → .output/firefox-mv2
+pnpm build:chrome     # only Chrome
+pnpm build:firefox    # only Firefox
 ```
 
 In Chrome, open `chrome://extensions`, turn on Developer mode, click **Load unpacked** and pick

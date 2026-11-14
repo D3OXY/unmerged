@@ -18,8 +18,9 @@ function Source() {
         {`git clone ${REPO_URL}
 cd unmerged
 pnpm install
-pnpm build            # Chrome → .output/chrome-mv3
-pnpm build:firefox    # Firefox → .output/firefox-mv2`}
+pnpm build            # both: Chrome → .output/chrome-mv3, Firefox → .output/firefox-mv2
+pnpm build:chrome     # only Chrome
+pnpm build:firefox    # only Firefox`}
       </pre>
 
       <Section title="Load it in Chrome">

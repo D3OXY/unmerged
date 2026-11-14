@@ -6,7 +6,7 @@ import { parseArgs } from 'node:util';
 import { chromium, type BrowserContext, type Request } from 'playwright';
 
 // Unmerged vs GitHub's own pages, in the same headless Chromium. See bench/README.md for the method.
-// Usage: pnpm build && pnpm bench [--runs 5] [--only repo,to-pulls] [--no-write]
+// Usage: pnpm build:chrome && pnpm bench [--runs 5] [--only repo,to-pulls] [--no-write]
 // UNMERGED_EXTENSION points at another build (default: this checkout's .output/chrome-mv3).
 
 /**
@@ -151,7 +151,7 @@ async function main() {
   const runs = Number(values.runs);
   const only = values.only?.split(',');
   const scenarios = only ? SCENARIOS.filter((s) => only.includes(s.id)) : SCENARIOS;
-  if (!existsSync(EXTENSION)) throw new Error('Build the extension first: pnpm build');
+  if (!existsSync(EXTENSION)) throw new Error('Build the extension first: pnpm build:chrome');
   const token = process.env.GITHUB_TOKEN ?? execFileSync('gh', ['auth', 'token'], { encoding: 'utf8' }).trim();
   if (!token) throw new Error('Set GITHUB_TOKEN (a read-only token is enough) or sign in with the GitHub CLI');
   const session: { cookies: Parameters<BrowserContext['addCookies']>[0] } | null = existsSync(SESSION) ? JSON.parse(readFileSync(SESSION, 'utf8')) : null;
