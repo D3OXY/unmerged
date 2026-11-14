@@ -1,5 +1,13 @@
 # unmerged
 
+## 0.1.6 (2026-11-14)
+
+### Patch Changes
+
+- [Improved][Speed] When you open a page again in a new tab or reload it soon after, Unmerged shows the data it loaded a short time ago and does not ask GitHub for it again. Pages show sooner, and Unmerged uses less of your GitHub API limit.
+- [Improved][Repositories] The Overview shows the latest commit above the README, with its author, check status and a link to the full history.
+- [Fixed][WebKit browsers] A page that Unmerged shows sometimes stayed blank with only the background color. It now shows every time.
+
 ## 0.1.5 (2026-11-08)
 
 ### Patch Changes
