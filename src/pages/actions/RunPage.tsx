@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowDown01Icon, Clock01Icon, GitBranchIcon, GitCommitHorizontalIcon, GitPullRequestIcon, UndoIcon } from '@hugeicons/core-free-icons';
@@ -15,8 +15,10 @@ import { Button } from '@/ui/Button';
 import { Menu } from '@/ui/Menu';
 import { Avatar, Empty, Panel, SectionHeader, Skeleton } from '@/ui/primitives';
 import { toast } from '@/ui/toast';
+import { runGraph } from './graph';
+import { JobGraph, JobRow } from './JobGraph';
 import { JobView } from './JobView';
-import { capitalize, elapsed, headPrQuery, outcome, runJobsQuery, runQuery, type Job, type WorkflowRun } from './query';
+import { capitalize, elapsed, headPrQuery, outcome, runJobsQuery, runQuery, workflowFile, workflowJobsQuery, type Job, type WorkflowRun } from './query';
 
 type Props = { owner: string; repo: string; runId: number; attempt?: number; job?: number };
 
@@ -46,7 +48,7 @@ export function RunPage({ owner, repo, runId, attempt, job }: Props) {
         <>
           {run ? <RunHeader run={run} owner={owner} repo={repo} base={base} attempt={attempt} onRerun={() => setRerunOf(run.run_attempt)} /> : <HeaderSkeleton />}
           {job === undefined ? (
-            <JobList jobs={jobs.data} base={base} error={jobs.error} />
+            <Jobs owner={owner} repo={repo} run={run} jobs={jobs.data} base={base} error={jobs.error} />
           ) : (
             <div className="grid items-start gap-6 @4xl:grid-cols-[260px_minmax(0,1fr)]">
               <JobNav jobs={jobs.data} base={base} selected={job} />
@@ -163,37 +165,34 @@ function RunHeader({ run, owner, repo, base, attempt, onRerun }: { run: Workflow
   );
 }
 
-/** The step a failed job failed at, as GitHub names it. */
-const failedStep = (job: Job) => job.steps?.find((step) => step.conclusion === 'failure')?.name;
+/**
+ * The run page's body: every job, linking to its logs. As a graph of what waits for what when the workflow file
+ * says so, else as a list (a workflow that GitHub makes, a file that can't be read, or no job that waits).
+ */
+function Jobs({ owner, repo, run, jobs, base, error }: { owner: string; repo: string; run?: WorkflowRun; jobs?: Job[]; base: string; error: Error | null }) {
+  const path = run && workflowFile(run);
+  const workflow = useQuery({ ...workflowJobsQuery(owner, repo, path ?? '', run?.head_sha ?? ''), enabled: !!path });
+  const levels = useMemo(() => (workflow.data && jobs ? runGraph(workflow.data, jobs) : null), [workflow.data, jobs]);
 
-/** The run page's body: every job, linking to its logs. */
-function JobList({ jobs, base, error }: { jobs?: Job[]; base: string; error: Error | null }) {
   if (error) return <p className="text-[13px] text-danger">{error.message}</p>;
-  if (!jobs) return <Skeleton className="h-64 rounded-xl" />;
+  if (!jobs || !run || (path && workflow.isPending)) return <Skeleton className="h-64 rounded-xl" />;
   const failed = jobs.filter((job) => outcome(job) === 'FAILURE').length;
   return (
     <section>
       <SectionHeader title="Jobs" count={jobs.length} action={failed > 0 && <span className="text-[12px] text-danger">{failed} failed</span>} />
-      <Panel className="p-1.5">
-        {jobs.length === 0 && <Empty>No jobs yet.</Empty>}
-        {jobs.map((job) => {
-          const result = outcome(job);
-          const step = result === 'FAILURE' && failedStep(job);
-          return (
-            <a key={job.id} href={`${base}/job/${job.id}`} data-row className="flex min-h-10 items-center gap-2.5 rounded-lg px-2.5 py-1.5 hover:bg-hover focus:bg-hover focus:outline-none">
-              <OutcomeIcon outcome={result} />
-              <span className="min-w-0 flex-1">
-                <span className={cx('block truncate text-[12.5px]', result === 'FAILURE' ? 'font-medium text-fg' : 'text-fg/85')}>{job.name}</span>
-                {step && <span className="block truncate text-[11.5px] text-subtle">Failed at {step}</span>}
-              </span>
-              <span className="text-[11.5px] text-subtle tabular-nums">
-                {job.started_at && job.conclusion !== 'skipped' ? elapsed(job.started_at, job.completed_at) : job.conclusion === 'skipped' ? 'Skipped' : ''}
-              </span>
-            </a>
-          );
-        })}
-      </Panel>
+      {levels ? <JobGraph levels={levels} base={base} /> : <JobList jobs={jobs} base={base} />}
     </section>
+  );
+}
+
+function JobList({ jobs, base }: { jobs: Job[]; base: string }) {
+  return (
+    <Panel className="p-1.5">
+      {jobs.length === 0 && <Empty>No jobs yet.</Empty>}
+      {jobs.map((job) => (
+        <JobRow key={job.id} job={job} label={job.name} base={base} className="min-h-10 gap-2.5 rounded-lg px-2.5 py-1.5" />
+      ))}
+    </Panel>
   );
 }
 
