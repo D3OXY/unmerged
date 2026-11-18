@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { matchRoute } from '@/lib/routes';
 import { issueSplitItem, nestIssuesItem, repoOverviewItem } from '@/lib/settings';
-import { runsQuery } from '@/pages/actions/query';
+import { runJobsQuery, runsQuery, workflowJobsQuery } from '@/pages/actions/query';
 import { branchIndexQuery } from '@/pages/branches/query';
 import { issueQuery, issueTimelineQuery } from '@/pages/issue/query';
 import { prFilesQuery, prMergeQuery, prQuery, prReviewQuery, prTimelineQuery, prViewedQuery } from '@/pages/pr/query';
@@ -237,6 +237,25 @@ describe('prefetchRoute for Files changed', () => {
       prViewedQuery('O', 'R', 7).queryKey,
       prFilesQuery('O', 'R', head).queryKey,
     ]);
+  });
+});
+
+// A run page draws its graph from the workflow file that the run names, at the run's commit.
+describe('prefetchRoute for a workflow run', () => {
+  it('starts the run, its jobs and its workflow file', async () => {
+    const client = new QueryClient();
+    vi.spyOn(client, 'fetchQuery').mockResolvedValue({ path: '.github/workflows/ci.yml', head_sha: 'abc' });
+    const keys: QueryKey[] = [];
+    const workflow = new Promise<QueryKey>((resolve) =>
+      vi.spyOn(client, 'prefetchQuery').mockImplementation(async (options) => {
+        keys.push(options.queryKey);
+        if (options.queryKey[0] === 'workflow-jobs') resolve(options.queryKey);
+      }),
+    );
+    const url = new URL('https://github.com/O/R/actions/runs/9');
+    prefetchRoute(client, matchRoute(url)!, url);
+    expect(await workflow).toEqual(workflowJobsQuery('O', 'R', '.github/workflows/ci.yml', 'abc').queryKey);
+    expect(keys).toEqual([runJobsQuery('O', 'R', 9).queryKey, workflowJobsQuery('O', 'R', '.github/workflows/ci.yml', 'abc').queryKey]);
   });
 });
 

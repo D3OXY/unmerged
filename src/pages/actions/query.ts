@@ -2,6 +2,8 @@ import { infiniteQueryOptions, queryOptions, type QueryClient } from '@tanstack/
 import { rest, restText } from '@/github/client';
 import { persisted } from '@/lib/persist';
 import { runOutcome } from '@/pages/pr/checks';
+import { encodePath } from '@/pages/repo/urls';
+import { parseWorkflowJobs } from './workflow';
 
 type User = { login: string; avatar_url: string };
 
@@ -12,6 +14,8 @@ export type WorkflowRun = {
   display_title: string;
   run_number: number;
   run_attempt: number;
+  /** The workflow file (".github/workflows/ci.yml"), or "dynamic/…" for one that GitHub makes (Pages, Dependabot). */
+  path: string;
   event: string;
   status: string;
   conclusion: string | null;
@@ -84,6 +88,26 @@ export const runJobsQuery = (owner: string, repo: string, runId: number, attempt
       const others = await Promise.all(Array.from({ length: pages - 1 }, (_, i) => page(i + 2)));
       return [first, ...others].flatMap((batch) => batch.jobs);
     },
+    persister: persisted,
+  });
+
+/** The run's workflow file in the repo, or undefined for a workflow that GitHub makes. */
+export const workflowFile = (run: WorkflowRun) => /^\.github\/workflows\/[^@]+/.exec(run.path)?.[0];
+
+/**
+ * The jobs in a workflow file at a commit (see parseWorkflowJobs), or null when it has none. A commit's file
+ * never changes, so it's fetched once. `sha` is the run's head commit: the file that the run read in nearly
+ * every case (`pull_request_target` reads the base branch's).
+ */
+export const workflowJobsQuery = (owner: string, repo: string, path: string, sha: string) =>
+  queryOptions({
+    queryKey: ['workflow-jobs', ...key(owner, repo), path, sha],
+    queryFn: async ({ signal }) => {
+      const { content } = await rest<{ content: string }>(`/repos/${owner}/${repo}/contents/${encodePath(path)}?ref=${sha}`, { signal });
+      const bytes = Uint8Array.from(atob(content.replace(/\s/g, '')), (char) => char.charCodeAt(0));
+      return parseWorkflowJobs(new TextDecoder().decode(bytes));
+    },
+    staleTime: Infinity,
     persister: persisted,
   });
 
@@ -224,7 +248,13 @@ export function prefetchActions(client: QueryClient, owner: string, repo: string
 
 /** What a run URL will show, started early (page load, link hover) by src/app/prefetch.ts. */
 export function prefetchRun(client: QueryClient, owner: string, repo: string, runId: number, attempt?: number, job?: number) {
-  client.prefetchQuery(runQuery(owner, repo, runId, attempt));
+  client
+    .fetchQuery(runQuery(owner, repo, runId, attempt))
+    .then((run) => {
+      const path = workflowFile(run);
+      if (path && job === undefined) client.prefetchQuery(workflowJobsQuery(owner, repo, path, run.head_sha));
+    })
+    .catch(() => {});
   client.prefetchQuery(runJobsQuery(owner, repo, runId, attempt));
   if (job === undefined) return;
   // A running job has no log yet; asking would only cache the 404.
