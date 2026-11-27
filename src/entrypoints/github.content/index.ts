@@ -4,6 +4,7 @@ import type { AppApi } from '@/entrypoints/app';
 import { prefetchInBackground } from '@/github/early';
 import { bootTarget, reloadedOnGitHub, reloadOnGitHub } from '@/lib/boot';
 import { classicPath, clearClassicUnless } from '@/lib/classic';
+import { forceReloaded, markForceReload } from '@/lib/forceReload';
 import { isModifiedClick, withPeek } from '@/lib/navigation';
 import { matchRoute, type Route } from '@/lib/routes';
 import { sessionLogin } from '@/lib/session';
@@ -58,10 +59,11 @@ export default defineContentScript({
       html.append(Object.assign(document.createElement('title'), { textContent: 'GitHub' }));
     }
     const reloaded = reloadedOnGitHub();
+    const forced = forceReloaded();
+    ctx.addEventListener(window, 'keydown', markForceReload, { capture: true });
     // Read now, in parallel with loading the app: the account, then the sidebar's stored results, which the app
-    // shows on its first render.
-    const account = accountItem.getValue();
-    const seeds = account.then((id) => readPersisted(id, [viewerKey, recentReposKey])).catch(() => []);
+    // shows on its first render. A force reload shows none.
+    const seeds = forced ? Promise.resolve([]) : accountItem.getValue().then((id) => readPersisted(id, [viewerKey, recentReposKey])).catch(() => []);
     const style = document.createElement('style');
     html.append(style);
 
@@ -144,7 +146,7 @@ export default defineContentScript({
           }),
           seeds,
         ]);
-        const app = start({ host: ui.shadowHost, seeds: seeded, owns: (url) => !!resolve(url)?.owning, isOwning, sync });
+        const app = start({ host: ui.shadowHost, seeds: seeded, forced, owns: (url) => !!resolve(url)?.owning, isOwning, sync });
         // The page's requests start now, not after React has rendered.
         const url = new URL(location.href);
         const page = resolve(url);

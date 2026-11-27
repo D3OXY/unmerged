@@ -14,7 +14,7 @@ import { preloadCode } from '@/lib/diffs';
 import { loadFonts } from '@/lib/fonts';
 import { localCache } from '@/lib/localCache';
 import { emitNavigate, navigate, onNavigate, setOwns } from '@/lib/navigation';
-import { trimPersisted, watchLocalEdits, type Seed } from '@/lib/persist';
+import { skipStoredResults, trimPersisted, watchLocalEdits, type Seed } from '@/lib/persist';
 import type { Route } from '@/lib/routes';
 import { accountItem, blurredKinds, DEFAULT_PRIVACY, fontItem, privacyItem, type Font, type Privacy } from '@/lib/settings';
 
@@ -29,6 +29,8 @@ type Boot = {
   host: HTMLElement;
   /** Stored results that the first render shows: the sidebar's (see `readPersisted`). */
   seeds: Seed[];
+  /** A force reload (lib/forceReload.ts): its page shows no stored results. */
+  forced: boolean;
   owns: (url: URL) => boolean;
   /** Whether our page is showing (GitHub's is hidden) now. */
   isOwning: () => boolean;
@@ -37,7 +39,7 @@ type Boot = {
 };
 
 /** Starts the app once per page; the content script calls what it returns. */
-function start({ host, seeds, owns, isOwning, sync }: Boot) {
+function start({ host, seeds, forced, owns, isOwning, sync }: Boot) {
   // The background may have started the first requests already (see github/early.ts).
   takeEarlyAnswers();
   setOwns(owns);
@@ -93,6 +95,15 @@ function start({ host, seeds, owns, isOwning, sync }: Boot) {
   privacyItem.getValue().then(setPrivacy);
   privacyItem.watch(setPrivacy);
 
+  // A force reload fetches its page fresh, as the browser does; the pages after it use stored results again.
+  // Before `sync`, so the next page's queries already read them.
+  if (forced) {
+    skipStoredResults(true);
+    const stop = onNavigate(() => {
+      skipStoredResults(false);
+      stop();
+    });
+  }
   // Our own pushState navigations and back/forward.
   onNavigate(sync);
   installKeyboard(host, isOwning);

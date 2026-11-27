@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { storage, type StorageItemKey } from '#imports';
-import { persisted, readPersisted, saveToken, trimPersisted, watchLocalEdits } from './persist';
+import { persisted, readPersisted, saveToken, skipStoredResults, trimPersisted, watchLocalEdits } from './persist';
 import { accountItem, tokenItem } from './settings';
 
 const NOW = new Date('2026-06-01').getTime();
@@ -81,6 +81,17 @@ describe('persisted', () => {
     vi.setSystemTime(NOW + 61_000);
     expect(await loadRepo(queryFn)).toEqual({ stars: 2 });
     expect(queryFn).toHaveBeenCalledOnce();
+  });
+
+  it('fetches without the stored result while stored results are skipped (a force reload), and stores the answer', async () => {
+    await loadRepo(() => ({ stars: 1 }));
+    skipStoredResults(true);
+    try {
+      expect(await loadRepo(() => ({ stars: 2 }))).toEqual({ stars: 2 });
+    } finally {
+      skipStoredResults(false);
+    }
+    expect(await storage.getItem(KEY)).toEqual({ at: NOW, data: { stars: 2 } });
   });
 
   it('fetches again in a new page load after this tab changed the data without a fetch', async () => {
