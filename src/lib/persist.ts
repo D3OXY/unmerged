@@ -26,6 +26,13 @@ accountItem.watch(() => (account = undefined));
 let queue = Promise.resolve();
 const enqueue = (task: () => Promise<void>) => (queue = queue.then(task).catch(() => {}));
 
+let skipStored = false;
+
+/** While `skip`, `persisted` reads no stored results and always fetches; it still stores the answer. For a force reload's page. */
+export function skipStoredResults(skip: boolean) {
+  skipStored = skip;
+}
+
 /**
  * A query `persister` (opt in per query) that keeps the last result in extension storage. The next time the
  * query runs with nothing in memory (a new page load), the stored result shows as soon as storage answers. If
@@ -33,7 +40,7 @@ const enqueue = (task: () => Promise<void>) => (queue = queue.then(task).catch((
  */
 export async function persisted<T>(queryFn: (context: never) => T | Promise<T>, context: unknown, query: Query): Promise<T> {
   const key = `${prefix(await (account ??= accountItem.getValue()))}${query.queryHash}` as const;
-  const [stored] = query.state.data === undefined ? await read([key]) : [];
+  const [stored] = query.state.data === undefined && !skipStored ? await read([key]) : [];
   if (stored && query.state.data === undefined) {
     // Read first: `setData` clears it.
     const { isInvalidated } = query.state;
