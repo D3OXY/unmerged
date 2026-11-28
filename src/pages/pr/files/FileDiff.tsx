@@ -23,6 +23,10 @@ export type PrFile = {
 
 export type DiffMode = 'unified' | 'split';
 
+export const MODE_KEY = 'unmerged:diff-mode';
+export const WRAP_KEY = 'unmerged:diff-wrap';
+export const BIG_FILE = 600; // changed lines above which a file starts collapsed
+
 const STATUS: Partial<Record<PrFile['status'], [string, string]>> = {
   added: ['Added', 'text-success bg-success/10'],
   removed: ['Deleted', 'text-danger bg-danger/10'],
@@ -35,7 +39,7 @@ export type FileReview = {
   /** Undefined until the full pull request loads (line comments wait for it), and on commits that end before the head. */
   pr?: PullRequest;
   /** Some commits only: comments go on new lines only. */
-  newSideOnly?: boolean;
+  range?: string;
   queryKey: QueryKey;
   onToggleViewed: (change: { path: string; wasViewed: boolean }) => void;
   /** GitHub's editor for a file on the head branch; undefined when the viewer can't push there. */
@@ -71,7 +75,8 @@ type Props = {
 export const FileDiff = memo(function FileDiff({ file, source, review, anchor, mode: preferredMode, wrap, open, viewState, threads = NO_THREADS, onSetOpen, cardRef }: Props) {
   const section = useRef<HTMLElement>(null);
   const [near, setNear] = useState(false);
-  const [commenting, setCommenting] = useState(false);
+  const [commentSource, setCommentSource] = useState<DiffSource>();
+  const commenting = commentSource === source;
   const fileThreads = useMemo(() => threads.filter((t) => t.subjectType === 'FILE'), [threads]);
   useEffect(() => {
     if (!near && section.current) return whenNear(section.current, () => setNear(true));
@@ -128,7 +133,7 @@ export const FileDiff = memo(function FileDiff({ file, source, review, anchor, m
           <button
             type="button"
             onClick={() => {
-              setCommenting(true);
+              setCommentSource(source);
               if (!open) onToggleOpen();
             }}
             title="Comment on this file"
@@ -171,7 +176,7 @@ export const FileDiff = memo(function FileDiff({ file, source, review, anchor, m
           {fileThreads.map((thread) => (
             <Thread key={thread.id} thread={thread} queryKey={review.queryKey} inline />
           ))}
-          {commenting && <ReviewComposer pr={review.pr} path={file.filename} target="file" queryKey={review.queryKey} onDone={() => setCommenting(false)} />}
+          {commenting && <ReviewComposer pr={review.pr} path={file.filename} target="file" queryKey={review.queryKey} onDone={() => setCommentSource(undefined)} />}
         </div>
       )}
       {open &&
@@ -184,7 +189,15 @@ export const FileDiff = memo(function FileDiff({ file, source, review, anchor, m
           </div>
         ) : (
           <LazyBody estimatedHeight={bodyHeight(file)}>
-            <DiffBody file={file} patch={file.patch} source={source} review={review?.pr && { pr: review.pr, queryKey: review.queryKey, threads, newSideOnly: review.newSideOnly }} mode={mode} wrap={wrap} />
+            <DiffBody
+              key={review?.range ? `range:${review.range}` : source.oid}
+              file={file}
+              patch={file.patch}
+              source={source}
+              review={review?.pr && { pr: review.pr, queryKey: review.queryKey, threads, newSideOnly: !!review.range }}
+              mode={mode}
+              wrap={wrap}
+            />
           </LazyBody>
         ))}
     </section>

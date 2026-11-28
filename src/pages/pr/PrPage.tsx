@@ -105,9 +105,9 @@ export function PrContent({ owner, repo, number, tab, range, panel }: Props & { 
     if (!headRefOid || changedFiles === undefined) return;
     const id = requestIdleCallback(() => {
       queryClient.prefetchQuery(prViewedQuery(owner, repo, number));
-      const files = changedFiles > IDLE_PREFETCH_MAX_FILES ? [] : queryClient.fetchQuery(prFilesQuery(owner, repo, { number, headRefOid, changedFiles }));
-      Promise.all([loadDiffs(), files])
-        .then(([renderer, list]) => renderer.preloadHighlighting(list.map((f) => f.filename)))
+      const changes = changedFiles <= IDLE_PREFETCH_MAX_FILES ? queryClient.fetchQuery(prFilesQuery(owner, repo, { number, headRefOid, changedFiles })) : undefined;
+      Promise.all([loadDiffs(), changes])
+        .then(([renderer, result]) => renderer.preloadHighlighting(result?.files.map((f) => f.filename) ?? []))
         .catch(() => {});
     });
     return () => cancelIdleCallback(id);

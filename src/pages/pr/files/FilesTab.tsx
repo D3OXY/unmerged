@@ -13,11 +13,8 @@ import { Menu, type MenuOption } from '@/ui/Menu';
 import { Skeleton } from '@/ui/primitives';
 import { toast } from '@/ui/toast';
 import {
-  MAX_FILES,
-  MAX_RANGE_FILES,
   MUTATIONS,
   prFilesQuery,
-  prRangeFilesQuery,
   prViewedQuery,
   repoPath,
   type PrHead,
@@ -27,40 +24,12 @@ import {
 } from '../query';
 import { diffAnchor } from './anchor';
 import { CommitPicker } from './CommitPicker';
-import { FileDiff, type DiffMode, type FileReview, type PrFile } from './FileDiff';
+import { BIG_FILE, FileDiff, MODE_KEY, WRAP_KEY, type DiffMode, type FileReview, type PrFile } from './FileDiff';
 import { fileTypes, isShown, useFileFilter, type FileType, type Hidden } from './filter';
 import { FileTree } from './FileTree';
-import { rangeHead } from './range';
 import { ReviewPanel } from './ReviewPanel';
 import { isOpenLineThread, nextOpenThread } from './threads';
-
-/**
- * Scrolls a file card under the sticky headers, or `inner(card)` to the middle of the screen once it exists, and
- * keeps it there for a moment: viewed files collapse and lazily rendered diffs above it change height after
- * the first scroll. Any user input releases it.
- */
-export function pinScroll(card: HTMLElement, inner?: (card: HTMLElement) => Element | null) {
-  const until = Date.now() + 1500;
-  let released = false;
-  const release = () => (released = true);
-  const events = ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const;
-  events.forEach((type) => window.addEventListener(type, release, { passive: true }));
-  const tick = () => {
-    if (released || Date.now() > until || !card.isConnected) {
-      events.forEach((type) => window.removeEventListener(type, release));
-      return;
-    }
-    const target = inner?.(card);
-    if (target) target.scrollIntoView({ block: 'center', behavior: 'instant' });
-    else card.scrollIntoView({ block: 'start', behavior: 'instant' });
-    requestAnimationFrame(tick);
-  };
-  tick();
-}
-
-export const MODE_KEY = 'unmerged:diff-mode';
-export const WRAP_KEY = 'unmerged:diff-wrap';
-export const BIG_FILE = 600; // changed lines above which a file starts collapsed
+import { useFileNavigation } from './useFileNavigation';
 
 const NO_THREADS: ReviewThread[] = [];
 
@@ -78,30 +47,26 @@ export function FilesTab({ pr, full, queryKey, range, panel = false }: { pr: PrH
   const queryClient = useQueryClient();
   const [owner, repo] = repoPath(pr).split('/') as [string, string];
   // After a push, or a pick of other commits, the previous files stay up until the new ones arrive.
-  const allFiles = useQuery({ ...prFilesQuery(owner, repo, pr), placeholderData: keepPreviousData, enabled: !range });
-  const rangeFiles = useQuery({ ...prRangeFilesQuery(owner, repo, range ?? ''), placeholderData: keepPreviousData, enabled: !!range });
-  const files = range ? rangeFiles : allFiles;
+  const files = useQuery({ ...prFilesQuery(owner, repo, range ?? pr), placeholderData: keepPreviousData });
   const viewedQuery = prViewedQuery(owner, repo, pr.number);
   const viewedKey = viewedQuery.queryKey;
   const viewed = useQuery(viewedQuery);
   const [mode, setMode] = useState<DiffMode>(() => (localStorage.getItem(MODE_KEY) === 'split' ? 'split' : 'unified'));
   const [wrap, setWrap] = useState(() => localStorage.getItem(WRAP_KEY) !== 'false');
   const [openOverride, setOpenOverride] = useState<Record<string, boolean>>({});
-  const [active, setActive] = useState<string>();
   const [anchors, setAnchors] = useState<Record<string, string>>({});
-  const cards = useRef(new Map<string, HTMLElement>());
-  const jumped = useRef<string>(undefined);
   const lastThread = useRef<ReviewThread>(undefined);
-  const list = files.data;
+  const changes = files.data;
+  const list = changes?.files;
+  const displayedRange = changes?.range;
   // Pages render as they arrive; until the last one is in, the count comes from the pull request.
   const partial = files.isFetching && !files.isPlaceholderData;
-  const head = range ? rangeHead(range) : pr.headRefOid;
-  const atHead = pr.headRefOid.startsWith(head.toLowerCase());
+  const atHead = !!changes && pr.headRefOid.startsWith(changes.source.oid.toLowerCase());
   const reviewThreads = useMemo(() => {
-    const all = full?.reviewThreads.nodes ?? NO_THREADS;
-    if (!range) return all;
-    return atHead ? all.filter((t) => t.diffSide === 'RIGHT' || t.subjectType === 'FILE') : NO_THREADS;
-  }, [full, range, atHead]);
+    if (!atHead || !full) return NO_THREADS;
+    const all = full.reviewThreads.nodes;
+    return displayedRange ? all.filter((t) => t.diffSide === 'RIGHT' || t.subjectType === 'FILE') : all;
+  }, [full, displayedRange, atHead]);
   const [hidden, setHidden] = useFileFilter(panel);
   const shown = useMemo(() => {
     if (!list || !hidden?.length) return list;
@@ -129,17 +94,13 @@ export function FilesTab({ pr, full, queryKey, range, panel = false }: { pr: PrH
   });
   // Stable, so file cards only re-render when their own props change.
   const setOpen = useCallback((path: string, open: boolean) => setOpenOverride((o) => ({ ...o, [path]: open })), []);
-  const cardRef = useCallback((path: string, el: HTMLElement | null) => {
-    if (el) cards.current.set(path, el);
-    else cards.current.delete(path);
-  }, []);
-  const source = useMemo(() => ({ nameWithOwner: `${owner}/${repo}`, oid: head }), [owner, repo, head]);
+  const { listRef, cardRef, active, currentFile, selectFile, pinFile } = useFileNavigation(shown, setOpen);
   // GitHub's editor commits to the head branch, so it is offered to people who can push there.
   const headRepo = pr.state === 'OPEN' && pr.viewerCanEditFiles ? pr.headRepository?.nameWithOwner : undefined;
   const editHref = useMemo(() => (headRepo ? (path: string) => editUrl(headRepo, pr.headRefName, path) : undefined), [headRepo, pr.headRefName]);
   const review = useMemo<FileReview>(
-    () => ({ pr: atHead ? full : undefined, newSideOnly: !!range, queryKey, onToggleViewed: toggleViewed, editHref }),
-    [atHead, full, range, queryKey, toggleViewed, editHref],
+    () => ({ pr: atHead ? full : undefined, range: displayedRange, queryKey, onToggleViewed: toggleViewed, editHref }),
+    [atHead, full, displayedRange, queryKey, toggleViewed, editHref],
   );
 
   const threadsByPath = useMemo(() => {
@@ -167,62 +128,20 @@ export function FilesTab({ pr, full, queryKey, range, panel = false }: { pr: PrH
     if (!ready) return;
     const scrollToHash = () => {
       const target = Object.keys(anchors).find((path) => `#${anchors[path]}` === location.hash);
-      const card = target && cards.current.get(target);
-      if (!card) return;
-      setOpenOverride((o) => ({ ...o, [target]: true }));
-      requestAnimationFrame(() => pinScroll(card));
+      if (target) selectFile(target);
     };
     scrollToHash();
     window.addEventListener('hashchange', scrollToHash);
     return () => window.removeEventListener('hashchange', scrollToHash);
-  }, [ready, anchors]);
+  }, [ready, anchors, selectFile]);
 
-  /** The file whose card is under the sticky headers. */
-  const fileInView = useCallback(() => {
-    let current: string | undefined;
-    for (const file of shown ?? []) {
-      const el = cards.current.get(file.filename);
-      if (!el || el.getBoundingClientRect().top > 150) break;
-      current = file.filename;
-    }
-    return current;
-  }, [shown]);
-
-  // Track the file under the sticky headers to highlight it in the tree.
-  useEffect(() => {
-    let frame = 0;
-    const onScroll = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => setActive(fileInView()));
-    };
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, [fileInView]);
-
-  /** Opens a file and scrolls to it, or to `inner(card)` once that exists. */
   const select = useCallback(
     (path: string, inner?: (card: HTMLElement) => Element | null) => {
-      jumped.current = path;
-      setOpenOverride((o) => ({ ...o, [path]: true }));
-      requestAnimationFrame(() => {
-        const card = cards.current.get(path);
-        if (card) pinScroll(card, inner);
-      });
+      selectFile(path, inner);
       if (anchors[path]) history.replaceState(history.state, '', `#${anchors[path]}`);
     },
-    [anchors],
+    [anchors, selectFile],
   );
-
-  /**
-   * The file the keys act on: the last one jumped to while it's still on screen (near the end of the page it
-   * can't reach the top), otherwise the one in view.
-   */
-  const currentFile = useCallback(() => {
-    const card = jumped.current ? cards.current.get(jumped.current) : undefined;
-    const top = card?.getBoundingClientRect().top ?? -1;
-    return top >= 0 && top < innerHeight ? jumped.current : fileInView();
-  }, [fileInView]);
 
   const step = useCallback(
     (delta: 1 | -1) => {
@@ -239,9 +158,8 @@ export function FilesTab({ pr, full, queryKey, range, panel = false }: { pr: PrH
     if (!path || !state) return;
     toggleViewed({ path, wasViewed: state === 'VIEWED' });
     // Hold the header in place as the file collapses, so the next one comes up right under it.
-    const card = cards.current.get(path);
-    if (card) requestAnimationFrame(() => pinScroll(card));
-  }, [currentFile, viewed.data, toggleViewed]);
+    pinFile(path);
+  }, [currentFile, viewed.data, toggleViewed, pinFile]);
 
   const hasOpenThreads = reviewThreads.some(isOpenLineThread);
 
@@ -279,7 +197,7 @@ export function FilesTab({ pr, full, queryKey, range, panel = false }: { pr: PrH
   useRegisterCommands('pr-files', commands);
 
   if (files.error) return <p className="text-[13px] text-danger">{files.error.message}</p>;
-  if (!list || !shown || !hidden) {
+  if (!changes || !list || !shown || !hidden) {
     return (
       <div className="grid gap-6 @3xl:grid-cols-[260px_minmax(0,1fr)]">
         <Skeleton className="hidden h-80 rounded-xl @3xl:block" />
@@ -288,8 +206,8 @@ export function FilesTab({ pr, full, queryKey, range, panel = false }: { pr: PrH
     );
   }
 
-  const fileCount = partial && !range ? Math.min(pr.changedFiles, MAX_FILES) : list.length;
-  const notListed = range ? 0 : pr.changedFiles - MAX_FILES;
+  const fileCount = partial && changes.total !== undefined ? Math.min(changes.total, changes.limit) : list.length;
+  const notListed = (changes.total ?? 0) - changes.limit;
   const viewedCount = list.filter((f) => isViewed(f.filename)).length;
   const deletedCount = list.filter((f) => f.status === 'removed').length;
   const filtered = shown.length < list.length;
@@ -310,7 +228,7 @@ export function FilesTab({ pr, full, queryKey, range, panel = false }: { pr: PrH
   };
 
   return (
-    <div className="grid gap-6 @3xl:grid-cols-[260px_minmax(0,1fr)]">
+    <div ref={listRef} className="grid gap-6 @3xl:grid-cols-[260px_minmax(0,1fr)]">
       <aside className="hidden @3xl:sticky @3xl:top-[108px] @3xl:flex @3xl:max-h-[calc(100vh-124px)] @3xl:self-start">
         <FileTree files={shown} viewState={(path) => viewed.data?.[path]} active={active} onSelect={select} />
       </aside>
@@ -327,7 +245,8 @@ export function FilesTab({ pr, full, queryKey, range, panel = false }: { pr: PrH
             </span>
             {viewedCount} / {fileCount} viewed
           </span>
-          {!panel && <CommitPicker pr={pr} range={range} />}
+          {!panel && <CommitPicker pr={pr} range={displayedRange} />}
+          {files.isPlaceholderData && <span role="status" className="text-[12px] text-muted">Loading changes…</span>}
           <div className="ml-auto flex items-center gap-2">
             {filtered && (
               <button type="button" onClick={() => setHidden([])} className="cursor-pointer text-muted hover:text-fg">
@@ -382,10 +301,10 @@ export function FilesTab({ pr, full, queryKey, range, panel = false }: { pr: PrH
           </div>
         </div>
 
-        {range && (
+        {displayedRange && (
           <p className="rounded-xl border border-line bg-panel px-4 py-3 text-[12.5px] text-muted">
             Only the changes of the commits you picked show here.{' '}
-            {list.length >= MAX_RANGE_FILES && `GitHub lists only the first ${MAX_RANGE_FILES} changed files of these commits. `}
+            {list.length >= changes.limit && `GitHub lists only the first ${changes.limit.toLocaleString()} changed files of these commits. `}
             {!atHead && 'To comment, pick commits up to the latest one. '}
             <button type="button" onClick={() => navigate(`${pr.url}/files${location.search}`)} className="cursor-pointer text-accent hover:underline">
               Show all changes
@@ -394,7 +313,7 @@ export function FilesTab({ pr, full, queryKey, range, panel = false }: { pr: PrH
         )}
         {notListed > 0 && (
           <p className="rounded-xl border border-line bg-panel px-4 py-3 text-[12.5px] text-muted">
-            GitHub lists only the first {MAX_FILES.toLocaleString()} changed files. {notListed.toLocaleString()} more files do not show here or on GitHub. To see all changes, check out
+            GitHub lists only the first {changes.limit.toLocaleString()} changed files. {notListed.toLocaleString()} more files do not show here or on GitHub. To see all changes, check out
             the branch.
           </p>
         )}
@@ -403,7 +322,7 @@ export function FilesTab({ pr, full, queryKey, range, panel = false }: { pr: PrH
           <FileDiff
             key={file.filename}
             file={file}
-            source={source}
+            source={changes.source}
             review={review}
             anchor={anchors[file.filename]}
             mode={mode}

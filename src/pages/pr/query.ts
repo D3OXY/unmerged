@@ -5,7 +5,8 @@ import { persisted } from '@/lib/persist';
 import type { PrTab } from '@/lib/routes';
 import type { Permission } from '@/pages/repo/query';
 import { summarizeChecks } from './checks';
-import { commitFilesQuery } from '@/pages/commit/query';
+import { commitFilesQuery, MAX_COMMIT_FILES } from '@/pages/commit/query';
+import type { DiffSource } from './files/DiffBody';
 import type { PrFile } from './files/FileDiff';
 import type { PickerCommit } from './files/range';
 
@@ -686,52 +687,56 @@ export const prStatusQuery = (owner: string, repo: string, number: number) =>
   });
 
 const FILES_PER_PAGE = 100;
-export const MAX_FILES = 3000; // GitHub lists no more than this, on its own pages too
+const MAX_FILES = 3000; // GitHub lists at most this many files for a pull request.
+const MAX_COMPARE_FILES = 300;
+
+type ChangedFiles = {
+  files: PrFile[];
+  source: DiffSource;
+  range?: string;
+  total?: number;
+  limit: number;
+};
 
 /**
- * Every changed file with its patch, at one head commit: a push changes the key, so the files never go stale
- * before then. All pages are requested at once (`changedFiles` says how many), and each goes into the cache
- * as soon as the pages before it are in, so the top of the list shows first. The query stays fetching until
- * the last page is in. Not persisted: patches are large.
+ * Files changed keeps showing the previous result while a new revision loads. Each result carries the
+ * revision that supplies its lines and the limit of the request that supplied its files.
  */
-export const prFilesQuery = (owner: string, repo: string, pr: Pick<PullRequest, 'number' | 'headRefOid' | 'changedFiles'>) =>
+export const prFilesQuery = (owner: string, repo: string, selection: Pick<PrHead, 'number' | 'headRefOid' | 'changedFiles'> | string) =>
   queryOptions({
-    queryKey: ['pr-files', ...prKey(owner, repo, pr.number), pr.headRefOid],
-    queryFn: async ({ client, queryKey }) => {
-      const pages = Math.max(1, Math.ceil(Math.min(pr.changedFiles, MAX_FILES) / FILES_PER_PAGE));
+    queryKey: typeof selection === 'string'
+      ? ['pr-range-files', owner.toLowerCase(), repo.toLowerCase(), selection.toLowerCase()]
+      : ['pr-files', ...prKey(owner, repo, selection.number), selection.headRefOid],
+    queryFn: async ({ client, queryKey }): Promise<ChangedFiles> => {
+      const nameWithOwner = `${owner}/${repo}`;
+      if (typeof selection === 'string') {
+        const [base, head] = selection.split('..') as [string, string | undefined];
+        if (!head) {
+          const files = await client.fetchQuery(commitFilesQuery(owner, repo, base));
+          return { files, source: { nameWithOwner, oid: base }, range: selection, limit: MAX_COMMIT_FILES };
+        }
+        // The comparison's files come with the first page. The commits themselves aren't needed.
+        const { files = [] } = await rest<{ files?: PrFile[] }>(`/repos/${owner}/${repo}/compare/${base}...${head}?per_page=1`);
+        return { files, source: { nameWithOwner, oid: head }, range: selection, limit: MAX_COMPARE_FILES };
+      }
+
+      const { number, headRefOid, changedFiles } = selection;
+      const pages = Math.max(1, Math.ceil(Math.min(changedFiles, MAX_FILES) / FILES_PER_PAGE));
       const requests = Array.from({ length: pages }, (_, i) =>
-        rest<PrFile[]>(`/repos/${owner}/${repo}/pulls/${pr.number}/files?per_page=${FILES_PER_PAGE}&page=${i + 1}`),
+        rest<PrFile[]>(`/repos/${owner}/${repo}/pulls/${number}/files?per_page=${FILES_PER_PAGE}&page=${i + 1}`),
       );
       // A failed page fails the query below; this only stops the pages after it from reporting as unhandled.
       for (const request of requests) request.catch(() => {});
-      let files: PrFile[] = [];
+      // Publish each page as soon as all earlier pages have arrived.
+      let result: ChangedFiles = { files: [], source: { nameWithOwner, oid: headRefOid }, total: changedFiles, limit: MAX_FILES };
       for (const request of requests) {
-        files = [...files, ...(await request)];
-        client.setQueryData(queryKey, files);
+        result = { ...result, files: [...result.files, ...(await request)] };
+        client.setQueryData(queryKey, result);
       }
-      return files;
+      return result;
     },
     staleTime: Infinity,
   });
-
-/**
- * The files changed in some of a pull request's commits (`PrRoute.range`): one commit's (shared with its commit
- * page), or the changes from one commit to another. GitHub's compare lists at most 300 files. Never changes.
- */
-export const prRangeFilesQuery = (owner: string, repo: string, range: string) =>
-  queryOptions({
-    queryKey: ['pr-range-files', owner.toLowerCase(), repo.toLowerCase(), range.toLowerCase()],
-    queryFn: async ({ client }) => {
-      const [base, head] = range.split('..') as [string, string | undefined];
-      if (!head) return client.fetchQuery(commitFilesQuery(owner, repo, base));
-      // One commit a page: the files come only with the first page, and the commits aren't needed.
-      return (await rest<{ files?: PrFile[] }>(`/repos/${owner}/${repo}/compare/${base}...${head}?per_page=1`)).files ?? [];
-    },
-    staleTime: Infinity,
-  });
-
-/** GitHub's compare lists no more changed files than this. */
-export const MAX_RANGE_FILES = 300;
 
 const COMMIT_PICKER_QUERY = /* GraphQL */ `
   query PrCommitPicker($owner: String!, $repo: String!, $number: Int!, $login: String!) {
@@ -827,7 +832,7 @@ export function prefetchPr(client: QueryClient, owner: string, repo: string, num
   client.prefetchQuery(prTimelineQuery(owner, repo, number));
   if (tab !== 'files') return;
   client.prefetchQuery(prViewedQuery(owner, repo, number));
-  if (range) return void client.prefetchQuery(prRangeFilesQuery(owner, repo, range));
+  if (range) return void client.prefetchQuery(prFilesQuery(owner, repo, range));
   // Patches are keyed by the head commit, which the first part brings.
   head.then(({ repository }) => repository?.pullRequest && client.prefetchQuery(prFilesQuery(owner, repo, repository.pullRequest))).catch(() => {});
 }

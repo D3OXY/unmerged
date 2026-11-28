@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
-import { storage, type StorageItemKey } from '#imports';
+import { browser, storage, type StorageItemKey } from '#imports';
 import { persisted, readPersisted, saveToken, skipStoredResults, trimPersisted, watchLocalEdits } from './persist';
 import { accountItem, tokenItem } from './settings';
 
@@ -122,6 +122,7 @@ describe('saveToken', () => {
   it("drops the previous account's results and comment drafts", async () => {
     await seed([['local:query:a:viewer', NOW, 1]]);
     await storage.setItem('local:draft:owner/repo#1', 'private text');
+    vi.spyOn(browser.storage.local, 'getKeys').mockImplementation(async () => Object.keys(await browser.storage.local.get(null)));
     await saveToken('ghp_next');
 
     expect(await tokenItem.getValue()).toBe('ghp_next');
