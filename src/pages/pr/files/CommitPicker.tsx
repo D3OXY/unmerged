@@ -8,7 +8,7 @@ import { navigate } from '@/lib/navigation';
 import { timeAgo } from '@/lib/time';
 import { Menu, type MenuOption } from '@/ui/Menu';
 import { prCommitPickerQuery, repoPath, type PrHead } from '../query';
-import { commitsIn, rangeFor } from './range';
+import { commitsIn, rangeFor, rangeHead } from './range';
 
 /**
  * Which commits Files changed shows: all of them, the changes since the viewer's last review (when that commit
@@ -37,7 +37,7 @@ export function CommitPicker({ pr, range }: { pr: PrHead; range?: string }) {
     ...commits.map((c) => ({ value: c.oid, label: c.messageHeadline, hint: `${c.abbreviatedOid} · ${timeAgo(c.committedDate)}` })),
   ];
   const value = [...(!range ? ['all'] : range === sinceReview ? ['review'] : []), ...selected.map((i) => commits[i]!.oid)];
-  const head = range?.split('..').at(-1)?.slice(0, 7);
+  const head = range && rangeHead(range).slice(0, 7);
   const label = !range
     ? 'All commits'
     : range === sinceReview

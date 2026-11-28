@@ -30,7 +30,7 @@ export const quoteReply = (prId: string, markdown: string) => quoted.set({ prId,
  * Submitting a review: the viewer's pending one (with its line comments) if there is one, else a new review.
  * The Conversation tab's composer and the Files changed tab's "Review" panel share it, and the summary draft.
  */
-export function useReview(pr: PrWithReview, queryKey: QueryKey) {
+export function useReview(pr: Pick<PrWithReview, 'id' | 'url' | 'viewerPendingReview'>, queryKey: QueryKey) {
   const [body, setBody, clearBody] = useDraft(pr.id);
   const review = usePrMutation(queryKey);
   const discard = usePrMutation(queryKey);
@@ -38,21 +38,15 @@ export function useReview(pr: PrWithReview, queryKey: QueryKey) {
   const pendingCount = pending?.comments.totalCount ?? 0;
   const text = body.trim();
   const send = (event: ReviewEvent, onSent?: () => void) =>
-    review.mutate(
-      {
-        // A pending review is submitted with the verdict; otherwise the verdict is a review of its own.
-        query: pending ? MUTATIONS.submitReview : MUTATIONS.addReview,
-        variables: { id: pending?.id ?? pr.id, event, body: text || undefined },
-        success: REVIEWED[event],
-        nextAfter: event === 'COMMENT' ? undefined : pr.url,
-      },
-      {
-        onSuccess: () => {
-          clearBody();
-          onSent?.();
-        },
-      },
-    );
+    review.mutateAsync({
+      query: pending ? MUTATIONS.submitReview : MUTATIONS.addReview,
+      variables: { id: pending?.id ?? pr.id, event, body: text || undefined },
+      success: REVIEWED[event],
+      nextAfter: event === 'COMMENT' ? undefined : pr.url,
+    }).then(async () => {
+      await clearBody();
+      onSent?.();
+    }, () => {}); // usePrMutation shows the error.
   const discardPending = () => {
     if (pending && confirm(`Discard your pending review and its ${pendingCount} comment${pendingCount === 1 ? '' : 's'}?`)) {
       discard.mutate({ query: MUTATIONS.discardReview, variables: { id: pending.id }, success: 'Pending review discarded' });
@@ -91,7 +85,7 @@ export function Composer({ pr, queryKey }: { pr: PrWithReview; queryKey: QueryKe
   const send = () => {
     if (!canSend) return;
     if (pending) sendReview('COMMENT');
-    else comment.mutate({ query: MUTATIONS.addComment, variables: { id: pr.id, body: text } }, { onSuccess: clearBody });
+    else comment.mutateAsync({ query: MUTATIONS.addComment, variables: { id: pr.id, body: text } }).then(clearBody, () => {});
   };
   // With text in the box, closing or reopening sends it first, as GitHub's "Close with comment" does.
   const toggle = async () => {

@@ -98,6 +98,7 @@ export function FileTree({ files, viewState, active, onSelect }: {
                 data-row
                 onClick={() => onSelect(node.path)}
                 title={node.path}
+                aria-current={node.path === active ? 'location' : undefined}
                 style={{ paddingLeft: 8 + depth * 12 }}
                 className={cx(
                   'flex h-7 w-full cursor-pointer items-center gap-2 rounded-md pr-2 text-left text-[12.5px] focus:outline-none',

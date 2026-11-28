@@ -1,6 +1,5 @@
 import { hashKey, type Query, type QueryCache, type QueryKey, type StaleTimeFunction } from '@tanstack/react-query';
-import { storage, type StorageItemKey } from '#imports';
-import { clearDrafts } from './drafts';
+import { browser, storage, type StorageItemKey } from '#imports';
 import { accountItem, tokenItem } from './settings';
 
 /** Stored results older than this aren't shown, and the next trim drops them. */
@@ -103,13 +102,21 @@ export function trimPersisted() {
  * comment drafts.
  */
 export async function saveToken(token: string) {
+  // Older versions saved Drafts without an Account. Remove those before another Account can read them.
+  await browser.storage.local.remove((await storageKeys()).filter((key) => key.startsWith('draft:')));
   await storage.setItems([
     { item: tokenItem, value: token },
     { item: accountItem, value: crypto.randomUUID().slice(0, 8) },
   ]);
   await trimPersisted();
-  // After the trim, so listing the keys doesn't load the old account's results.
-  await clearDrafts();
+  const keys = await storageKeys();
+  const keep = `account-draft:${await accountItem.getValue()}:`;
+  await browser.storage.local.remove(keys.filter((key) => key.startsWith('account-draft:') && !key.startsWith(keep)));
+}
+
+async function storageKeys() {
+  const local = browser.storage.local;
+  return local.getKeys ? local.getKeys() : Object.keys(await local.get(null));
 }
 
 /**

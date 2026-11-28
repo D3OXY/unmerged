@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { TextWrapIcon } from '@hugeicons/core-free-icons';
 import { cx } from '@/lib/cx';
 import type { DiffSource } from '@/pages/pr/files/DiffBody';
-import { FileDiff, type DiffMode, type PrFile } from '@/pages/pr/files/FileDiff';
-import { BIG_FILE, MODE_KEY, pinScroll, WRAP_KEY } from '@/pages/pr/files/FilesTab';
+import { BIG_FILE, FileDiff, MODE_KEY, WRAP_KEY, type DiffMode, type PrFile } from '@/pages/pr/files/FileDiff';
 import { FileTree } from '@/pages/pr/files/FileTree';
+import { useFileNavigation } from '@/pages/pr/files/useFileNavigation';
 import { Empty, Panel, Skeleton } from '@/ui/primitives';
 
 const notViewed = () => undefined;
@@ -18,35 +18,8 @@ export function CommitFiles({ files: list, error, source }: { files: PrFile[] | 
   const [mode, setMode] = useState<DiffMode>(() => (localStorage.getItem(MODE_KEY) === 'split' ? 'split' : 'unified'));
   const [wrap, setWrap] = useState(() => localStorage.getItem(WRAP_KEY) !== 'false');
   const [openOverride, setOpenOverride] = useState<Record<string, boolean>>({});
-  const [active, setActive] = useState<string>();
-  const cards = useRef(new Map<string, HTMLElement>());
-  // Stable, so file cards only re-render when their own props change.
   const setOpen = useCallback((path: string, open: boolean) => setOpenOverride((o) => ({ ...o, [path]: open })), []);
-  const cardRef = useCallback((path: string, el: HTMLElement | null) => {
-    if (el) cards.current.set(path, el);
-    else cards.current.delete(path);
-  }, []);
-
-  // Track the file under the sticky headers to highlight it in the tree.
-  useEffect(() => {
-    if (!list) return;
-    let frame = 0;
-    const onScroll = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        let current: string | undefined;
-        for (const file of list) {
-          const el = cards.current.get(file.filename);
-          if (!el || el.getBoundingClientRect().top > 150) break;
-          current = file.filename;
-        }
-        setActive(current);
-      });
-    };
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, [list]);
+  const { listRef, cardRef, active, selectFile } = useFileNavigation(list, setOpen);
 
   if (error) return <p className="text-[13px] text-danger">{error.message}</p>;
   if (!list) {
@@ -67,13 +40,6 @@ export function CommitFiles({ files: list, error, source }: { files: PrFile[] | 
   }
 
   const isOpen = (file: PrFile) => openOverride[file.filename] ?? file.changes <= BIG_FILE;
-  const select = (path: string) => {
-    setOpenOverride((o) => ({ ...o, [path]: true }));
-    requestAnimationFrame(() => {
-      const card = cards.current.get(path);
-      if (card) pinScroll(card);
-    });
-  };
   const setAllOpen = (open: boolean) => setOpenOverride(Object.fromEntries(list.map((f) => [f.filename, open])));
   const changeMode = (next: DiffMode) => {
     setMode(next);
@@ -85,9 +51,9 @@ export function CommitFiles({ files: list, error, source }: { files: PrFile[] | 
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+    <div ref={listRef} className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
       <aside className="hidden lg:sticky lg:top-[108px] lg:flex lg:max-h-[calc(100vh-124px)] lg:self-start">
-        <FileTree files={list} viewState={notViewed} active={active} onSelect={select} />
+        <FileTree files={list} viewState={notViewed} active={active} onSelect={selectFile} />
       </aside>
 
       <div className="flex min-w-0 flex-col gap-3">

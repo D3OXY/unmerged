@@ -44,16 +44,19 @@ export const commitQuery = (owner: string, repo: string, sha: string, pr?: numbe
     persister: persisted,
   });
 
+/** GitHub caps a commit's changed files at 30 pages of 100. */
+export const MAX_COMMIT_FILES = 3000;
+
 /**
- * Every changed file with its patch. GitHub pages a commit's files like a pull request's (100 per page, at
- * most 3000), repeating the rest of the commit on each page. A commit never changes, so neither does this.
+ * All listed files and their patches. GitHub repeats the rest of the commit on each page. A commit never
+ * changes, so its files stay fresh.
  */
 export const commitFilesQuery = (owner: string, repo: string, sha: string) =>
   queryOptions({
     queryKey: ['commit-files', ...key(owner, repo, sha)],
     queryFn: async () => {
       const files: PrFile[] = [];
-      for (let page = 1; page <= 30; page++) {
+      for (let page = 1; files.length < MAX_COMMIT_FILES; page++) {
         const { files: batch = [] } = await rest<{ files?: PrFile[] }>(`/repos/${owner}/${repo}/commits/${sha}?per_page=100&page=${page}`);
         files.push(...batch);
         if (batch.length < 100) break;

@@ -20,7 +20,7 @@ describe('prFilesQuery', () => {
     const files = await new QueryClient().fetchQuery(prFilesQuery('o', 'r', { number: 7, headRefOid: 'abc', changedFiles }));
     const urls = Array.from({ length: pages }, (_, i) => pageUrl(i + 1));
     expect(vi.mocked(rest)).toHaveBeenCalledTimes(pages);
-    expect(files).toEqual(urls);
+    expect(files).toMatchObject({ files: urls, source: { nameWithOwner: 'o/r', oid: 'abc' }, total: changedFiles, limit: 3000 });
   });
 
   it('shows each page once the pages before it are in, while the rest still load', async () => {
@@ -44,11 +44,11 @@ describe('prFilesQuery', () => {
     answers.get(pageUrl(3))!([pageUrl(3)]);
     const first = nextWrite();
     answers.get(pageUrl(1))!([pageUrl(1)]);
-    expect(await first).toEqual([pageUrl(1)]); // page 3 waits for page 2
+    expect(await first).toMatchObject({ files: [pageUrl(1)], source: { oid: 'abc' } }); // page 3 waits for page 2
     expect(client.getQueryState(query.queryKey)?.fetchStatus).toBe('fetching');
 
     answers.get(pageUrl(2))!([pageUrl(2)]);
-    expect(await done).toEqual([pageUrl(1), pageUrl(2), pageUrl(3)]);
+    expect(await done).toMatchObject({ files: [pageUrl(1), pageUrl(2), pageUrl(3)], source: { oid: 'abc' } });
     expect(client.getQueryState(query.queryKey)?.fetchStatus).toBe('idle');
   });
 });
