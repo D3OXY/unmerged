@@ -1,5 +1,15 @@
 # unmerged
 
+## 0.1.7 (2026-11-28)
+
+### Patch Changes
+
+- [New][Actions] A workflow run shows its jobs as a graph, from top to bottom, with lines from each job to the jobs that wait for it. A matrix or a call to another workflow shows its jobs together in one card. A run whose jobs do not wait for each other still shows the list.
+- [Fixed][Speed] A force reload (Ctrl+Shift+R, or Cmd+Shift+R on Mac) loads the page with new data from GitHub. Before, it could show the data that Unmerged had kept from an earlier load.
+- [Fixed][Pull requests] Line comments and expanded lines now use the revision shown in Files changed. A single commit with more than 300 files shows the correct file limit.
+- [Fixed][Pull requests] Switching between Conversation and Files changed keeps the review summary you just typed.
+- [Fixed][Pull requests] Scrolling Files changed in the Side panel now highlights the file you are reading in the file tree.
+
 ## 0.1.6 (2026-11-14)
 
 ### Patch Changes
